@@ -16,15 +16,17 @@
     }
   },
   "scripts": {
-    "build": "vite build && tsc --emitDeclarationOnly",
+    "build": "vite build && tsc -p tsconfig.build.json",
     "lint": "eslint src test --ext .ts",
     "test": "vitest run"
   },
   "dependencies": {
     "@rpgstudio/core": "workspace:*",
-    "ws": "^8.18.0"
+    "ws": "^8.18.0",
+    "zod": "^3.23.8"
   },
   "devDependencies": {
+    "@rpgstudio/editor": "workspace:*",
     "@types/ws": "^8.5.12",
     "typescript": "~5.5.4",
     "vite": "^5.4.2",

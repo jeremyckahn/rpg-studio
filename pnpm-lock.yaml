@@ -38,7 +38,13 @@ importers:
       ws:
         specifier: ^8.18.0
         version: 8.22.0
+      zod:
+        specifier: ^3.23.8
+        version: 3.25.76
     devDependencies:
+      '@rpgstudio/editor':
+        specifier: workspace:*
+        version: link:../editor
       '@types/ws':
         specifier: ^8.5.12
         version: 8.18.2

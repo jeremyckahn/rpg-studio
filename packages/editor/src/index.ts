@@ -10,3 +10,4 @@ export * from './canvas/index.js';
 export * from './piskel/index.js';
 export * from './export/index.js';
 export * from './pwa/index.js';
+export * from './bridge/index.js';

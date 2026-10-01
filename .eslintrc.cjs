@@ -54,11 +54,13 @@ module.exports = {
       },
     },
     {
-      // Canvas rendering, binary packaging (fflate), and dynamic store slice injection
+      // Canvas rendering, binary packaging (fflate), dynamic store slice injection, and WebSocket bridges
       files: [
         '**/packages/editor/src/canvas/**',
         '**/packages/editor/src/export/**',
         '**/packages/editor/src/store/index.ts',
+        '**/packages/editor/src/bridge/**',
+        '**/packages/companion-bridge/src/**',
       ],
       rules: {
         'functional/immutable-data': 'off',

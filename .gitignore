@@ -4,6 +4,7 @@ node_modules/
 
 # Build artifacts and distributions
 dist/
+dist-*/
 build/
 out/
 .turbo/

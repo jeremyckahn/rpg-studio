@@ -16,6 +16,8 @@
     }
   },
   "scripts": {
+    "dev": "node ./dist/cli.js",
+    "start": "node ./dist/cli.js",
     "build": "vite build && tsc -p tsconfig.build.json",
     "lint": "eslint src test --ext .ts",
     "test": "vitest run"

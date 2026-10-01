@@ -4,7 +4,13 @@
   "private": true,
   "type": "module",
   "scripts": {
+    "dev": "pnpm --filter @rpgstudio/editor dev",
+    "dev:editor": "pnpm --filter @rpgstudio/editor dev",
+    "dev:companion": "pnpm --filter @rpgstudio/companion-bridge dev",
+    "start": "pnpm run dev",
     "build": "pnpm -r run build",
+    "build:app": "pnpm --filter @rpgstudio/editor build:app",
+    "preview": "pnpm --filter @rpgstudio/editor preview",
     "lint": "eslint . --ext .ts,.tsx",
     "test": "vitest run"
   },

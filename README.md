@@ -26,14 +26,27 @@ RPG Studio is an open-source, web-native, PWA-first alternative to RPG Maker, en
 # Install dependencies
 pnpm install
 
-# Run static analysis and linting
+# Start the local development server (RPG Studio Editor web app)
+pnpm dev
+
+# Or start specific subsystems:
+pnpm dev:editor      # Editor workspace with HMR (http://localhost:5173)
+pnpm dev:companion   # AI Companion WebSocket bridge (ws://localhost:8080)
+
+# Build all packages and libraries
+pnpm build
+
+# Build standalone web application distribution
+pnpm build:app
+
+# Locally preview the built web application
+pnpm preview
+
+# Run static analysis and linting (strict immutability rules)
 pnpm lint
 
-# Run unit and integration tests across all packages
+# Run unit and integration tests across all workspaces
 pnpm test
-
-# Build all packages
-pnpm build
 ```
 
 ## License

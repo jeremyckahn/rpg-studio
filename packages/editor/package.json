@@ -15,6 +15,8 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build && tsc -p tsconfig.build.json",
+    "build:app": "vite build --config vite.app.config.ts",
+    "preview": "vite preview",
     "lint": "eslint src test --ext .ts,.tsx",
     "test": "vitest run"
   },

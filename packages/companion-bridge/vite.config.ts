@@ -4,10 +4,13 @@ import { defineConfig } from 'vite';
 export default defineConfig({
   build: {
     lib: {
-      entry: resolve(__dirname, 'src/index.ts'),
+      entry: {
+        index: resolve(__dirname, 'src/index.ts'),
+        cli: resolve(__dirname, 'src/cli.ts'),
+      },
       name: 'RPGStudioCompanionBridge',
       formats: ['es'],
-      fileName: 'index',
+      fileName: (format, entryName) => `${entryName}.js`,
     },
     rollupOptions: {
       external: ['ws', '@rpgstudio/core'],

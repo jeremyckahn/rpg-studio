@@ -53,6 +53,17 @@ module.exports = {
         'functional/immutable-data': 'off',
       },
     },
+    {
+      // Canvas rendering, binary packaging (fflate), and dynamic store slice injection
+      files: [
+        '**/packages/editor/src/canvas/**',
+        '**/packages/editor/src/export/**',
+        '**/packages/editor/src/store/index.ts',
+      ],
+      rules: {
+        'functional/immutable-data': 'off',
+      },
+    },
   ],
   ignorePatterns: [
     'dist',

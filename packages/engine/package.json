@@ -1,0 +1,32 @@
+{
+  "name": "@rpgstudio/engine",
+  "version": "0.1.0",
+  "description": "Engine runtime: PixiJS renderer, miniplex ECS, audio, and headless simulator",
+  "type": "module",
+  "main": "./dist/index.js",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    }
+  },
+  "scripts": {
+    "build": "vite build && tsc --emitDeclarationOnly",
+    "lint": "eslint src test --ext .ts",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@pixi/sound": "^5.2.3",
+    "@pixi/tilemap": "^3.2.2",
+    "@rpgstudio/core": "workspace:*",
+    "miniplex": "^2.0.0",
+    "pixi.js": "^7.4.2"
+  },
+  "devDependencies": {
+    "typescript": "~5.5.4",
+    "vite": "^5.4.2",
+    "vitest": "^2.0.5"
+  }
+}

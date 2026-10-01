@@ -1,0 +1,43 @@
+{
+  "name": "@rpgstudio/editor",
+  "version": "0.1.0",
+  "description": "Editor workspace: React/MUI shell, Redux store, Map canvas, Piskel bridge, and exporter",
+  "type": "module",
+  "main": "./dist/index.js",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    }
+  },
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build && tsc --emitDeclarationOnly",
+    "lint": "eslint src test --ext .ts,.tsx",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@emotion/react": "^11.13.0",
+    "@emotion/styled": "^11.13.0",
+    "@mui/icons-material": "^5.16.7",
+    "@mui/material": "^5.16.7",
+    "@reduxjs/toolkit": "^2.2.7",
+    "@rpgstudio/core": "workspace:*",
+    "@rpgstudio/engine": "workspace:*",
+    "fflate": "^0.8.2",
+    "pixi.js": "^7.4.2",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "react-redux": "^9.1.2"
+  },
+  "devDependencies": {
+    "@types/react": "^18.3.4",
+    "@types/react-dom": "^18.3.0",
+    "@vitejs/plugin-react": "^4.3.1",
+    "typescript": "~5.5.4",
+    "vite": "^5.4.2",
+    "vitest": "^2.0.5"
+  }
+}

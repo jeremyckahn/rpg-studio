@@ -1,0 +1,29 @@
+{
+  "name": "@rpgstudio/core",
+  "version": "0.1.0",
+  "description": "Shared core foundation: Zod schemas, plugin manager, event bus, and math",
+  "type": "module",
+  "main": "./dist/index.js",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    }
+  },
+  "scripts": {
+    "build": "vite build && tsc --emitDeclarationOnly",
+    "lint": "eslint src test --ext .ts",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "zod": "^3.23.8"
+  },
+  "devDependencies": {
+    "typescript": "~5.5.4",
+    "vite": "^5.4.2",
+    "vite-plugin-dts": "^4.0.3",
+    "vitest": "^2.0.5"
+  }
+}

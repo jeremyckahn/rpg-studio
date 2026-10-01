@@ -1,0 +1,33 @@
+{
+  "name": "@rpgstudio/companion-bridge",
+  "version": "0.1.0",
+  "description": "Companion runner and bridge for AI agent automation",
+  "type": "module",
+  "main": "./dist/index.js",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "bin": {
+    "rpgstudio-companion": "./dist/cli.js"
+  },
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    }
+  },
+  "scripts": {
+    "build": "vite build && tsc --emitDeclarationOnly",
+    "lint": "eslint src test --ext .ts",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@rpgstudio/core": "workspace:*",
+    "ws": "^8.18.0"
+  },
+  "devDependencies": {
+    "@types/ws": "^8.5.12",
+    "typescript": "~5.5.4",
+    "vite": "^5.4.2",
+    "vitest": "^2.0.5"
+  }
+}

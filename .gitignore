@@ -1,0 +1,48 @@
+# Dependencies
+node_modules/
+.pnpm-store/
+
+# Build artifacts and distributions
+dist/
+build/
+out/
+.turbo/
+.cache/
+.vite/
+*.tsbuildinfo
+
+# Coverage and test output
+coverage/
+*.lcov
+.nyc_output/
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Environment files
+.env
+.env.*
+!.env.example
+.npmrc
+
+# OS Files
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# IDE and Editor files
+.idea/
+.vscode/
+*.sublime-project
+*.sublime-workspace
+*.swp
+*.swo
+
+# Temporary files
+/tmp/
+*.tmp

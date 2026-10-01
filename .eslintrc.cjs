@@ -47,8 +47,8 @@ module.exports = {
       },
     },
     {
-      // ECS systems update component references during runtime game ticks with zero validation overhead per rule 5
-      files: ['**/packages/engine/src/ecs/systems/**'],
+      // ECS systems and engine runtime manage PixiJS/Audio/ECS state per rules 5 and 6
+      files: ['**/packages/engine/src/**'],
       rules: {
         'functional/immutable-data': 'off',
       },

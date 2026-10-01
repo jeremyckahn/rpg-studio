@@ -13,7 +13,7 @@
     }
   },
   "scripts": {
-    "build": "vite build && tsc --emitDeclarationOnly",
+    "build": "vite build && tsc -p tsconfig.build.json",
     "lint": "eslint src test --ext .ts",
     "test": "vitest run"
   },

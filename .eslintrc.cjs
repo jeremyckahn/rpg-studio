@@ -25,6 +25,7 @@ module.exports = {
       ignoreImmediateMutation: true
     }],
     'functional/no-let': 'error',
+    'functional/no-throw-statements': 'off',
     'functional/no-loop-statements': 'off',
     'functional/no-conditional-statements': 'off',
     'functional/functional-parameters': 'off',

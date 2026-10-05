@@ -14,12 +14,20 @@ import {
 } from '@mui/material'
 import { useRef, useState } from 'react'
 
+import { CompanionDialog } from './CompanionDialog.tsx'
+
 import { supportsDirectoryPicker } from '../project/fileSystem.ts'
 import { redo, selectCanRedo, selectCanUndo, selectIsDirty, undo } from '../store/index.ts'
 import { editorUiSlice } from '../store/slices/editorUi.ts'
 import { useAppDispatch, useAppSelector, useServices } from './services.tsx'
 
 type MenuName = 'file' | 'edit' | 'view'
+
+const COMPANION_LABEL = {
+  disconnected: 'Companion: off',
+  connecting: 'Companion: connecting…',
+  connected: 'Companion: connected',
+} as const
 
 /** The top bar: File, Edit and View menus, undo and redo, and the project's name. */
 export const MenuBar = () => {
@@ -28,6 +36,8 @@ export const MenuBar = () => {
   const [open, setOpen] = useState<{ name: MenuName; anchor: HTMLElement } | null>(null)
   const importInput = useRef<HTMLInputElement>(null)
   const [importKey, setImportKey] = useState(0)
+  const [companionOpen, setCompanionOpen] = useState(false)
+  const companionStatus = useAppSelector((state) => state.editorUi.companion.status)
 
   const name = useAppSelector((state) => state.project.data.meta.name)
   const dirty = useAppSelector(selectIsDirty)
@@ -95,7 +105,17 @@ export const MenuBar = () => {
             </IconButton>
           </span>
         </Tooltip>
-        <Typography variant="body2" sx={{ ml: 'auto' }} aria-label="Project name">
+        <Button
+          size="small"
+          color={companionStatus === 'connected' ? 'success' : 'inherit'}
+          sx={{ ml: 'auto', textTransform: 'none' }}
+          onClick={() => {
+            setCompanionOpen(true)
+          }}
+        >
+          {COMPANION_LABEL[companionStatus]}
+        </Button>
+        <Typography variant="body2" sx={{ ml: 2 }} aria-label="Project name">
           {name}
           {dirty ? ' •' : ''}
           {folderName ? ` — ${folderName}` : ''}
@@ -168,6 +188,13 @@ export const MenuBar = () => {
           <ListItemText>Zoom out</ListItemText>
         </MenuItem>
       </Menu>
+
+      <CompanionDialog
+        open={companionOpen}
+        onClose={() => {
+          setCompanionOpen(false)
+        }}
+      />
 
       <input
         key={importKey}

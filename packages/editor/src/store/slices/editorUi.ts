@@ -11,6 +11,8 @@ export interface StatusMessage {
   readonly text: string
 }
 
+export type CompanionConnectionStatus = 'disconnected' | 'connecting' | 'connected'
+
 export interface EditorUiState {
   /** Id of the workspace panel in front. */
   readonly workspacePanel: string
@@ -31,6 +33,11 @@ export interface EditorUiState {
   /** Name of the folder on disk the project was opened from, if any. */
   readonly folderName: string | null
   readonly status: StatusMessage | null
+  readonly companion: {
+    readonly status: CompanionConnectionStatus
+    /** Why the connection ended or is being retried; empty when all is well. */
+    readonly error: string
+  }
 }
 
 const initialState: EditorUiState = {
@@ -48,6 +55,7 @@ const initialState: EditorUiState = {
   savedRevision: 0,
   folderName: null,
   status: null,
+  companion: { status: 'disconnected', error: '' },
 }
 
 const clampZoom = (index: number): number => Math.min(ZOOM_LEVELS.length - 1, Math.max(0, index))
@@ -129,6 +137,10 @@ export const editorUiSlice = createSlice({
       ...state,
       status: action.payload,
     }),
+    companionStatusChanged: (
+      state,
+      action: PayloadAction<{ status: CompanionConnectionStatus; error: string }>,
+    ): EditorUiState => ({ ...state, companion: action.payload }),
     statusDismissed: (state): EditorUiState => ({ ...state, status: null }),
   },
 })

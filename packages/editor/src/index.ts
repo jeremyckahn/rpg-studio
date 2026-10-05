@@ -2,6 +2,7 @@
  * Public API of the editor, for plugin authors and tools that embed it. The UI
  * lives in `main.tsx`; everything here is free of React.
  */
+export * from './bridge/index.ts'
 export * from './export/index.ts'
 export * from './piskel/bridge.ts'
 export * from './piskel/protocol.ts'

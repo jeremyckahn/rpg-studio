@@ -7,6 +7,8 @@ import { vi } from 'vitest'
 
 import { type EditorServices, ServicesProvider } from '../src/components/services.tsx'
 import { type PanelDefinition, createPanelRegistry } from '../src/plugins/panelRegistry.ts'
+import { createCompanionClient } from '../src/bridge/companionClient.ts'
+import { createCompanionHandler } from '../src/bridge/handler.ts'
 import { createAssetStore } from '../src/project/assetStore.ts'
 import { createProjectSession } from '../src/project/session.ts'
 import { createEditorStore } from '../src/store/index.ts'
@@ -25,7 +27,13 @@ export const createHarness = (panels: readonly PanelDefinition[] = []) => {
   const registry = createPanelRegistry()
   panels.forEach((panel) => registry.register(panel))
   const session = createProjectSession({ handle, assets, download: vi.fn(), baseUrl: '/' })
-  const services: EditorServices = { session, panels: registry, textures }
+  const companion = createCompanionClient({
+    handler: createCompanionHandler({ handle, assets }),
+    createSocket: () => {
+      throw new Error('no network in tests')
+    },
+  })
+  const services: EditorServices = { session, panels: registry, textures, companion }
   return { handle, assets, session, services, registry }
 }
 

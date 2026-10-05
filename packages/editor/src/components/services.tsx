@@ -2,6 +2,7 @@ import { type TextureProvider } from '@rpgstudio/engine/renderer'
 import { type ReactNode, createContext, use } from 'react'
 import { type TypedUseSelectorHook, useDispatch, useSelector } from 'react-redux'
 
+import { type CompanionClient } from '../bridge/companionClient.ts'
 import { type PanelRegistry } from '../plugins/panelRegistry.ts'
 import { type ProjectSession } from '../project/session.ts'
 import { type AppDispatch, type RootState } from '../store/index.ts'
@@ -11,6 +12,7 @@ export interface EditorServices {
   readonly session: ProjectSession
   readonly panels: PanelRegistry
   readonly textures: TextureProvider
+  readonly companion: CompanionClient
 }
 
 const ServicesContext = createContext<EditorServices | null>(null)

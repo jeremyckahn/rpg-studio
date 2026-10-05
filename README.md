@@ -39,6 +39,14 @@ pnpm install
 pnpm dev          # builds the engine player, then starts the editor dev server
 ```
 
+## AI agents
+
+An agent can drive the editor over a local WebSocket: read maps and the
+database, fetch JSON Schemas, place tiles, create records and generate pixel
+art, with every action validated and each request undoable in one step. See
+[`@rpgstudio/companion-bridge`](packages/companion-bridge) for the protocol and
+its security model, and `pnpm dev:companion` to try it.
+
 ## Scripts
 
 | Command          | What it does                                                  |

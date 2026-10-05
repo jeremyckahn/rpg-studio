@@ -22,6 +22,7 @@ import {
   DEFAULT_PLAYER_SPEED,
   type GameEventMap,
   type GameInput,
+  type GameSystem,
   type GameState,
   NO_INPUT,
   type Runtime,
@@ -65,6 +66,11 @@ export interface Game {
   readonly bus: Runtime['bus']
   /** Read-only view of the simulation for renderers and tools. */
   readonly state: Readonly<GameState>
+  /**
+   * Registers a system that runs every tick after the built-in ones. Returns a
+   * function that removes it.
+   */
+  addSystem: (system: GameSystem) => () => void
   /** Advances the simulation by exactly one tick. */
   tick: (input?: GameInput) => void
   /** False while an event is running; saving then would drop the event. */
@@ -182,11 +188,21 @@ export const createGame = (options: GameOptions): Game => {
   const runtime: Runtime = { project, world, state, bus, audio, transferPlayer: loadMap }
   loadMap(startMap.id, project.meta.startX, project.meta.startY, project.meta.startDirection)
 
+  let systems: readonly GameSystem[] = []
+
+  const addSystem = (system: GameSystem): (() => void) => {
+    systems = [...systems, system]
+    return () => {
+      systems = systems.filter((candidate) => candidate !== system)
+    }
+  }
+
   const tick = (input: GameInput = NO_INPUT): void => {
     // Input: held directions steer the player unless an event has taken control.
     if (player.movement && !state.foreground) player.movement.intent = input.direction
     movementSystem(runtime, input)
     eventSystem(runtime, input)
+    for (const system of systems) system({ world, state, bus }, input)
     state.tick += 1
   }
 
@@ -275,5 +291,5 @@ export const createGame = (options: GameOptions): Game => {
     eventRunning: state.foreground !== null,
   })
 
-  return { project, world, bus, state, tick, canSave, serialize, restore, snapshot }
+  return { project, world, bus, state, addSystem, tick, canSave, serialize, restore, snapshot }
 }

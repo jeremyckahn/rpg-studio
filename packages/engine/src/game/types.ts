@@ -97,6 +97,15 @@ export interface GameState {
   player: Entity
 }
 
+/** A custom per-tick system, as registered by plugins. Runs after the built-in systems. */
+export type GameSystem = (game: GameSystemContext, input: GameInput) => void
+
+export interface GameSystemContext {
+  readonly world: World<Entity>
+  readonly state: Readonly<GameState>
+  readonly bus: EventBus<GameEventMap>
+}
+
 export interface Runtime {
   readonly project: Project
   readonly world: World<Entity>

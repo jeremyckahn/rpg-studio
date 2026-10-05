@@ -44,6 +44,18 @@ export default tseslint.config(
     rules: { 'functional/immutable-data': 'off' },
   },
   {
+    // PixiJS is a retained-mode scene graph: display objects are mutated in
+    // place by design (`sprite.x = ...`, `container.addChild`), and `@pixi/sound`
+    // is a mutable singleton. That mutation is confined to these adapter
+    // modules; game state is only ever read from here.
+    files: [
+      'packages/engine/src/renderer/**/*.ts',
+      'packages/engine/src/player/**/*.ts',
+      'packages/engine/src/audio/pixiSoundBackend.ts',
+    ],
+    rules: { 'functional/immutable-data': 'off' },
+  },
+  {
     // Config and build scripts are plain JS/TS outside any package tsconfig.
     files: ['**/*.js', '**/*.cjs', '**/*.mjs'],
     extends: [tseslint.configs.disableTypeChecked],

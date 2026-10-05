@@ -1,4 +1,9 @@
-import { type PayloadAction, createSlice } from '@reduxjs/toolkit'
+import {
+  type ActionCreatorWithPayload,
+  type ActionCreatorWithoutPayload,
+  type PayloadAction,
+  createSlice,
+} from '@reduxjs/toolkit'
 
 import { type ProjectState } from './project.ts'
 
@@ -14,7 +19,7 @@ export interface HistoryState {
 
 const initialState: HistoryState = { past: [], future: [], lastGroup: null }
 
-export const historySlice = createSlice({
+const historySlice = createSlice({
   name: 'history',
   initialState,
   reducers: {
@@ -47,3 +52,17 @@ export const historySlice = createSlice({
     cleared: (): HistoryState => initialState,
   },
 })
+
+/** Typed explicitly so the emitted declarations do not expose Immer's internal draft types. */
+export interface HistoryActionCreators {
+  readonly recorded: ActionCreatorWithPayload<
+    { before: ProjectState; group: string | null },
+    'history/recorded'
+  >
+  readonly undone: ActionCreatorWithPayload<{ current: ProjectState }, 'history/undone'>
+  readonly redone: ActionCreatorWithPayload<{ current: ProjectState }, 'history/redone'>
+  readonly cleared: ActionCreatorWithoutPayload<'history/cleared'>
+}
+
+export const historyActions: HistoryActionCreators = historySlice.actions
+export const historyReducer = historySlice.reducer

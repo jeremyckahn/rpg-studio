@@ -5,8 +5,8 @@ import { type UnknownAction, type Reducer } from '@reduxjs/toolkit'
 import { historyMiddleware } from './history.ts'
 import { assetsSlice } from './slices/assets.ts'
 import { editorUiSlice } from './slices/editorUi.ts'
-import { historySlice } from './slices/history.ts'
-import { projectSlice } from './slices/project.ts'
+import { historyReducer } from './slices/history.ts'
+import { projectReducer } from './slices/project.ts'
 
 /** Slice keys the core owns; plugins may not replace them. */
 export const CORE_SLICE_KEYS = ['project', 'history', 'editorUi', 'assets'] as const
@@ -18,8 +18,7 @@ export interface LazyLoadedSlices {
 
 const buildRootReducer = () =>
   combineSlices(
-    projectSlice,
-    historySlice,
+    { project: projectReducer, history: historyReducer },
     editorUiSlice,
     assetsSlice,
   ).withLazyLoadedSlices<LazyLoadedSlices>()
@@ -77,8 +76,8 @@ export type EditorStoreHandle = ReturnType<typeof createEditorStore>
 
 export { assetsSlice } from './slices/assets.ts'
 export { editorUiSlice } from './slices/editorUi.ts'
-export { historySlice } from './slices/history.ts'
-export { projectActions, projectSlice } from './slices/project.ts'
+export { historyActions } from './slices/history.ts'
+export { projectActions, projectReducer } from './slices/project.ts'
 export { redo, undo } from './history.ts'
 export { applyProjectAction } from './projectOps.ts'
 export * from './selectors.ts'

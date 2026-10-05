@@ -1,7 +1,7 @@
 import { type Middleware, createAction, isAnyOf } from '@reduxjs/toolkit'
 import { ProjectActionSchema } from '@rpgstudio/core'
 
-import { historySlice } from './slices/history.ts'
+import { type HistoryState, historyActions } from './slices/history.ts'
 import { type ProjectState, projectActions } from './slices/project.ts'
 
 export const undo = createAction('history/undo')
@@ -10,7 +10,7 @@ export const redo = createAction('history/redo')
 /** The state the history middleware needs; satisfied by the editor's root state. */
 export interface HistoryHostState {
   readonly project: ProjectState
-  readonly history: ReturnType<typeof historySlice.reducer>
+  readonly history: HistoryState
 }
 
 const UNDOABLE: ReadonlySet<string> = new Set(
@@ -39,7 +39,7 @@ export const historyMiddleware: Middleware<object, HistoryHostState> = (() => {
       if (!previous) return action
       const current = api.getState().project
       api.dispatch(projectActions.projectRestored(previous))
-      api.dispatch(historySlice.actions.undone({ current }))
+      api.dispatch(historyActions.undone({ current }))
       return action
     }
     if (redo.match(action)) {
@@ -47,12 +47,12 @@ export const historyMiddleware: Middleware<object, HistoryHostState> = (() => {
       if (!next_) return action
       const current = api.getState().project
       api.dispatch(projectActions.projectRestored(next_))
-      api.dispatch(historySlice.actions.redone({ current }))
+      api.dispatch(historyActions.redone({ current }))
       return action
     }
     if (reset(action)) {
       const result: unknown = next(action)
-      api.dispatch(historySlice.actions.cleared())
+      api.dispatch(historyActions.cleared())
       return result
     }
 
@@ -63,7 +63,7 @@ export const historyMiddleware: Middleware<object, HistoryHostState> = (() => {
     const result: unknown = next(action)
     if (api.getState().project !== before) {
       api.dispatch(
-        historySlice.actions.recorded({
+        historyActions.recorded({
           before,
           group: recorded.meta?.historyGroup ?? null,
         }),

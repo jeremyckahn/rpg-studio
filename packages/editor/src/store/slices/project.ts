@@ -1,4 +1,9 @@
-import { type PayloadAction, createSlice } from '@reduxjs/toolkit'
+import {
+  type ActionCreatorWithPayload,
+  type ActionCreatorWithPreparedPayload,
+  type PayloadAction,
+  createSlice,
+} from '@reduxjs/toolkit'
 import { type Project, type ProjectAction, createStarterProject } from '@rpgstudio/core'
 
 import { applyProjectAction } from '../projectOps.ts'
@@ -42,7 +47,7 @@ const operation = <Name extends OpName>(name: Name) => ({
   }),
 })
 
-export const projectSlice = createSlice({
+const projectSlice = createSlice({
   name: 'project',
   // The real project is supplied as the store's preloaded state; this only
   // gives a freshly created store something valid to start from.
@@ -75,4 +80,24 @@ export const projectSlice = createSlice({
   },
 })
 
-export const projectActions = projectSlice.actions
+/**
+ * The public action creators, typed explicitly. Letting TypeScript infer them
+ * leaks Immer's unexported draft types into the emitted declarations.
+ */
+export type ProjectActionCreators = {
+  readonly [Name in OpName]: ActionCreatorWithPreparedPayload<
+    [payload: PayloadOf<Name>, historyGroup?: string],
+    PayloadOf<Name>,
+    `project/${Name}`,
+    never,
+    ActionMeta
+  >
+} & {
+  /** Replaces the whole project (open, new). History is cleared by the middleware. */
+  readonly projectLoaded: ActionCreatorWithPayload<Project, 'project/projectLoaded'>
+  /** Puts back a snapshot taken by the history middleware. */
+  readonly projectRestored: ActionCreatorWithPayload<ProjectState, 'project/projectRestored'>
+}
+
+export const projectActions: ProjectActionCreators = projectSlice.actions
+export const projectReducer = projectSlice.reducer

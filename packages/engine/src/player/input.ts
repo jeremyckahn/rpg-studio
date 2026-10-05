@@ -33,6 +33,8 @@ interface KeyTarget {
  */
 export const createKeyboardInput = (target: KeyTarget): KeyboardInput => {
   let held: readonly Direction[] = []
+  /** A direction pressed since the last poll, so a tap shorter than one frame still counts. */
+  let tapped: Direction | null = null
   let confirmPressed = false
 
   const onKeyDown = (event: KeyboardEvent): void => {
@@ -40,6 +42,7 @@ export const createKeyboardInput = (target: KeyTarget): KeyboardInput => {
     if (direction) {
       event.preventDefault()
       held = [...held.filter((d) => d !== direction), direction]
+      tapped = direction
     } else if (CONFIRM_KEYS.has(event.code)) {
       event.preventDefault()
       if (!event.repeat) confirmPressed = true
@@ -58,7 +61,8 @@ export const createKeyboardInput = (target: KeyTarget): KeyboardInput => {
 
   return {
     poll: () => {
-      const input: GameInput = { direction: held.at(-1) ?? null, confirm: confirmPressed }
+      const input: GameInput = { direction: held.at(-1) ?? tapped, confirm: confirmPressed }
+      tapped = null
       confirmPressed = false
       return input
     },

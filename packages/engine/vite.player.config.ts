@@ -9,6 +9,9 @@ import { sourceResolve } from '../../tooling/vite.ts'
  */
 export default defineConfig({
   resolve: sourceResolve,
+  // Library mode leaves `process.env.NODE_ENV` for the consumer to replace, but the player
+  // is the consumer: browsers have no `process`.
+  define: { 'process.env.NODE_ENV': JSON.stringify('production') },
   build: {
     outDir: 'dist-player',
     emptyOutDir: true,

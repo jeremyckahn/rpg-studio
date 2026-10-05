@@ -42,6 +42,15 @@ describe('keyboard input', () => {
     expect(input.poll().direction).toBe('up')
   })
 
+  it('does not lose a tap that is released before the next frame', () => {
+    const target = new EventTarget()
+    const input = createKeyboardInput(target as never)
+    press(target, 'keydown', 'ArrowRight')
+    press(target, 'keyup', 'ArrowRight')
+    expect(input.poll().direction).toBe('right')
+    expect(input.poll().direction).toBeNull() // seen once, then gone
+  })
+
   it('reports a confirm press exactly once, ignoring key repeat', () => {
     const target = new EventTarget()
     const input = createKeyboardInput(target as never)

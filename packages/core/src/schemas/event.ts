@@ -1,8 +1,7 @@
 import { z } from 'zod'
 
-import { DirectionSchema, IdSchema } from './common.ts'
+import { AssetPathSchema, DirectionSchema, IdSchema } from './common.ts'
 import { EventTriggerKindSchema } from './components.ts'
-import { AssetPathSchema } from './common.ts'
 
 /**
  * Semantic event commands. This is the representation AI agents and humans
@@ -36,7 +35,12 @@ const audioCommand = <const C extends string>(command: C) =>
     pitch,
   })
 
-export const EventCommandSchema = z.discriminatedUnion('command', [
+const ConditionalBranchHeadSchema = z.strictObject({
+  command: z.literal('ConditionalBranch'),
+  condition: ConditionSchema,
+})
+
+const LeafCommandSchema = z.discriminatedUnion('command', [
   z.strictObject({
     command: z.literal('ShowText'),
     face: z.string().max(128).optional(),
@@ -68,18 +72,30 @@ export const EventCommandSchema = z.discriminatedUnion('command', [
     command: z.literal('Wait'),
     frames: z.int().min(1).max(36_000),
   }),
-  z.strictObject({
-    command: z.literal('ConditionalBranch'),
-    condition: ConditionSchema,
-    get then() {
-      return z.array(EventCommandSchema)
-    },
-    get else() {
-      return z.array(EventCommandSchema).default([])
-    },
-  }),
 ])
-export type EventCommand = z.infer<typeof EventCommandSchema>
+export type LeafCommand = z.infer<typeof LeafCommandSchema>
+
+/**
+ * The one recursive node. TypeScript's declaration emit cannot spell out a
+ * recursive Zod schema (it elides the type after a few levels), so the type of
+ * this node alone is written out; everything else is inferred, and the
+ * annotation on `EventCommandSchema` makes the compiler verify the two agree.
+ */
+export type ConditionalBranchCommand = z.infer<typeof ConditionalBranchHeadSchema> & {
+  then: EventCommand[]
+  else: EventCommand[]
+}
+export type EventCommand = LeafCommand | ConditionalBranchCommand
+
+const ConditionalBranchSchema = ConditionalBranchHeadSchema.extend({
+  then: z.array(z.lazy((): z.ZodType<EventCommand> => EventCommandSchema)),
+  else: z.array(z.lazy((): z.ZodType<EventCommand> => EventCommandSchema)).default([]),
+})
+
+export const EventCommandSchema: z.ZodType<EventCommand> = z.discriminatedUnion('command', [
+  ...LeafCommandSchema.options,
+  ConditionalBranchSchema,
+])
 export type EventCommandName = EventCommand['command']
 
 export const EventGraphicSchema = z.strictObject({

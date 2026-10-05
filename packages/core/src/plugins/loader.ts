@@ -15,24 +15,25 @@ export type ModuleNamespace = Readonly<Record<string, unknown>>
 export type ModuleImporter = (source: string, name: string) => Promise<ModuleNamespace>
 
 export const importModuleFromSource: ModuleImporter = async (source, name) => {
-  const canUseBlob = typeof URL.createObjectURL === 'function' && 'document' in globalThis
-  if (canUseBlob) {
+  const importBlob = async (): Promise<ModuleNamespace> => {
     const url = URL.createObjectURL(new Blob([source], { type: 'text/javascript' }))
     try {
       return (await import(/* @vite-ignore */ url)) as ModuleNamespace
-    } catch (error) {
-      throw new PluginRegistrationError(`Could not import plugin module "${name}"`, {
-        cause: error,
-      })
     } finally {
       URL.revokeObjectURL(url)
     }
   }
-  // Headless hosts (Node, tests) have no blob imports; a data: URL is equivalent.
-  try {
-    return (await import(
+  const importDataUrl = async (): Promise<ModuleNamespace> =>
+    (await import(
       /* @vite-ignore */ `data:text/javascript;charset=utf-8,${encodeURIComponent(source)}`
     )) as ModuleNamespace
+
+  try {
+    // Blob URLs are the browser's mechanism. Headless hosts (Node, tests) cannot
+    // import them, so those fall back to an equivalent data: URL.
+    return typeof URL.createObjectURL === 'function'
+      ? await importBlob().catch(importDataUrl)
+      : await importDataUrl()
   } catch (error) {
     throw new PluginRegistrationError(`Could not import plugin module "${name}"`, { cause: error })
   }

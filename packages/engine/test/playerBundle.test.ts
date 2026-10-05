@@ -4,10 +4,14 @@ import { type Rolldown } from 'vite'
 import { build } from 'vite'
 import { describe, expect, it } from 'vitest'
 
+const packageRoot = join(__dirname, '..')
+
 /** Builds the real player bundle in memory, exactly as `pnpm build` does. */
 const buildPlayer = async (): Promise<string> => {
   const result = await build({
-    configFile: join(__dirname, '..', 'vite.player.config.ts'),
+    // Resolve relative paths against the package, whichever directory the tests run from.
+    root: packageRoot,
+    configFile: join(packageRoot, 'vite.player.config.ts'),
     logLevel: 'silent',
     build: { write: false, minify: false },
   })

@@ -1,0 +1,32 @@
+{
+  "name": "rpg-studio",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Open-source, web-native, PWA-first alternative to RPG Maker, built for human and AI authors.",
+  "license": "MIT",
+  "type": "module",
+  "packageManager": "pnpm@12.8.1",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "dev": "pnpm --filter @rpgstudio/engine build && pnpm --filter @rpgstudio/editor dev",
+    "dev:companion": "pnpm --filter @rpgstudio/companion-bridge dev",
+    "build": "pnpm -r run build",
+    "build:app": "pnpm --filter @rpgstudio/editor build:app",
+    "preview": "pnpm --filter @rpgstudio/editor preview",
+    "typecheck": "tsc --noEmit && pnpm -r run typecheck",
+    "lint": "eslint . --max-warnings 0",
+    "test": "vitest run"
+  },
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "@types/node": "^22.20.5",
+    "eslint": "^10.12.0",
+    "eslint-plugin-functional": "^10.0.1",
+    "typescript": "~6.0.3",
+    "typescript-eslint": "^8.71.0",
+    "vite": "^8.3.2",
+    "vitest": "^5.0.3"
+  }
+}

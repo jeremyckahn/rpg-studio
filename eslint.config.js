@@ -57,6 +57,7 @@ export default tseslint.config(
       'packages/engine/src/renderer/**/*.ts',
       'packages/engine/src/player/**/*.ts',
       'packages/engine/src/audio/pixiSoundBackend.ts',
+      'packages/editor/src/canvas/mapScene.ts',
     ],
     rules: { 'functional/immutable-data': 'off' },
   },

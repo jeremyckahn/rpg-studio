@@ -60,7 +60,13 @@ export const startPlayer = async (
     loaded.plugins.forEach((registration) => plugins.register(registration))
     await plugins.initialize()
 
-    const textures = createAssetTextureProvider({ urlFor })
+    const textures = createAssetTextureProvider({
+      loadBlob: async (path) => {
+        const response = await fetch(urlFor(path))
+        if (!response.ok) throw new Error(`Could not load ${path} (${response.status})`)
+        return response.blob()
+      },
+    })
     const renderer = await createGameRenderer({ canvas, game, textures, resizeTo: root })
     const messageBox = createMessageBox(root, game.bus)
     const input = createKeyboardInput(window)

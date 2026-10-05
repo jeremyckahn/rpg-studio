@@ -1,5 +1,5 @@
 import { type Tilemap, createEmptyMap } from '@rpgstudio/core'
-import { Texture, TextureSource, TextureStyle } from 'pixi.js'
+import { Assets, Texture, TextureSource, TextureStyle } from 'pixi.js'
 import { describe, expect, it, vi } from 'vitest'
 
 import {
@@ -7,6 +7,7 @@ import {
   PIXEL_ART_SCALE_MODE,
   type TileSink,
   applyPixelArt,
+  createAssetTextureProvider,
   computeCamera,
   configurePixelArtDefaults,
   createTilemapLayers,
@@ -250,5 +251,77 @@ describe('fixed step clock', () => {
     expect(clock.advance(-1000)).toBe(0)
     clock.reset()
     expect(clock.alpha()).toBe(0)
+  })
+})
+
+describe('texture provider', () => {
+  const texture = () => new Texture({ source: new TextureSource({ width: 4, height: 4 }) })
+  const blobOf = (text: string) => new Blob([text])
+
+  const setup = () => {
+    const requests: string[] = []
+    const provider = createAssetTextureProvider({
+      loadBlob: (path) => {
+        // eslint-disable-next-line functional/immutable-data -- records requests
+        requests.push(path)
+        return Promise.resolve(blobOf(path))
+      },
+      decode: () => Promise.resolve(texture()),
+    })
+    return { provider, requests }
+  }
+
+  it('loads each path once and shares the texture and in-flight requests', async () => {
+    const { provider, requests } = setup()
+    const [a, b] = await Promise.all([provider.load('img/a.png'), provider.load('img/a.png')])
+    expect(a).toBe(b)
+    expect(await provider.load('img/a.png')).toBe(a)
+    expect(requests).toEqual(['img/a.png'])
+    expect(provider.get('img/a.png')).toBe(a)
+    expect(provider.get('img/other.png')).toBeUndefined()
+  })
+
+  it('registers textures in the PixiJS asset cache under their project path', async () => {
+    const { provider } = setup()
+    const loaded = await provider.load('img/cached.png')
+    expect(Assets.cache.get('img/cached.png')).toBe(loaded)
+  })
+
+  it('invalidation resets the PixiJS cache and makes the next load fetch again', async () => {
+    const { provider, requests } = setup()
+    const first = await provider.load('img/a.png')
+    provider.invalidate()
+    expect(provider.get('img/a.png')).toBeUndefined()
+    expect(Assets.cache.has('img/a.png')).toBe(false)
+    const second = await provider.load('img/a.png')
+    expect(second).not.toBe(first)
+    expect(requests).toEqual(['img/a.png', 'img/a.png'])
+  })
+
+  it('does not cache a result that was invalidated while it was loading', async () => {
+    let release: (blob: Blob) => void = () => undefined
+    const provider = createAssetTextureProvider({
+      loadBlob: () =>
+        new Promise<Blob>((resolve) => {
+          release = resolve
+        }),
+      decode: () => Promise.resolve(texture()),
+    })
+    const stale = provider.load('img/a.png')
+    provider.invalidate()
+    release(blobOf('old'))
+    await stale
+    expect(provider.get('img/a.png')).toBeUndefined()
+  })
+
+  it('propagates load failures and allows a retry', async () => {
+    let fail = true
+    const provider = createAssetTextureProvider({
+      loadBlob: () => (fail ? Promise.reject(new Error('404')) : Promise.resolve(blobOf('ok'))),
+      decode: () => Promise.resolve(texture()),
+    })
+    await expect(provider.load('img/a.png')).rejects.toThrow('404')
+    fail = false
+    await expect(provider.load('img/a.png')).resolves.toBeDefined()
   })
 })

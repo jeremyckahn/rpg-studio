@@ -24,6 +24,8 @@ export interface EditorUiState {
   readonly showCollision: boolean
   readonly dimInactiveLayers: boolean
   readonly databaseTable: DatabaseTableName
+  /** Asset the sprite editor should show (a `.png` or `.piskel` path). */
+  readonly openAssetPath: string | null
   /** Project revision at the last save; a different current revision means unsaved work. */
   readonly savedRevision: number
   /** Name of the folder on disk the project was opened from, if any. */
@@ -42,6 +44,7 @@ const initialState: EditorUiState = {
   showCollision: false,
   dimInactiveLayers: true,
   databaseTable: 'actors',
+  openAssetPath: null,
   savedRevision: 0,
   folderName: null,
   status: null,
@@ -95,6 +98,12 @@ export const editorUiSlice = createSlice({
       ...state,
       databaseTable: action.payload,
     }),
+    /** Opens an image in the sprite editor and brings it to the front. */
+    assetOpened: (state, action: PayloadAction<string>): EditorUiState => ({
+      ...state,
+      openAssetPath: action.payload,
+      workspacePanel: 'rpgstudio.pixel-editor',
+    }),
     projectSaved: (
       state,
       action: PayloadAction<{ revision: number; folderName?: string | null }>,
@@ -112,6 +121,7 @@ export const editorUiSlice = createSlice({
       ...state,
       selectedMapId: null,
       selectedLayer: 0,
+      openAssetPath: null,
       savedRevision: 0,
       folderName: action.payload.folderName,
     }),

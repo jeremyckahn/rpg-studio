@@ -20,7 +20,12 @@
     "build": "vite build && tsc -p tsconfig.build.json",
     "typecheck": "tsc --noEmit",
     "lint": "eslint . --max-warnings 0",
-    "test": "vitest run"
+    "test": "vitest run",
+    "dev": "vite --config vite.app.config.ts",
+    "build:app": "vite build --config vite.app.config.ts",
+    "preview": "vite preview --config vite.app.config.ts",
+    "icons": "node --experimental-strip-types scripts/generate-icons.ts",
+    "piskel:vendor": "node scripts/vendor-piskel.ts"
   },
   "dependencies": {
     "@emotion/react": "^11.14.0",

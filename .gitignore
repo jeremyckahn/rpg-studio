@@ -1,0 +1,45 @@
+# Dependencies
+node_modules/
+.pnpm-store/
+
+# Build artifacts and distributions
+dist/
+dist-*/
+build/
+out/
+.turbo/
+.cache/
+.vite/
+*.tsbuildinfo
+
+# Coverage and test output
+coverage/
+*.lcov
+.nyc_output/
+test-results/
+playwright-report/
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+pnpm-debug.log*
+
+# Environment files and deployment linkage
+.env*
+.vercel
+
+# OS files
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# IDE and editor files
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Temporary files
+/tmp/
+*.tmp

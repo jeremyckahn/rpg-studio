@@ -296,6 +296,9 @@ describe('ProjectSchema', () => {
     }
     expect(ProjectSchema.safeParse(withActorClass).success).toBe(false)
 
+    const withParty = { ...project, meta: { ...project.meta, startParty: [5] } }
+    expect(ProjectSchema.safeParse(withParty).success).toBe(false)
+
     const withStartMap = { ...project, meta: { ...project.meta, startMapId: 7 } }
     expect(ProjectSchema.safeParse(withStartMap).success).toBe(false)
 
@@ -319,6 +322,15 @@ describe('ProjectSchema', () => {
     expect(ProjectSchema.safeParse(duplicateItems).success).toBe(false)
     const duplicateMaps = { ...project, maps: [project.maps[0], project.maps[0]] }
     expect(ProjectSchema.safeParse(duplicateMaps).success).toBe(false)
+  })
+
+  it('defaults layers to drawing below characters', () => {
+    const map = TilemapSchema.parse(validMap())
+    expect(map.layers[0]?.above).toBe(false)
+    const raised = TilemapSchema.parse(
+      validMap({ layers: [{ name: 'Roofs', above: true, data: emptyLayerData(12) }] }),
+    )
+    expect(raised.layers[0]?.above).toBe(true)
   })
 
   it('rejects the wrong format marker', () => {

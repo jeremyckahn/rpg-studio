@@ -31,6 +31,8 @@ export const TileIdSchema = z.int().min(0).max(1_048_575)
 export const TilemapLayerSchema = z.strictObject({
   name: NameSchema,
   visible: z.boolean().default(true),
+  /** Drawn above characters and events instead of below them. */
+  above: z.boolean().default(false),
   /** Row-major tile ids, `width * height` entries. */
   data: z.array(TileIdSchema),
 })

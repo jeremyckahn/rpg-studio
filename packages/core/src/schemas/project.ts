@@ -28,6 +28,9 @@ export const ProjectMetaSchema = z.strictObject({
   startX: z.int().min(0),
   startY: z.int().min(0),
   startDirection: DirectionSchema.default('down'),
+  /** Actor ids in the starting party. */
+  startParty: z.array(IdSchema).default([]),
+  startGold: z.int().min(0).default(0),
   /** Ids of the plugins living in `/plugins/<id>/`. */
   plugins: z.array(PluginIdSchema).default([]),
   switchNames: z.record(IdKeySchema, z.string().max(64)).default({}),
@@ -101,6 +104,16 @@ const validateProject = ({
             },
           ]
         : []),
+    ...meta.startParty.flatMap((actorId, index) =>
+      database.actors.some((actor) => actor.id === actorId)
+        ? []
+        : [
+            {
+              path: ['meta', 'startParty', index],
+              message: `Starting party member ${actorId} is not an actor`,
+            },
+          ],
+    ),
     ...database.actors.flatMap((actor, index) =>
       classIds.has(actor.classId)
         ? []

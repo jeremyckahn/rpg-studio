@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
 import {
+  GameBundleSchema,
   PROJECT_FILE,
   ProjectSchema,
   createEmptyMap,
@@ -96,5 +97,24 @@ describe('project files', () => {
   it('ignores unrelated files', () => {
     const files = { ...projectToFiles(project), 'maps/notes.txt': 'hi', 'img/x.png': 'binary' }
     expect(filesToProject(files).success).toBe(true)
+  })
+})
+
+describe('GameBundleSchema', () => {
+  const bundle = {
+    format: 'rpgstudio-game',
+    formatVersion: 1,
+    name: 'Quest',
+    files: ['project.json', 'maps/map-001.json', 'img/tilesets/basic.png'],
+  }
+
+  it('accepts a bundle manifest and defaults plugins to none', () => {
+    expect(GameBundleSchema.parse(bundle).plugins).toEqual([])
+  })
+
+  it('rejects traversal, unknown fields and the wrong format', () => {
+    expect(GameBundleSchema.safeParse({ ...bundle, files: ['../etc/passwd'] }).success).toBe(false)
+    expect(GameBundleSchema.safeParse({ ...bundle, extra: 1 }).success).toBe(false)
+    expect(GameBundleSchema.safeParse({ ...bundle, format: 'other' }).success).toBe(false)
   })
 })

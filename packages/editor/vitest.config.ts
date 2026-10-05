@@ -1,11 +1,13 @@
 import { defineConfig } from 'vitest/config'
 
-import { sourceResolve } from '../../tooling/vite.ts'
+import { sourceResolve, sourceSsr, workspaceServerDeps } from '../../tooling/vite.ts'
 
 export default defineConfig({
   resolve: sourceResolve,
+  ssr: sourceSsr,
   test: {
     name: '@rpgstudio/editor',
     include: ['test/**/*.test.ts'],
+    server: { deps: workspaceServerDeps },
   },
 })

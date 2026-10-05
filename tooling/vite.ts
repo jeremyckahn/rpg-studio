@@ -9,6 +9,19 @@ export const sourceResolve = {
   conditions: ['source'],
 } as const satisfies NonNullable<UserConfig['resolve']>
 
+/** Same condition for the SSR/Node environment that Vitest runs tests in. */
+export const sourceSsr = {
+  resolve: { conditions: ['source'] },
+} as const satisfies NonNullable<UserConfig['ssr']>
+
+/**
+ * Vitest externalises linked workspace packages and would load their built
+ * `dist/`. Inlining them lets Vite resolve the `source` condition instead.
+ */
+export const workspaceServerDeps: { inline: (string | RegExp)[] } = {
+  inline: [/^@rpgstudio\//],
+}
+
 const isExternal = (id: string): boolean =>
   !id.startsWith('.') && !id.startsWith('/') && !/^[a-zA-Z]:[\\/]/.test(id)
 

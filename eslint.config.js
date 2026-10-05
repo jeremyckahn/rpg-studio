@@ -36,6 +36,14 @@ export default tseslint.config(
     },
   },
   {
+    // Architecture rule 5: the ECS runtime is the one place that mutates in
+    // place. Systems write component fields and simulation state during a tick
+    // with no validation or copying overhead; Zod runs only at data boundaries
+    // (file load, save restore, plugin and AI input).
+    files: ['packages/engine/src/ecs/**/*.ts', 'packages/engine/src/game/**/*.ts'],
+    rules: { 'functional/immutable-data': 'off' },
+  },
+  {
     // Config and build scripts are plain JS/TS outside any package tsconfig.
     files: ['**/*.js', '**/*.cjs', '**/*.mjs'],
     extends: [tseslint.configs.disableTypeChecked],

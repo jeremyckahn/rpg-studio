@@ -21,5 +21,13 @@
     "typecheck": "tsc --noEmit",
     "lint": "eslint . --max-warnings 0",
     "test": "vitest run"
+  },
+  "dependencies": {
+    "@pixi/sound": "^6.0.1",
+    "@pixi/tilemap": "^5.0.2",
+    "@rpgstudio/core": "workspace:*",
+    "miniplex": "^2.0.0",
+    "pixi.js": "^8.22.0",
+    "zod": "^4.6.5"
   }
 }

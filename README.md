@@ -7,8 +7,9 @@ authoring by both human creators and external AI agents.
 
 - **Strict TypeScript everywhere.** JavaScript is only a build artifact.
 - **Immutable state.** `functional/immutable-data` is an ESLint error. Every
-  state change produces a new object reference (the only documented exception is
-  the ECS tick, see below).
+  state change produces a new object reference. Exceptions are explicit and
+  narrow: the ECS tick (rule 5 below) and scratch memory that cannot escape a
+  single call (the A\* heap). Each carries a justification comment.
 - **Strict JSON, never YAML.** All project data and wire payloads are JSON.
 - **Zod is the source of truth.** Every data model is a Zod schema and its
   TypeScript type is `z.infer`red from it. Inputs from files, plugins and AI
@@ -22,12 +23,12 @@ authoring by both human creators and external AI agents.
 
 ## Packages
 
-| Package                                                           | Purpose                                                                                  |
-| ----------------------------------------------------------------- | ---------------------------------------------------------------------------------------- |
-| [`@rpgstudio/core`](packages/core)                                | Zod schemas, plugin manager, typed event bus, grid math, A\*, RNG                        |
-| [`@rpgstudio/engine`](packages/engine)                            | ECS runtime, headless simulation harness, PixiJS renderer, audio                         |
-| [`@rpgstudio/editor`](packages/editor)                            | React/MUI authoring shell, Redux store, map canvas, Piskel bridge, export, PWA           |
-| [`@rpgstudio/companion-bridge`](packages/companion-bridge)        | Local WebSocket companion server and reference AI agent runner                           |
+| Package                                                    | Purpose                                                                        |
+| ---------------------------------------------------------- | ------------------------------------------------------------------------------ |
+| [`@rpgstudio/core`](packages/core)                         | Zod schemas, plugin manager, typed event bus, grid math, A\*, RNG              |
+| [`@rpgstudio/engine`](packages/engine)                     | ECS runtime, headless simulation harness, PixiJS renderer, audio               |
+| [`@rpgstudio/editor`](packages/editor)                     | React/MUI authoring shell, Redux store, map canvas, Piskel bridge, export, PWA |
+| [`@rpgstudio/companion-bridge`](packages/companion-bridge) | Local WebSocket companion server and reference AI agent runner                 |
 
 ## Getting started
 
@@ -40,13 +41,13 @@ pnpm dev          # builds the engine player, then starts the editor dev server
 
 ## Scripts
 
-| Command          | What it does                                                   |
-| ---------------- | -------------------------------------------------------------- |
-| `pnpm lint`      | ESLint across the workspace, failing on any warning            |
-| `pnpm typecheck` | `tsc --noEmit` in every package                                |
-| `pnpm test`      | Vitest across every package                                    |
-| `pnpm build`     | Builds every package (libraries, engine player, declarations)  |
-| `pnpm build:app` | Builds the editor PWA into `packages/editor/dist-app`          |
+| Command          | What it does                                                  |
+| ---------------- | ------------------------------------------------------------- |
+| `pnpm lint`      | ESLint across the workspace, failing on any warning           |
+| `pnpm typecheck` | `tsc --noEmit` in every package                               |
+| `pnpm test`      | Vitest across every package                                   |
+| `pnpm build`     | Builds every package (libraries, engine player, declarations) |
+| `pnpm build:app` | Builds the editor PWA into `packages/editor/dist-app`         |
 
 `vercel.json` deploys `packages/editor/dist-app` using `pnpm build && pnpm build:app`.
 

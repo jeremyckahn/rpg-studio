@@ -17,13 +17,16 @@
     "preview": "pnpm --filter @rpgstudio/editor preview",
     "typecheck": "tsc --noEmit && pnpm -r run typecheck",
     "lint": "eslint . --max-warnings 0",
-    "test": "vitest run"
+    "test": "vitest run",
+    "format": "prettier --write .",
+    "format:check": "prettier --check ."
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
     "@types/node": "^22.20.5",
     "eslint": "^10.12.0",
     "eslint-plugin-functional": "^10.0.1",
+    "prettier": "^3.9.9",
     "typescript": "~6.0.3",
     "typescript-eslint": "^8.71.0",
     "vite": "^8.3.2",

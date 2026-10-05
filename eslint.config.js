@@ -28,10 +28,7 @@ export default tseslint.config(
       // new object reference so React, undo/redo, and plugins can rely on
       // reference equality.
       'functional/immutable-data': 'error',
-      '@typescript-eslint/consistent-type-imports': [
-        'error',
-        { fixStyle: 'inline-type-imports' },
-      ],
+      '@typescript-eslint/consistent-type-imports': ['error', { fixStyle: 'inline-type-imports' }],
       '@typescript-eslint/no-unused-vars': [
         'error',
         { argsIgnorePattern: '^_', varsIgnorePattern: '^_' },

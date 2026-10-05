@@ -1,0 +1,5 @@
+pnpm-lock.yaml
+dist
+dist-*
+coverage
+packages/editor/public/piskel

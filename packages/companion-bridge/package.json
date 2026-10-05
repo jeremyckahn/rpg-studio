@@ -20,6 +20,23 @@
     "build": "vite build && tsc -p tsconfig.build.json",
     "typecheck": "tsc --noEmit",
     "lint": "eslint . --max-warnings 0",
-    "test": "vitest run"
+    "test": "vitest run",
+    "dev": "tsx --conditions=source src/cli.ts serve",
+    "demo": "tsx --conditions=source src/cli.ts demo"
+  },
+  "dependencies": {
+    "@rpgstudio/core": "workspace:*",
+    "ws": "^8.22.0",
+    "zod": "^4.6.5"
+  },
+  "devDependencies": {
+    "@types/ws": "^8.18.2",
+    "tsx": "^4.23.15"
+  },
+  "bin": {
+    "rpgstudio-companion": "./dist/cli.js"
+  },
+  "engines": {
+    "node": ">=22"
   }
 }

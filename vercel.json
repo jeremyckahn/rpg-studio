@@ -2,6 +2,6 @@
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "buildCommand": "pnpm build && pnpm build:app",
   "outputDirectory": "packages/editor/dist-app",
-  "installCommand": "pnpm install",
+  "installCommand": "rm -rf node_modules packages/*/node_modules && pnpm install --frozen-lockfile",
   "framework": "vite"
 }

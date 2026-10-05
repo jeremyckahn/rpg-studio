@@ -1,5 +1,6 @@
 import js from '@eslint/js'
 import functional from 'eslint-plugin-functional'
+import reactHooks from 'eslint-plugin-react-hooks'
 import tseslint from 'typescript-eslint'
 
 export default tseslint.config(
@@ -34,6 +35,10 @@ export default tseslint.config(
         { argsIgnorePattern: '^_', varsIgnorePattern: '^_' },
       ],
     },
+  },
+  {
+    files: ['packages/editor/**/*.{ts,tsx}'],
+    ...reactHooks.configs.flat.recommended,
   },
   {
     // Architecture rule 5: the ECS runtime is the one place that mutates in

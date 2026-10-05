@@ -315,6 +315,33 @@ describe('ProjectSchema', () => {
     expect(ProjectSchema.safeParse(withDrop).success).toBe(false)
   })
 
+  it('rejects transfer commands that point at missing maps or outside the map', () => {
+    const project = validProject() as { maps: { events: object[] }[] }
+    const transferEvent = (mapId: number, x: number, y: number) => ({
+      id: 1,
+      x: 0,
+      y: 0,
+      pages: [
+        {
+          commands: [
+            {
+              command: 'ConditionalBranch',
+              condition: { type: 'switch', switchId: 1 },
+              then: [{ command: 'TransferPlayer', mapId, x, y }],
+            },
+          ],
+        },
+      ],
+    })
+    const withEvent = (event: object) => ({
+      ...project,
+      maps: [{ ...project.maps[0], events: [event] }],
+    })
+    expect(ProjectSchema.safeParse(withEvent(transferEvent(1, 3, 2))).success).toBe(true)
+    expect(ProjectSchema.safeParse(withEvent(transferEvent(9, 0, 0))).success).toBe(false)
+    expect(ProjectSchema.safeParse(withEvent(transferEvent(1, 4, 0))).success).toBe(false)
+  })
+
   it('rejects duplicate ids within a table and across maps', () => {
     const project = validProject() as { database: { items: object[] }; maps: object[] }
     const item = project.database.items[0]

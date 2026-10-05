@@ -1,5 +1,6 @@
 import { z } from 'zod'
 
+import { flattenCommands } from '../events/walk.ts'
 import { ActorSchema, ClassSchema } from './actor.ts'
 import { DirectionSchema, IdSchema, NameSchema, hasUniqueIds } from './common.ts'
 import { EnemySchema, ItemSchema, SkillSchema } from './item.ts'
@@ -134,6 +135,33 @@ const validateProject = ({
                 message: `Class ${actorClass.id} learns missing skill ${learning.skillId}`,
               },
             ],
+      ),
+    ),
+    ...maps.flatMap((map, mapIndex) =>
+      map.events.flatMap((event, eventIndex) =>
+        event.pages.flatMap((page, pageIndex) =>
+          flattenCommands(page.commands).flatMap((command) => {
+            if (command.command !== 'TransferPlayer') return []
+            const path = ['maps', mapIndex, 'events', eventIndex, 'pages', pageIndex, 'commands']
+            const destination = maps.find((candidate) => candidate.id === command.mapId)
+            if (!destination) {
+              return [
+                {
+                  path,
+                  message: `Event ${event.id} on map ${map.id} transfers to missing map ${command.mapId}`,
+                },
+              ]
+            }
+            return command.x < destination.width && command.y < destination.height
+              ? []
+              : [
+                  {
+                    path,
+                    message: `Event ${event.id} on map ${map.id} transfers to (${command.x}, ${command.y}), outside map ${destination.id}`,
+                  },
+                ]
+          }),
+        ),
       ),
     ),
     ...database.enemies.flatMap((enemy, index) => [

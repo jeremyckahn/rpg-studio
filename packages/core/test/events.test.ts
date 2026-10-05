@@ -7,6 +7,7 @@ import {
   compileCommands,
   createEventBus,
   decompileCommands,
+  flattenCommands,
 } from '../src'
 
 interface TestEvents {
@@ -185,5 +186,27 @@ describe('compact event commands', () => {
     expect(decompileCommands([[230, 0]]).success).toBe(false)
     expect(decompileCommands([[111, ['s', 1, 1], [[9999]], []]]).success).toBe(false)
     expect(decompileCommands(['ShowText']).success).toBe(false)
+  })
+})
+
+describe('flattenCommands', () => {
+  it('lists commands depth first, including both branch arms', () => {
+    const commands = EventCommandSchema.array().parse([
+      { command: 'Wait', frames: 1 },
+      {
+        command: 'ConditionalBranch',
+        condition: { type: 'switch', switchId: 1 },
+        then: [{ command: 'PlaySE', name: 'a' }],
+        else: [{ command: 'PlaySE', name: 'b' }],
+      },
+      { command: 'Wait', frames: 2 },
+    ])
+    expect(flattenCommands(commands).map((c) => c.command)).toEqual([
+      'Wait',
+      'ConditionalBranch',
+      'PlaySE',
+      'PlaySE',
+      'Wait',
+    ])
   })
 })

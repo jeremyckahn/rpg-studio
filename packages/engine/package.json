@@ -14,13 +14,29 @@
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js"
     },
+    "./renderer": {
+      "source": "./src/renderer/index.ts",
+      "types": "./dist/renderer/index.d.ts",
+      "import": "./dist/renderer.js"
+    },
+    "./audio": {
+      "source": "./src/audio/index.ts",
+      "types": "./dist/audio/index.d.ts",
+      "import": "./dist/audio.js"
+    },
+    "./player": {
+      "source": "./src/player/index.ts",
+      "types": "./dist/player/index.d.ts",
+      "import": "./dist/player.js"
+    },
     "./package.json": "./package.json"
   },
   "scripts": {
-    "build": "vite build && tsc -p tsconfig.build.json",
+    "build": "vite build && vite build -c vite.player.config.ts && tsc -p tsconfig.build.json",
     "typecheck": "tsc --noEmit",
     "lint": "eslint . --max-warnings 0",
-    "test": "vitest run"
+    "test": "vitest run",
+    "build:player": "vite build -c vite.player.config.ts"
   },
   "dependencies": {
     "@pixi/sound": "^6.0.1",

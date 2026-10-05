@@ -76,7 +76,7 @@ const EventsEditor = ({ initial }: { initial: string }) => {
       setProblem(
         parsed.error.issues
           .slice(0, 3)
-          .map((issue) => `${issue.path.join('.') || 'events'}: ${issue.message}`)
+          .map((issue) => `${['events', ...issue.path].join('.')}: ${issue.message}`)
           .join('\n'),
       )
       return

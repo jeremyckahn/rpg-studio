@@ -50,7 +50,8 @@ const OPENABLE = new Set(['png', 'piskel'])
 
 /** Safe file name for something the user uploaded. */
 const fileNameFor = (name: string): string =>
-  name.replace(/[^A-Za-z0-9._-]+/g, '_').replace(/^\.+/, '')
+  // Only the file's own name counts; any folder part a browser reports is dropped.
+  (name.split(/[\\/]/).at(-1) ?? '').replace(/[^A-Za-z0-9._-]+/g, '_').replace(/^\.+/, '')
 
 /** Lists the project's images, audio and plugins. Double-click an image to edit it. */
 export const AssetBrowser = () => {

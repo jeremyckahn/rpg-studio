@@ -1,3 +1,4 @@
+export * from './base64.ts'
 export * from './events/index.ts'
 export * from './json.ts'
 export * from './math/index.ts'

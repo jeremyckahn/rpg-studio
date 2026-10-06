@@ -3,6 +3,8 @@
 An open-source, web-native, PWA-first alternative to RPG Maker, engineered for
 authoring by both human creators and external AI agents.
 
+**Try it:** <https://rpg-studio.com> · **User guide:** <https://github.com/jeremyckahn/rpg-studio/wiki>
+
 ## Principles
 
 - **Strict TypeScript everywhere.** JavaScript is only a build artifact.

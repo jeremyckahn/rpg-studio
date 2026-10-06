@@ -33,8 +33,12 @@ export const createHarness = (panels: readonly PanelDefinition[] = []) => {
       throw new Error('no network in tests')
     },
   })
-  const services: EditorServices = { session, panels: registry, textures, companion }
-  return { handle, assets, session, services, registry }
+  const updater = {
+    register: vi.fn(() => Promise.resolve()),
+    apply: vi.fn(() => Promise.resolve()),
+  }
+  const services: EditorServices = { session, panels: registry, textures, companion, updater }
+  return { handle, assets, session, services, registry, updater }
 }
 
 export const renderInApp = (ui: ReactElement, harness = createHarness()) => ({
@@ -47,3 +51,32 @@ export const renderInApp = (ui: ReactElement, harness = createHarness()) => ({
     </Provider>,
   ),
 })
+
+/**
+ * Makes `window.matchMedia` answer as a screen of the given size would, for the width and
+ * orientation queries the layout uses. Removed again after every test (see `setup.ts`).
+ */
+export const mockViewport = (width: number, height: number): void => {
+  const evaluate = (query: string): boolean => {
+    const max = /max-width:\s*([\d.]+)px/.exec(query)
+    const min = /min-width:\s*([\d.]+)px/.exec(query)
+    if (max && width > Number(max[1])) return false
+    if (min && width < Number(min[1])) return false
+    if (query.includes('orientation: portrait') && height < width) return false
+    if (query.includes('orientation: landscape') && height >= width) return false
+    return true
+  }
+  Reflect.defineProperty(window, 'matchMedia', {
+    configurable: true,
+    value: (query: string) => ({
+      matches: evaluate(query),
+      media: query,
+      addEventListener: () => undefined,
+      removeEventListener: () => undefined,
+      addListener: () => undefined,
+      removeListener: () => undefined,
+      onchange: null,
+      dispatchEvent: () => false,
+    }),
+  })
+}

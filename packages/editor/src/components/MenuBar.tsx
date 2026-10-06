@@ -1,4 +1,5 @@
 import Redo from '@mui/icons-material/Redo'
+import Sensors from '@mui/icons-material/Sensors'
 import Undo from '@mui/icons-material/Undo'
 import {
   AppBar,
@@ -15,6 +16,7 @@ import {
 import { useRef, useState } from 'react'
 
 import { CompanionDialog } from './CompanionDialog.tsx'
+import { useLayoutMode } from './useLayoutMode.ts'
 
 import { supportsDirectoryPicker } from '../project/fileSystem.ts'
 import { redo, selectCanRedo, selectCanUndo, selectIsDirty, undo } from '../store/index.ts'
@@ -33,6 +35,7 @@ const COMPANION_LABEL = {
 export const MenuBar = () => {
   const dispatch = useAppDispatch()
   const { session } = useServices()
+  const { compact } = useLayoutMode()
   const [open, setOpen] = useState<{ name: MenuName; anchor: HTMLElement } | null>(null)
   const importInput = useRef<HTMLInputElement>(null)
   const [importKey, setImportKey] = useState(0)
@@ -68,9 +71,11 @@ export const MenuBar = () => {
       sx={{ borderBottom: 1, borderColor: 'divider' }}
     >
       <Toolbar variant="dense" sx={{ gap: 0.5 }}>
-        <Typography variant="subtitle1" sx={{ fontWeight: 700, mr: 1 }}>
-          RPG Studio
-        </Typography>
+        {compact ? null : (
+          <Typography variant="subtitle1" sx={{ fontWeight: 700, mr: 1 }}>
+            RPG Studio
+          </Typography>
+        )}
         <Button size="small" color="inherit" onClick={trigger('file')}>
           File
         </Button>
@@ -105,17 +110,36 @@ export const MenuBar = () => {
             </IconButton>
           </span>
         </Tooltip>
-        <Button
-          size="small"
-          color={companionStatus === 'connected' ? 'success' : 'inherit'}
-          sx={{ ml: 'auto', textTransform: 'none' }}
-          onClick={() => {
-            setCompanionOpen(true)
-          }}
+        {compact ? (
+          <IconButton
+            size="small"
+            aria-label={COMPANION_LABEL[companionStatus]}
+            color={companionStatus === 'connected' ? 'success' : 'default'}
+            sx={{ ml: 'auto' }}
+            onClick={() => {
+              setCompanionOpen(true)
+            }}
+          >
+            <Sensors fontSize="small" />
+          </IconButton>
+        ) : (
+          <Button
+            size="small"
+            color={companionStatus === 'connected' ? 'success' : 'inherit'}
+            sx={{ ml: 'auto', textTransform: 'none' }}
+            onClick={() => {
+              setCompanionOpen(true)
+            }}
+          >
+            {COMPANION_LABEL[companionStatus]}
+          </Button>
+        )}
+        <Typography
+          variant="body2"
+          noWrap
+          sx={{ ml: compact ? 0.5 : 2, minWidth: 0, maxWidth: compact ? '30vw' : undefined }}
+          aria-label="Project name"
         >
-          {COMPANION_LABEL[companionStatus]}
-        </Button>
-        <Typography variant="body2" sx={{ ml: 2 }} aria-label="Project name">
           {name}
           {dirty ? ' •' : ''}
           {folderName ? ` — ${folderName}` : ''}

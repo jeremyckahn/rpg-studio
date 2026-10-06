@@ -4,6 +4,9 @@ import { type TypedUseSelectorHook, useDispatch, useSelector } from 'react-redux
 
 import { type CompanionClient } from '../bridge/companionClient.ts'
 import { type PanelRegistry } from '../plugins/panelRegistry.ts'
+// A whole-statement type import is erased entirely; `{ type X }` would keep an import of the
+// module, and its `virtual:pwa-register` import only resolves in the real app build.
+import type { AppUpdater } from '../pwa/register.ts'
 import { type ProjectSession } from '../project/session.ts'
 import { type AppDispatch, type RootState } from '../store/index.ts'
 
@@ -13,6 +16,7 @@ export interface EditorServices {
   readonly panels: PanelRegistry
   readonly textures: TextureProvider
   readonly companion: CompanionClient
+  readonly updater: AppUpdater
 }
 
 const ServicesContext = createContext<EditorServices | null>(null)

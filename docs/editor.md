@@ -13,12 +13,12 @@ src/App.tsx             providers (Redux, services, MUI theme) around MasterLayo
 src/store/              Redux: slices, pure ops, history middleware, selectors
 src/project/            AssetStore, file systems, persistence, session, textures
 src/plugins/            plugin host (capabilities), panel registry, core plugins
-src/components/         layout, menu bar, asset browser, map panels, database editor
-src/canvas/             map scene (Pixi), geometry, paint tools
+src/components/         layout (desktop docks and compact sheet), menu bar, asset browser, map panels, database editor
+src/canvas/             map scene (Pixi), geometry, paint tools, touch gestures
 src/piskel/             Piskel bridge, protocol, texture invalidation, panel
 src/export/             packager, zip helpers, project archive, engine file loader
 src/bridge/             companion client, request handler, queries, window.RPGStudio
-src/pwa/register.ts     service worker registration (production only)
+src/pwa/register.ts     service worker registration and the update flow (production only)
 scripts/                piskel vendoring + adapter, icon generator, engine-player Vite plugin
 public/                 icons and the vendored Piskel build
 ```
@@ -129,7 +129,20 @@ creators (`ProjectActionCreators`, `HistoryActionCreators`) and reducers instead
 (`AssetBrowser` plus _left_ panels), tabs for _workspace_ panels, and a right dock of _right_
 panels. It knows nothing about specific features: panels come from the **panel registry**
 (`PanelDefinition { id, title, location: workspace|left|right|bottom, order?, when?, component }`). **`bottom` is declared but not rendered yet**: `MasterLayout` shows only workspace, left and right panels.
-`when` restricts a docked panel to one workspace panel. Keyboard: Ctrl/Cmd+Z undo,
+`when` restricts a docked panel to one workspace panel.
+
+**Compact layout (phones, small tablets).** `useLayoutMode()` (`components/useLayoutMode.ts`) is
+`compact` below MUI's `md` breakpoint (900 px) and `portrait` from `(orientation: portrait)`. Compact
+mode keeps the workspace on screen and folds the asset browser and every docked panel into one
+**bottom sheet** (`CompactBody` in `MasterLayout.tsx`): a `BottomNavigation` bar picks the section
+(Assets, plus each visible left and right panel under its own title), tapping the open section collapses
+the sheet, and the first left panel (the tile palette) is open until the user chooses. The sheet sits
+below the workspace in portrait and beside it in landscape. Panels are unchanged: they still come from
+the registry and do not know which layout shows them. Other compact adaptations: the root uses `dvh`,
+the menu bar drops its title and shows the companion status as an icon, the map toolbar scrolls sideways
+and hides zoom buttons (pinch zooms), `viewport-fit=cover` plus safe-area padding for notches, and the
+theme enlarges targets to 44 px under `(pointer: coarse)` and sets inputs to 16 px so iOS does not zoom.
+Tests fake a screen with `mockViewport(width, height)` from `test/render.tsx`. Keyboard: Ctrl/Cmd+Z undo,
 Ctrl+Shift+Z / Ctrl+Y redo (not while typing in a field), Ctrl+S save.
 
 The first-party panels (`plugins/corePlugins.ts`):
@@ -168,8 +181,12 @@ with plain subscriptions, so pointer moves never trigger React renders. The scen
 `CompositeTilemap` per layer and rebuilds a layer only when its object reference, the tileset
 texture or the map width changed (reducers keep untouched layers referentially equal). Overlays:
 grid (1 screen pixel wide at any zoom), collision (red cells, amber ledge bars), events (boxes),
-hover preview. Interaction: left-drag paints; middle/right-drag or Space+drag pans; wheel
-zooms about the cursor in steps `[1,2,3,4,6,8]`. `canvas/geometry.ts` (screen↔tile, zoom-about-point,
+hover preview. Interaction: left-drag paints; middle/right-drag, Space+drag or the **Pan** tool pans; wheel
+zooms about the cursor in steps `[1,2,3,4,6,8]`. **Touch:** `canvas/gestures.ts` (`reduceTouch`, pure) turns
+fingers into intents: one finger uses the current tool, but only starts a stroke after moving past a 10 px slop
+(a tap paints one cell), so a second finger can arrive without the first having painted; two fingers pan by
+their midpoint and zoom a level each time the spread changes by 1.35x (zoom levels are whole numbers); a finger
+left after a pinch keeps panning rather than painting. `canvas/geometry.ts` (screen↔tile, zoom-about-point,
 pan clamp, Bresenham) and `canvas/tools.ts` (`createPaintController`: pencil, eraser, fill,
 collision; one history group per stroke; a collision stroke's first cell decides paint vs. clear)
 are pure and unit-tested.
@@ -239,8 +256,14 @@ them; `CompanionDialog` is the UI. Protocol and security: [companion-protocol.md
 
 `vite.app.config.ts`: `base: './'`; `enginePlayer()` serves `/engine/player.js` in dev from
 `../engine/dist-player` and emits it into the build (it errors if the engine is not built);
-`VitePWA` (generateSW, `autoUpdate`) precaches ~4.3 MB, `navigateFallback: index.html`
-with `/piskel/` denied. `registerServiceWorker` is a no-op outside production. Icons are generated by
+`VitePWA` (generateSW, `registerType: 'prompt'`) precaches ~4.3 MB, `navigateFallback: index.html`
+with `/piskel/` denied. **Updates are never applied silently**: reloading would discard unsaved work. When
+the new service worker has downloaded, `createAppUpdater` (`pwa/register.ts`) calls `onUpdateReady`, which sets
+`editorUi.updateAvailable`; `UpdateNotice` in `MasterLayout` shows "A new version is ready" with **Reload**
+(`services.updater.apply()` → `updateSW(true)`) and **Later**, and warns about unsaved changes (the button
+becomes "Reload anyway"). The browser is asked to check for a new version hourly. `register()` and `apply()`
+are no-ops outside production. `services.tsx` imports the `AppUpdater` type with `import type`, so the module
+with the `virtual:pwa-register` import is not pulled into tests. Icons are generated by
 `scripts/generate-icons.ts`; `test/pwa.test.ts` checks they exist at the declared sizes.
 
 ## 10. Testing the editor

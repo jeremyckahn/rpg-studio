@@ -4,6 +4,12 @@ import { useStore } from 'react-redux'
 
 import { type MapScene, type SceneState, createMapScene } from '../canvas/mapScene.ts'
 import { type Vec2 } from '../canvas/geometry.ts'
+import {
+  type TouchEffect,
+  type TouchState,
+  initialTouchState,
+  reduceTouch,
+} from '../canvas/gestures.ts'
 import { createPaintController } from '../canvas/tools.ts'
 import { type RootState, selectCurrentMap } from '../store/index.ts'
 import { editorUiSlice, ZOOM_LEVELS } from '../store/slices/editorUi.ts'
@@ -17,7 +23,9 @@ const toScreen = (event: { clientX: number; clientY: number }, element: HTMLElem
 /**
  * The map editing surface. React owns the element and the lifetime; the PixiJS
  * scene is driven imperatively from Redux state so a pointer move never causes a
- * React render. Pan: middle or right drag, or Space + drag. Zoom: mouse wheel.
+ * React render. Mouse: pan with middle or right drag, Space + drag, or the Pan tool;
+ * zoom with the wheel. Touch: one finger uses the tool, two fingers pan and pinch to
+ * zoom (see `canvas/gestures.ts`).
  */
 export const MapCanvas = () => {
   const store = useStore<RootState>()
@@ -99,19 +107,64 @@ export const MapCanvas = () => {
       })
 
       let panning: { last: Vec2 } | null = null
+      let touch: TouchState = initialTouchState
       let spaceHeld = false
       const canvas = scene.app.canvas
 
+      const panTool = (): boolean => store.getState().editorUi.tool === 'pan'
+      const applyTouchEffect = (effect: TouchEffect): void => {
+        switch (effect.type) {
+          case 'paintStart':
+            paint.pointerDown(scene.cellAt(effect.at))
+            break
+          case 'paintMove':
+            paint.pointerMove(scene.cellAt(effect.at))
+            break
+          case 'paintEnd':
+            paint.pointerUp()
+            break
+          case 'pan':
+            scene.panBy(effect.delta)
+            break
+          case 'zoom':
+            scene.setZoomAnchor(effect.anchor)
+            dispatch(editorUiSlice.actions.zoomStepped(effect.step))
+            break
+        }
+      }
+      const handleTouch = (type: 'down' | 'move' | 'up' | 'cancel', event: PointerEvent): void => {
+        const next = reduceTouch(
+          touch,
+          { type, id: event.pointerId, pos: toScreen(event, container) },
+          { panOnly: panTool() },
+        )
+        touch = next.state
+        next.effects.forEach(applyTouchEffect)
+      }
+
       const onPointerDown = (event: PointerEvent): void => {
-        canvas.setPointerCapture(event.pointerId)
+        try {
+          canvas.setPointerCapture(event.pointerId)
+        } catch {
+          // The pointer ended before we could capture it; the gesture handlers cope without capture.
+        }
+        if (event.pointerType === 'touch') {
+          handleTouch('down', event)
+          return
+        }
         const screen = toScreen(event, container)
-        if (event.button === 1 || event.button === 2 || (event.button === 0 && spaceHeld)) {
+        const dragPans = event.button === 0 && (spaceHeld || panTool())
+        if (event.button === 1 || event.button === 2 || dragPans) {
           panning = { last: screen }
           return
         }
         if (event.button === 0) paint.pointerDown(scene.cellAt(screen))
       }
       const onPointerMove = (event: PointerEvent): void => {
+        if (event.pointerType === 'touch') {
+          handleTouch('move', event)
+          return
+        }
         const screen = toScreen(event, container)
         if (panning) {
           scene.panBy({ x: screen.x - panning.last.x, y: screen.y - panning.last.y })
@@ -124,6 +177,10 @@ export const MapCanvas = () => {
       }
       const onPointerUp = (event: PointerEvent): void => {
         if (canvas.hasPointerCapture(event.pointerId)) canvas.releasePointerCapture(event.pointerId)
+        if (event.pointerType === 'touch') {
+          handleTouch(event.type === 'pointercancel' ? 'cancel' : 'up', event)
+          return
+        }
         panning = null
         paint.pointerUp()
       }
@@ -210,6 +267,9 @@ export const MapCanvas = () => {
         overflow: 'hidden',
         touchAction: 'none',
         cursor: 'crosshair',
+        // The browser must not scroll or zoom the page under a finger; gestures are ours.
+        userSelect: 'none',
+        WebkitTouchCallout: 'none',
       }}
     />
   )

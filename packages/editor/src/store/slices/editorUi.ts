@@ -1,7 +1,8 @@
 import { type PayloadAction, createSlice } from '@reduxjs/toolkit'
 import { type DatabaseTableName } from '@rpgstudio/core'
 
-export type MapTool = 'pencil' | 'fill' | 'eraser' | 'collision'
+/** `pan` drags the view instead of editing; it is the touch (and trackpad) alternative to Space + drag. */
+export type MapTool = 'pencil' | 'fill' | 'eraser' | 'collision' | 'pan'
 
 export const ZOOM_LEVELS = [1, 2, 3, 4, 6, 8] as const
 export const DEFAULT_ZOOM_INDEX = 2
@@ -33,6 +34,8 @@ export interface EditorUiState {
   /** Name of the folder on disk the project was opened from, if any. */
   readonly folderName: string | null
   readonly status: StatusMessage | null
+  /** A newer version of the app is downloaded and waiting for the user to reload. */
+  readonly updateAvailable: boolean
   readonly companion: {
     readonly status: CompanionConnectionStatus
     /** Why the connection ended or is being retried; empty when all is well. */
@@ -55,6 +58,7 @@ const initialState: EditorUiState = {
   savedRevision: 0,
   folderName: null,
   status: null,
+  updateAvailable: false,
   companion: { status: 'disconnected', error: '' },
 }
 
@@ -141,6 +145,8 @@ export const editorUiSlice = createSlice({
       state,
       action: PayloadAction<{ status: CompanionConnectionStatus; error: string }>,
     ): EditorUiState => ({ ...state, companion: action.payload }),
+    updateReady: (state): EditorUiState => ({ ...state, updateAvailable: true }),
+    updateDismissed: (state): EditorUiState => ({ ...state, updateAvailable: false }),
     statusDismissed: (state): EditorUiState => ({ ...state, status: null }),
   },
 })

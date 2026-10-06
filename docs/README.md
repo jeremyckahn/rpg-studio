@@ -24,17 +24,17 @@ Every package also has its own `AGENTS.md` with a file map and local rules: [cor
 
 Honest status, so nobody builds on an assumption that is not true. Each item is detailed where linked.
 
-| Gap                                                       | Detail                                                                                                                                |
-| --------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------- |
-| The editor does not auto-load a project's `plugins/<id>/` | Only the engine player does; first-party plugins are bundled. [plugins.md](plugins.md#status-what-works-and-what-is-not-wired-up-yet) |
-| The `render` plugin capability is unprovided              | No host implements it; plugins declaring it are rejected                                                                              |
-| Real audio playback is unverified                         | `@pixi/sound` streaming switch is only covered by mocks. [engine.md §6](engine.md#6-audio-audio)                                      |
-| No touch controls in the player                           | Keyboard only. [engine.md §7](engine.md#7-the-player-player)                                                                          |
-| Map events are authored as JSON                           | The editor has a validated JSON editor but no visual event editor                                                                     |
-| No CI workflow                                            | Vercel builds only; lint/test/typecheck run locally. [tooling-and-deployment.md §6](tooling-and-deployment.md#6-deployment-vercel)    |
-| WebGL/browser-only behaviour has no automated tests       | Verified manually; checklist in [testing.md §8](testing.md#8-what-is-not-covered-by-automated-tests)                                  |
-| The compact event format is not used by the engine        | It round-trips and is tested; the engine interprets the semantic form                                                                 |
-| Save games cannot capture a running event                 | `canSave()` is false while one runs                                                                                                   |
+| Gap                                                       | Detail                                                                                                                                                                                                                     |
+| --------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| The editor does not auto-load a project's `plugins/<id>/` | Only the engine player does; first-party plugins are bundled. [plugins.md](plugins.md#status-what-works-and-what-is-not-wired-up-yet)                                                                                      |
+| The `render` plugin capability is unprovided              | No host implements it; plugins declaring it are rejected                                                                                                                                                                   |
+| Real audio playback is unverified                         | `@pixi/sound` streaming switch is only covered by mocks. [engine.md §6](engine.md#6-audio-audio)                                                                                                                           |
+| Piskel and the data grid are not touch-optimised          | The rest of the editor has a compact layout and touch gestures. [editor.md §4](editor.md#4-ui-structure), [ADR-025](decisions.md#adr-025-mobile-support-one-layout-switch-gestures-as-a-pure-reducer-and-prompted-updates) |
+| Map events are authored as JSON                           | The editor has a validated JSON editor but no visual event editor                                                                                                                                                          |
+| No CI workflow                                            | Vercel builds only; lint/test/typecheck run locally. [tooling-and-deployment.md §6](tooling-and-deployment.md#6-deployment-vercel)                                                                                         |
+| WebGL/browser-only behaviour has no automated tests       | Verified manually; checklist in [testing.md §8](testing.md#8-what-is-not-covered-by-automated-tests)                                                                                                                       |
+| The compact event format is not used by the engine        | It round-trips and is tested; the engine interprets the semantic form                                                                                                                                                      |
+| Save games cannot capture a running event                 | `canSave()` is false while one runs                                                                                                                                                                                        |
 
 ## Keeping these documents true
 

@@ -14,7 +14,8 @@ export default defineConfig({
     react(),
     enginePlayer(),
     VitePWA({
-      registerType: 'autoUpdate',
+      // 'prompt': a new version waits until the user accepts it, so a reload never loses unsaved work.
+      registerType: 'prompt',
       includeAssets: ['icons/apple-touch-icon.png'],
       manifest: {
         name: 'RPG Studio',

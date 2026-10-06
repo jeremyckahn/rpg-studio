@@ -13,6 +13,15 @@ const theme = createTheme({
   },
   shape: { borderRadius: 6 },
   typography: { fontSize: 13 },
+  components: {
+    // Fingers need bigger targets than mice, and iOS zooms into inputs below 16px.
+    MuiButtonBase: {
+      styleOverrides: { root: { '@media (pointer: coarse)': { minHeight: 44, minWidth: 44 } } },
+    },
+    MuiInputBase: {
+      styleOverrides: { root: { '@media (pointer: coarse)': { fontSize: 16 } } },
+    },
+  },
 })
 
 export interface AppProps {

@@ -31,13 +31,13 @@ src/store/                    index.ts (createEditorStore, injectReducer), proje
 src/project/                  assetStore, fileSystem, persistence, session, textures
 src/plugins/                  editorHost (capabilities), panelRegistry, corePlugins (first-party plugins)
 src/components/               MasterLayout, MenuBar, AssetBrowser, MapEditorWorkspace, MapToolPanel, PropertiesPanel,
-                              MapCanvas, CompanionDialog, services.tsx (context + typed hooks), useAssetUrl,
+                              MapCanvas, CompanionDialog, services.tsx (context + typed hooks), useLayoutMode, useAssetUrl,
                               database/{DatabaseEditor, schemaColumns, records}
-src/canvas/                   mapScene (Pixi), geometry (pure), tools (paint controller)
+src/canvas/                   mapScene (Pixi), geometry (pure), tools (paint controller), gestures (touch reducer)
 src/piskel/                   protocol, bridge, PiskelEditorPanel, textureInvalidation
 src/export/                   packager (pure), zip, archive, engineFiles (+ download helper)
 src/bridge/                   companionClient, handler, queries, global (window.RPGStudio)
-src/pwa/register.ts           service worker registration (production only)
+src/pwa/register.ts           service worker registration and update flow (production only)
 scripts/                      vendor-piskel.ts, piskel-adapter.ts, generate-icons.ts, enginePlayerPlugin.ts
 public/                       icons/ (generated), piskel/ (vendored; see its AGENTS.md)
 vite.config.ts                library build;  vite.app.config.ts  the PWA app build (dev/build:app/preview)
@@ -54,6 +54,8 @@ test/                         see docs/testing.md; render.tsx (RTL harness), e2e
 - The Piskel bridge accepts a message only if `origin` matches and `source` is the iframe's window, after Zod parsing.
 - The bridge handler validates with `ProjectActionSchema`, dry-runs on a copy, applies batches atomically, and gives each
   request one history group.
+- Two layouts: desktop docks and a compact bottom sheet (`useLayoutMode`). New UI must work in both; test the compact one with `mockViewport`. Touch input on the map goes through the pure `canvas/gestures.ts`.
+- Service worker updates are prompted, never automatic (reload loses unsaved work); see `UpdateNotice`.
 - Core plugins are registered in `corePlugins.ts`; **project plugins (`plugins/<id>/`) are not auto-loaded into the editor yet**
   ([plugins.md](../../docs/plugins.md#status-what-works-and-what-is-not-wired-up-yet)).
 

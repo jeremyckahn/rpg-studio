@@ -28,7 +28,8 @@ Contents: [001 Monorepo and the `source` condition](#adr-001-monorepo-and-the-so
 [021 Toolchain](#adr-021-toolchain-versions) ·
 [022 Vercel and pnpm](#adr-022-vercel-self-cleaning-install-and-pnpm-build-script-policy) ·
 [023 Player bundle](#adr-023-the-player-is-one-self-contained-file) ·
-[024 Docs checks](#adr-024-documentation-is-checked-by-tests)
+[024 Docs checks](#adr-024-documentation-is-checked-by-tests) ·
+[025 Mobile](#adr-025-mobile-support-one-layout-switch-gestures-as-a-pure-reducer-and-prompted-updates)
 
 ---
 
@@ -398,3 +399,30 @@ the docs that must list it.
 
 **Why.** Docs for agents are only useful if they stay true, and the cheapest way to keep
 them true is to make drift a test failure.
+
+## ADR-025: Mobile support: one layout switch, gestures as a pure reducer, and prompted updates
+
+**Decision.**
+
+1. The editor has two layouts chosen by `useLayoutMode()` (width below 900 px is _compact_;
+   orientation only places the sheet). Compact folds every docked panel into a bottom sheet driven
+   by a navigation bar. Panels and the panel registry are unchanged.
+2. Touch gestures on the map are a pure reducer (`canvas/gestures.ts`) that emits intents
+   (`paintStart`, `pan`, `zoom`, ...); `MapCanvas` only applies them. Mouse input keeps its old path.
+   A **Pan** tool exists for single-pointer panning.
+3. The player shows an on-screen D-pad and action button on coarse-pointer devices, as another
+   `PlayerInput` merged with the keyboard.
+4. The service worker uses `registerType: 'prompt'`: a new version waits until the user accepts it
+   from an in-app notice.
+
+**Why.** A phone cannot fit three columns, but forking the panels or the layout per device would
+double every future feature; folding the docks into a sheet keeps one set of panels. A finger
+that is first down may be the start of a two-finger gesture, so painting waits for movement; as a
+pure function that rule is unit-tested, which a canvas listener cannot be. Zoom levels are whole
+numbers (pixel-perfect rendering), so a pinch steps rather than scales continuously. Auto-update
+reloaded the page the moment a release shipped, which would silently discard unsaved work in a tool
+whose projects live in memory until saved.
+
+**Consequences.** Piskel (the sprite editor iframe) and the data grid are not yet touch-optimised.
+Portrait games use the same 20x15-tile view as landscape; a narrower `viewTiles` is a possible
+later choice. With several editor tabs open, only the tab that clicks Reload is reloaded.

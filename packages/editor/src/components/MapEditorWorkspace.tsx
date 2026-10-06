@@ -4,6 +4,7 @@ import FormatColorFill from '@mui/icons-material/FormatColorFill'
 import GridOn from '@mui/icons-material/GridOn'
 import Layers from '@mui/icons-material/Layers'
 import Block from '@mui/icons-material/Block'
+import PanTool from '@mui/icons-material/PanTool'
 import ZoomIn from '@mui/icons-material/ZoomIn'
 import ZoomOut from '@mui/icons-material/ZoomOut'
 import AutoFixNormal from '@mui/icons-material/AutoFixNormal'
@@ -21,6 +22,7 @@ import { selectCurrentMap } from '../store/index.ts'
 import { type MapTool, ZOOM_LEVELS, editorUiSlice } from '../store/slices/editorUi.ts'
 import { MapCanvas } from './MapCanvas.tsx'
 import { useAppDispatch, useAppSelector } from './services.tsx'
+import { useLayoutMode } from './useLayoutMode.ts'
 
 const TOOLS: readonly { tool: MapTool; label: string; icon: React.ReactNode }[] = [
   { tool: 'pencil', label: 'Pencil (paint tiles)', icon: <Brush fontSize="small" /> },
@@ -31,11 +33,13 @@ const TOOLS: readonly { tool: MapTool; label: string; icon: React.ReactNode }[] 
   },
   { tool: 'eraser', label: 'Eraser', icon: <AutoFixNormal fontSize="small" /> },
   { tool: 'collision', label: 'Collision (toggle solid cells)', icon: <Block fontSize="small" /> },
+  { tool: 'pan', label: 'Pan (drag to move the view)', icon: <PanTool fontSize="small" /> },
 ]
 
 /** The map editor's main view: a toolbar above the PixiJS canvas. */
 export const MapEditorWorkspace = () => {
   const dispatch = useAppDispatch()
+  const { compact } = useLayoutMode()
   const map = useAppSelector(selectCurrentMap)
   const ui = useAppSelector((state) => state.editorUi)
   const zoom = ZOOM_LEVELS[ui.zoomIndex] ?? 1
@@ -57,7 +61,10 @@ export const MapEditorWorkspace = () => {
           alignItems: 'center',
           borderBottom: 1,
           borderColor: 'divider',
-          flexWrap: 'wrap',
+          // On a phone the toolbar scrolls sideways rather than eating the map's height.
+          flexWrap: compact ? 'nowrap' : 'wrap',
+          overflowX: 'auto',
+          flexShrink: 0,
         }}
       >
         <ToggleButtonGroup
@@ -110,46 +117,53 @@ export const MapEditorWorkspace = () => {
             </Tooltip>
           </ToggleButton>
         </ToggleButtonGroup>
-        <Divider orientation="vertical" flexItem />
-        <Tooltip title="Zoom out">
-          <span>
-            <ToggleButton
-              size="small"
-              value="out"
-              aria-label="Zoom out"
-              disabled={ui.zoomIndex === 0}
-              selected={false}
-              onClick={() => dispatch(editorUiSlice.actions.zoomStepped(-1))}
+        {/* Pinching zooms on touch screens, so the buttons and caption only cost space there. */}
+        {compact ? null : (
+          <>
+            <Divider orientation="vertical" flexItem />
+            <Tooltip title="Zoom out">
+              <span>
+                <ToggleButton
+                  size="small"
+                  value="out"
+                  aria-label="Zoom out"
+                  disabled={ui.zoomIndex === 0}
+                  selected={false}
+                  onClick={() => dispatch(editorUiSlice.actions.zoomStepped(-1))}
+                >
+                  <ZoomOut fontSize="small" />
+                </ToggleButton>
+              </span>
+            </Tooltip>
+            <Typography
+              variant="body2"
+              sx={{ minWidth: 36, textAlign: 'center' }}
+              aria-label="Zoom level"
             >
-              <ZoomOut fontSize="small" />
-            </ToggleButton>
-          </span>
-        </Tooltip>
-        <Typography
-          variant="body2"
-          sx={{ minWidth: 36, textAlign: 'center' }}
-          aria-label="Zoom level"
-        >
-          {zoom * 100}%
-        </Typography>
-        <Tooltip title="Zoom in">
-          <span>
-            <ToggleButton
-              size="small"
-              value="in"
-              aria-label="Zoom in"
-              disabled={ui.zoomIndex === ZOOM_LEVELS.length - 1}
-              selected={false}
-              onClick={() => dispatch(editorUiSlice.actions.zoomStepped(1))}
-            >
-              <ZoomIn fontSize="small" />
-            </ToggleButton>
-          </span>
-        </Tooltip>
-        <Box sx={{ flex: 1 }} />
-        <Typography variant="caption" color="text.secondary">
-          {map ? `${map.name} · layer “${layer?.name ?? ''}” · tile ${ui.selectedTile}` : 'No map'}
-        </Typography>
+              {zoom * 100}%
+            </Typography>
+            <Tooltip title="Zoom in">
+              <span>
+                <ToggleButton
+                  size="small"
+                  value="in"
+                  aria-label="Zoom in"
+                  disabled={ui.zoomIndex === ZOOM_LEVELS.length - 1}
+                  selected={false}
+                  onClick={() => dispatch(editorUiSlice.actions.zoomStepped(1))}
+                >
+                  <ZoomIn fontSize="small" />
+                </ToggleButton>
+              </span>
+            </Tooltip>
+            <Box sx={{ flex: 1 }} />
+            <Typography variant="caption" color="text.secondary">
+              {map
+                ? `${map.name} · layer “${layer?.name ?? ''}” · tile ${ui.selectedTile}`
+                : 'No map'}
+            </Typography>
+          </>
+        )}
       </Stack>
       <Box sx={{ flex: 1, minHeight: 0, position: 'relative' }}>
         <MapCanvas />

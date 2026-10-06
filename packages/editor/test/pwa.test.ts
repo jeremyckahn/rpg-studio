@@ -2,9 +2,9 @@ import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 
 import { decodePng } from '@rpgstudio/core'
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 
-import { registerServiceWorker } from '../src/pwa/register'
+import { createAppUpdater } from '../src/pwa/register'
 
 const read = (path: string): Uint8Array => new Uint8Array(readFileSync(join(__dirname, '..', path)))
 
@@ -49,6 +49,10 @@ describe('PWA assets', () => {
 
 describe('service worker registration', () => {
   it('does nothing outside production, so development is never served from a stale cache', async () => {
-    await expect(registerServiceWorker()).resolves.toBeUndefined()
+    const hooks = { onUpdateReady: vi.fn(), onOfflineReady: vi.fn() }
+    const updater = createAppUpdater(hooks)
+    await expect(updater.register()).resolves.toBeUndefined()
+    await expect(updater.apply()).resolves.toBeUndefined()
+    expect(hooks.onUpdateReady).not.toHaveBeenCalled()
   })
 })

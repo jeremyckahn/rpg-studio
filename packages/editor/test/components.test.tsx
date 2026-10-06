@@ -10,7 +10,7 @@ import { MenuBar } from '../src/components/MenuBar'
 import { PropertiesPanel } from '../src/components/PropertiesPanel'
 import { type PanelDefinition } from '../src/plugins/panelRegistry'
 import { projectActions, undo } from '../src/store'
-import { createHarness, renderInApp } from './render'
+import { createHarness, mockViewport, renderInApp } from './render'
 
 const stub = (label: string) => () => <div>{label}</div>
 
@@ -100,6 +100,106 @@ describe('MasterLayout', () => {
     renderInApp(<MasterLayout />, harness)
     fireEvent.keyDown(window, { key: 's', ctrlKey: true })
     expect(save).toHaveBeenCalledOnce()
+  })
+})
+
+describe('MasterLayout on a small screen', () => {
+  const phonePortrait = (): ReturnType<typeof harnessWithMapActive> => {
+    mockViewport(375, 812)
+    return harnessWithMapActive()
+  }
+
+  it('shows the workspace and the first tool, with a navigation bar instead of side docks', () => {
+    renderInApp(<MasterLayout />, phonePortrait())
+    expect(screen.getByText('map workspace')).toBeTruthy()
+    expect(screen.getByText('map tools')).toBeTruthy()
+    // Properties and assets are one tap away, not on screen.
+    expect(screen.queryByText('map properties')).toBeNull()
+    expect(screen.queryByLabelText('Asset browser')).toBeNull()
+    expect(screen.getByRole('button', { name: /Tools/ })).toBeTruthy()
+    expect(screen.getByRole('button', { name: /Props/ })).toBeTruthy()
+    expect(screen.getByRole('button', { name: /Assets/ })).toBeTruthy()
+  })
+
+  it('switches the sheet from the navigation bar', async () => {
+    renderInApp(<MasterLayout />, phonePortrait())
+    await userEvent.click(screen.getByRole('button', { name: /Props/ }))
+    expect(screen.getByText('map properties')).toBeTruthy()
+    expect(screen.queryByText('map tools')).toBeNull()
+    await userEvent.click(screen.getByRole('button', { name: /Assets/ }))
+    expect(screen.getByLabelText('Assets sheet')).toBeTruthy()
+  })
+
+  it('collapses the sheet when the open section is tapped again, and reopens it', async () => {
+    renderInApp(<MasterLayout />, phonePortrait())
+    await userEvent.click(screen.getByRole('button', { name: /Tools/ }))
+    expect(screen.queryByText('map tools')).toBeNull()
+    expect(screen.getByText('map workspace')).toBeTruthy()
+    await userEvent.click(screen.getByRole('button', { name: /Tools/ }))
+    expect(screen.getByText('map tools')).toBeTruthy()
+  })
+
+  it('still switches workspace panels, and drops the sections that belonged to the old one', async () => {
+    renderInApp(<MasterLayout />, phonePortrait())
+    await userEvent.click(screen.getByRole('tab', { name: 'Database' }))
+    expect(screen.getByText('database workspace')).toBeTruthy()
+    expect(screen.queryByRole('button', { name: /Tools/ })).toBeNull()
+    expect(screen.getByRole('button', { name: /Always/ })).toBeTruthy()
+  })
+
+  it('puts the sheet beside the workspace in landscape and below it in portrait', () => {
+    mockViewport(812, 375)
+    const landscape = renderInApp(<MasterLayout />, harnessWithMapActive())
+    const sheet = screen.getByLabelText('Tools sheet')
+    expect(getComputedStyle(sheet).width).not.toBe('')
+    landscape.unmount()
+    mockViewport(375, 812)
+    renderInApp(<MasterLayout />, harnessWithMapActive())
+    expect(getComputedStyle(screen.getByLabelText('Tools sheet')).height).not.toBe('')
+  })
+
+  it('keeps the desktop docks on a wide screen', () => {
+    mockViewport(1280, 800)
+    renderInApp(<MasterLayout />, harnessWithMapActive())
+    expect(screen.getByText('map tools')).toBeTruthy()
+    expect(screen.getByText('map properties')).toBeTruthy()
+    expect(screen.queryByRole('button', { name: /Tools/ })).toBeNull()
+  })
+})
+
+describe('update notice', () => {
+  it('stays hidden until a new version is ready', () => {
+    renderInApp(<MasterLayout />, harnessWithMapActive())
+    expect(screen.queryByText(/new version/i)).toBeNull()
+  })
+
+  it('offers to reload and applies the update when accepted', async () => {
+    const harness = harnessWithMapActive()
+    renderInApp(<MasterLayout />, harness)
+    harness.handle.store.dispatch({ type: 'editorUi/updateReady' })
+    expect(await screen.findByText('A new version of RPG Studio is ready.')).toBeTruthy()
+    await userEvent.click(screen.getByRole('button', { name: 'Reload' }))
+    expect(harness.updater.apply).toHaveBeenCalledOnce()
+  })
+
+  it('can be dismissed with Later, without reloading', async () => {
+    const harness = harnessWithMapActive()
+    renderInApp(<MasterLayout />, harness)
+    harness.handle.store.dispatch({ type: 'editorUi/updateReady' })
+    await userEvent.click(await screen.findByRole('button', { name: 'Later' }))
+    await waitFor(() => {
+      expect(screen.queryByText(/new version/i)).toBeNull()
+    })
+    expect(harness.updater.apply).not.toHaveBeenCalled()
+  })
+
+  it('warns about unsaved changes, because reloading discards them', async () => {
+    const harness = harnessWithMapActive()
+    renderInApp(<MasterLayout />, harness)
+    harness.handle.store.dispatch(projectActions.renameMap({ mapId: 1, name: 'Edited' }))
+    harness.handle.store.dispatch({ type: 'editorUi/updateReady' })
+    expect(await screen.findByText(/unsaved changes/)).toBeTruthy()
+    expect(screen.getByRole('button', { name: 'Reload anyway' })).toBeTruthy()
   })
 })
 

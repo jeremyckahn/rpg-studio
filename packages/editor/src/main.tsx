@@ -12,7 +12,7 @@ import { createEditorPluginHost } from './plugins/editorHost.ts'
 import { createAssetStore } from './project/assetStore.ts'
 import { createProjectSession } from './project/session.ts'
 import { createEditorTextureProvider } from './project/textures.ts'
-import { registerServiceWorker } from './pwa/register.ts'
+import { createAppUpdater } from './pwa/register.ts'
 import { createEditorStore } from './store/index.ts'
 
 const boot = async (): Promise<void> => {
@@ -43,14 +43,25 @@ const boot = async (): Promise<void> => {
   registerCorePlugins(host.manager)
   await host.manager.initialize()
 
+  const updater = createAppUpdater({
+    onUpdateReady: () => handle.store.dispatch(editorUiSlice.actions.updateReady()),
+    onOfflineReady: () =>
+      handle.store.dispatch(
+        editorUiSlice.actions.statusShown({
+          severity: 'success',
+          text: 'RPG Studio is ready to work offline.',
+        }),
+      ),
+  })
+
   const root = document.getElementById('root')
   if (!root) throw new Error('Missing #root element')
   createRoot(root).render(
     <StrictMode>
-      <App store={handle.store} services={{ session, panels, textures, companion }} />
+      <App store={handle.store} services={{ session, panels, textures, companion, updater }} />
     </StrictMode>,
   )
-  void registerServiceWorker()
+  void updater.register()
 }
 
 void boot()

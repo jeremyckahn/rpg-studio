@@ -36,13 +36,13 @@ Default environment is Node. Component tests start with `// @vitest-environment 
 
 ## 3. What lives where
 
-| Package          | Test files (see each directory for the full list)                                                                                                   | Notable                                                                                                   |
-| ---------------- | --------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------- |
-| core             | `schemas`, `actions`, `protocol`, `events`, `math`, `plugins`, `pixel`, `project`                                                                   | Zod accept/reject tables; plugin lifecycle/sandbox; PNG codec incl. every filter; project file round trip |
-| engine           | `movement`, `events`, `headless`, `saveload`, `renderer`, `audio`, `pixiSound`, `player`, `plugins`, `playerBundle`                                 | Headless simulation; no-GPU renderer maths; mocked `@pixi/sound`; builds the real player bundle           |
-| editor           | `projectOps`, `store`, `canvas`, `export`, `project`, `session`, `piskel`, `bridge`, `plugins`, `columns`, `components`, `pwa`, `e2e/companion.e2e` | Pure ops; store/undo; Piskel bridge security; jsdom component tests; end-to-end bridge                    |
-| companion-bridge | `server`                                                                                                                                            | Real sockets: handshake, routing, security, agent library                                                 |
-| tooling          | `docs`                                                                                                                                              | Keeps these documents true                                                                                |
+| Package          | Test files (see each directory for the full list)                                                                                                               | Notable                                                                                                   |
+| ---------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------- |
+| core             | `schemas`, `actions`, `protocol`, `events`, `math`, `plugins`, `pixel`, `project`                                                                               | Zod accept/reject tables; plugin lifecycle/sandbox; PNG codec incl. every filter; project file round trip |
+| engine           | `movement`, `events`, `headless`, `saveload`, `renderer`, `audio`, `pixiSound`, `player`, `touchControls`, `plugins`, `playerBundle`                            | Headless simulation; no-GPU renderer maths; mocked `@pixi/sound`; builds the real player bundle           |
+| editor           | `projectOps`, `store`, `canvas`, `export`, `project`, `session`, `piskel`, `bridge`, `plugins`, `columns`, `components`, `gestures`, `pwa`, `e2e/companion.e2e` | Pure ops; store/undo; Piskel bridge security; jsdom component tests; end-to-end bridge                    |
+| companion-bridge | `server`                                                                                                                                                        | Real sockets: handshake, routing, security, agent library                                                 |
+| tooling          | `docs`                                                                                                                                                          | Keeps these documents true                                                                                |
 
 ## 4. Fixtures and helpers
 
@@ -109,6 +109,7 @@ Run these after changes to the canvas, export, Piskel or bridge:
    move, Enter talks to an NPC. Check the console for errors.
 4. `pnpm dev:companion`, **Companion** ▸ Connect in the editor, then `pnpm --filter @rpgstudio/companion-bridge demo`.
 5. `pnpm build && pnpm build:app`, serve `packages/editor/dist-app`, check the console and the Application tab for the service worker.
+6. Mobile: set the browser pane to the Mobile preset (375x812, then rotate to 812x375). Check that the bottom navigation switches sections, a tap paints one tile, two fingers pan and pinch-zoom without painting, and an exported game shows the D-pad and A button with the game above them in portrait. Playing an exported game on a real phone is the only check of true touch input; synthetic pointer events do not go through the browser's touch pipeline.
 
 When driving a browser pane programmatically, take a fresh screenshot right before clicking by coordinates (pane
 resizes shift them), and restart the Vite dev server after regenerating `public/piskel`.

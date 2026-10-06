@@ -147,6 +147,7 @@ export const createProjectSession = ({
     const state = store.getState()
     const report = await saveProject(target, state.project.data, assets, cache)
     assets.markSaved()
+    store.dispatch(assetsSlice.actions.assetsSaved())
     fs = target
     cache = report.cache
     store.dispatch(

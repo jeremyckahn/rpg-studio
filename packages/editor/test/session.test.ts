@@ -96,6 +96,22 @@ describe('open and save', () => {
     expect(status()?.text).toMatch(/project\.json is missing/)
   })
 
+  it('counts asset-only changes as unsaved, until saved or the project is replaced', async () => {
+    const { handle, assets, session } = setup()
+    await session.openFileSystem(projectFolder())
+    expect(selectIsDirty(handle.store.getState())).toBe(false)
+
+    assets.write('img/pictures/new.png', Uint8Array.of(9))
+    expect(selectIsDirty(handle.store.getState())).toBe(true)
+    await session.save()
+    expect(selectIsDirty(handle.store.getState())).toBe(false)
+
+    assets.remove('img/pictures/new.png')
+    expect(selectIsDirty(handle.store.getState())).toBe(true)
+    session.newProject()
+    expect(selectIsDirty(handle.store.getState())).toBe(false)
+  })
+
   it('saves edits back to the opened folder, writing only what changed', async () => {
     const fs = projectFolder()
     const { handle, assets, session } = setup()

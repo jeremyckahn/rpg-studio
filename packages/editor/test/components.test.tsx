@@ -176,6 +176,153 @@ describe('MasterLayout on a small screen', () => {
   })
 })
 
+describe('unsaved changes', () => {
+  const dirtyHarness = () => {
+    const harness = createHarness()
+    harness.handle.store.dispatch(projectActions.renameMap({ mapId: 1, name: 'Edited' }))
+    return harness
+  }
+  const withFolderSupport = (): void => {
+    Reflect.defineProperty(window, 'showDirectoryPicker', {
+      configurable: true,
+      value: () => Promise.reject(new Error('not used')),
+    })
+  }
+  const openFileMenu = async (item: RegExp) => {
+    await userEvent.click(screen.getByRole('button', { name: /^File/ }))
+    await userEvent.click(await screen.findByRole('menuitem', { name: item }))
+  }
+
+  it('warns the browser before the tab closes while there is unsaved work, and not otherwise', () => {
+    const harness = harnessWithMapActive()
+    renderInApp(<MasterLayout />, harness)
+    const leave = () => {
+      const event = new Event('beforeunload', { cancelable: true })
+      window.dispatchEvent(event)
+      return event.defaultPrevented
+    }
+    expect(leave()).toBe(false)
+    harness.handle.store.dispatch(projectActions.renameMap({ mapId: 1, name: 'Edited' }))
+    return waitFor(() => {
+      expect(leave()).toBe(true)
+    })
+  })
+
+  it('stops warning once the changes are saved', async () => {
+    const harness = harnessWithMapActive()
+    renderInApp(<MasterLayout />, harness)
+    harness.handle.store.dispatch(projectActions.renameMap({ mapId: 1, name: 'Edited' }))
+    harness.handle.store.dispatch({
+      type: 'editorUi/projectSaved',
+      payload: { revision: harness.handle.store.getState().project.revision },
+    })
+    await waitFor(() => {
+      const event = new Event('beforeunload', { cancelable: true })
+      window.dispatchEvent(event)
+      expect(event.defaultPrevented).toBe(false)
+    })
+  })
+
+  it('starts a new project straight away when nothing is unsaved', async () => {
+    const harness = createHarness()
+    const newProject = vi.spyOn(harness.session, 'newProject')
+    renderInApp(<MenuBar />, harness)
+    await openFileMenu(/New project/)
+    expect(newProject).toHaveBeenCalledOnce()
+    expect(screen.queryByText('Discard unsaved changes?')).toBeNull()
+  })
+
+  it('asks before a new project replaces unsaved work, and Cancel keeps everything', async () => {
+    const harness = dirtyHarness()
+    const newProject = vi.spyOn(harness.session, 'newProject')
+    renderInApp(<MenuBar />, harness)
+    await openFileMenu(/New project/)
+    expect(await screen.findByText('Discard unsaved changes?')).toBeTruthy()
+    expect(screen.getByText(/Creating a new project replaces the open project/)).toBeTruthy()
+    expect(newProject).not.toHaveBeenCalled()
+    await userEvent.click(screen.getByRole('button', { name: 'Cancel' }))
+    expect(newProject).not.toHaveBeenCalled()
+    expect(harness.handle.store.getState().project.data.maps[0]?.name).toBe('Edited')
+  })
+
+  it('discards the changes when told to', async () => {
+    const harness = dirtyHarness()
+    const newProject = vi.spyOn(harness.session, 'newProject')
+    renderInApp(<MenuBar />, harness)
+    await openFileMenu(/New project/)
+    await userEvent.click(await screen.findByRole('button', { name: 'Discard changes' }))
+    expect(newProject).toHaveBeenCalledOnce()
+  })
+
+  it('treats an unsaved upload or sprite save as unsaved work too', async () => {
+    const harness = createHarness()
+    harness.assets.write('img/pictures/x.png', Uint8Array.of(1))
+    renderInApp(<MenuBar />, harness)
+    await openFileMenu(/New project/)
+    expect(await screen.findByText('Discard unsaved changes?')).toBeTruthy()
+  })
+
+  it('offers to save first where folders are supported, and carries on after a successful save', async () => {
+    withFolderSupport()
+    const harness = dirtyHarness()
+    const newProject = vi.spyOn(harness.session, 'newProject')
+    const save = vi.spyOn(harness.session, 'save').mockResolvedValue(true)
+    renderInApp(<MenuBar />, harness)
+    await openFileMenu(/New project/)
+    await userEvent.click(await screen.findByRole('button', { name: 'Save, then continue' }))
+    expect(save).toHaveBeenCalledOnce()
+    await waitFor(() => {
+      expect(newProject).toHaveBeenCalledOnce()
+    })
+  })
+
+  it('does not carry on when the save is cancelled', async () => {
+    withFolderSupport()
+    const harness = dirtyHarness()
+    const newProject = vi.spyOn(harness.session, 'newProject')
+    const save = vi.spyOn(harness.session, 'save').mockResolvedValue(false)
+    renderInApp(<MenuBar />, harness)
+    await openFileMenu(/New project/)
+    await userEvent.click(await screen.findByRole('button', { name: 'Save, then continue' }))
+    await waitFor(() => {
+      expect(save).toHaveBeenCalledOnce()
+    })
+    expect(newProject).not.toHaveBeenCalled()
+  })
+
+  it('has no save-first option where folders are not supported, and points to the zip instead', async () => {
+    const harness = dirtyHarness()
+    renderInApp(<MenuBar />, harness)
+    await openFileMenu(/New project/)
+    expect(await screen.findByText(/Download project \(\.zip\)/)).toBeTruthy()
+    expect(screen.queryByRole('button', { name: 'Save, then continue' })).toBeNull()
+  })
+
+  it('asks before opening a folder over unsaved work, and before the picker opens', async () => {
+    withFolderSupport()
+    const harness = dirtyHarness()
+    const openFolder = vi.spyOn(harness.session, 'openFolder').mockResolvedValue(true)
+    renderInApp(<MenuBar />, harness)
+    await openFileMenu(/Open folder/)
+    expect(await screen.findByText(/Opening a folder replaces the open project/)).toBeTruthy()
+    expect(openFolder).not.toHaveBeenCalled()
+    await userEvent.click(screen.getByRole('button', { name: 'Discard changes' }))
+    expect(openFolder).toHaveBeenCalledOnce()
+  })
+
+  it('asks before importing a zip over unsaved work, and opens the file picker only after', async () => {
+    const harness = dirtyHarness()
+    const pick = vi.spyOn(HTMLInputElement.prototype, 'click').mockImplementation(() => undefined)
+    renderInApp(<MenuBar />, harness)
+    await openFileMenu(/Import project/)
+    expect(await screen.findByText(/Importing a project replaces the open project/)).toBeTruthy()
+    expect(pick).not.toHaveBeenCalled()
+    await userEvent.click(screen.getByRole('button', { name: 'Discard changes' }))
+    expect(pick).toHaveBeenCalledOnce()
+    pick.mockRestore()
+  })
+})
+
 describe('update notice', () => {
   it('stays hidden until a new version is ready', () => {
     renderInApp(<MasterLayout />, harnessWithMapActive())

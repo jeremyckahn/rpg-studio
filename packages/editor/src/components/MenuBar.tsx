@@ -17,6 +17,7 @@ import {
 import { useRef, useState } from 'react'
 
 import { CompanionDialog } from './CompanionDialog.tsx'
+import { DiscardChangesDialog } from './DiscardChangesDialog.tsx'
 import { useLayoutMode } from './useLayoutMode.ts'
 
 import { WIKI_URL } from '../links.ts'
@@ -42,6 +43,8 @@ export const MenuBar = () => {
   const importInput = useRef<HTMLInputElement>(null)
   const [importKey, setImportKey] = useState(0)
   const [companionOpen, setCompanionOpen] = useState(false)
+  /** Something that would replace the project, waiting for the user to confirm discarding changes. */
+  const [replacing, setReplacing] = useState<{ label: string; run: () => void } | null>(null)
   const companionStatus = useAppSelector((state) => state.editorUi.companion.status)
 
   const name = useAppSelector((state) => state.project.data.meta.name)
@@ -60,6 +63,14 @@ export const MenuBar = () => {
     () => {
       close()
       void action()
+    }
+  /** Runs `replace` at once, or after confirmation when it would throw away unsaved changes. */
+  const confirmReplace =
+    (label: string, replace: () => unknown): (() => void) =>
+    () => {
+      close()
+      if (dirty) setReplacing({ label, run: () => void replace() })
+      else void replace()
     }
   const trigger = (menu: MenuName) => (event: React.MouseEvent<HTMLElement>) => {
     setOpen({ name: menu, anchor: event.currentTarget })
@@ -160,21 +171,24 @@ export const MenuBar = () => {
 
       <Menu anchorEl={open?.anchor} open={open?.name === 'file'} onClose={close}>
         <MenuItem
-          onClick={run(() => {
+          onClick={confirmReplace('Creating a new project', () => {
             session.newProject()
           })}
         >
           <ListItemText>New project</ListItemText>
         </MenuItem>
-        <MenuItem disabled={!folders} onClick={run(() => session.openFolder())}>
+        <MenuItem
+          disabled={!folders}
+          onClick={confirmReplace('Opening a folder', () => session.openFolder())}
+        >
           <ListItemText secondary={folders ? undefined : 'Not supported in this browser'}>
             Open folder…
           </ListItemText>
         </MenuItem>
         <MenuItem
           onClick={() => {
-            close()
-            importInput.current?.click()
+            // Built inside the handler: the compiler does not allow reading a ref in a render-time closure.
+            confirmReplace('Importing a project', () => importInput.current?.click())()
           }}
         >
           <ListItemText>Import project (.zip)…</ListItemText>
@@ -224,6 +238,27 @@ export const MenuBar = () => {
           <ListItemText>Zoom out</ListItemText>
         </MenuItem>
       </Menu>
+
+      <DiscardChangesDialog
+        open={replacing !== null}
+        action={replacing?.label ?? ''}
+        canSave={folders}
+        onCancel={() => {
+          setReplacing(null)
+        }}
+        onDiscard={() => {
+          replacing?.run()
+          setReplacing(null)
+        }}
+        onSaveFirst={() => {
+          const pending = replacing
+          setReplacing(null)
+          // Only carry on if the save went through (a cancelled folder picker returns false).
+          void session.save().then((saved) => {
+            if (saved) pending?.run()
+          })
+        }}
+      />
 
       <CompanionDialog
         open={companionOpen}

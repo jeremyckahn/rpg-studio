@@ -53,6 +53,27 @@ const useShortcuts = (): void => {
   }, [dispatch, session])
 }
 
+/**
+ * Asks the browser to confirm before the tab is closed or reloaded with unsaved changes.
+ * Nothing autosaves, so leaving silently would lose the work. The message text is the
+ * browser's own; pages cannot customise it.
+ */
+const useUnsavedChangesWarning = (): void => {
+  const dirty = useAppSelector(selectIsDirty)
+  useEffect(() => {
+    if (!dirty) return undefined
+    const onBeforeUnload = (event: BeforeUnloadEvent): void => {
+      event.preventDefault()
+      // Older browsers only show the prompt when returnValue is set.
+      Reflect.set(event, 'returnValue', '')
+    }
+    window.addEventListener('beforeunload', onBeforeUnload)
+    return () => {
+      window.removeEventListener('beforeunload', onBeforeUnload)
+    }
+  }, [dirty])
+}
+
 const Dock = ({
   panels,
   side,
@@ -285,6 +306,7 @@ export const MasterLayout = () => {
   const active = useAppSelector((state) => state.editorUi.workspacePanel)
   const { compact, portrait } = useLayoutMode()
   useShortcuts()
+  useUnsavedChangesWarning()
 
   const workspace = registered.filter((panel) => panel.location === 'workspace')
   const shown = (location: PanelDefinition['location']): readonly PanelDefinition[] =>

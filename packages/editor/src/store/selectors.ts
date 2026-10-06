@@ -12,8 +12,9 @@ export const selectCurrentMap = (state: RootState): Tilemap | undefined => {
   return maps.find((map) => map.id === state.editorUi.selectedMapId) ?? maps[0]
 }
 
+/** Unsaved project data, or unsaved asset changes (uploads, sprite saves, removals). */
 export const selectIsDirty = (state: RootState): boolean =>
-  state.project.revision !== state.editorUi.savedRevision
+  state.project.revision !== state.editorUi.savedRevision || state.assets.unsaved
 
 export const selectCanUndo = (state: RootState): boolean => state.history.past.length > 0
 

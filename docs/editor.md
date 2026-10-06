@@ -97,6 +97,15 @@ step; the paint tools use a fresh group per stroke and the bridge uses one per r
 `projectLoaded` clears history. A snapshot carries its `revision`, so undoing back to the saved
 revision makes `selectIsDirty` false.
 
+**Unsaved work.** `selectIsDirty` is true when the project revision differs from `editorUi.savedRevision` **or**
+`assets.unsaved` is set (any asset added, replaced or removed since the last save; `assetsSaved` clears it, as does
+`assetsReset` when a project is opened). `MasterLayout` registers a `beforeunload` handler while dirty so the browser
+asks before the tab is closed or reloaded. `MenuBar` routes **New project**, **Open folder…** and **Import project**
+through `confirmReplace`: clean means act at once; dirty opens `DiscardChangesDialog` (Cancel, Discard changes, and
+**Save, then continue** where `supportsDirectoryPicker()`, which continues only if `session.save()` resolves true).
+The confirmation comes before any picker opens. Downloading a zip is a backup and does not clear dirty. Any new command
+that replaces the project must use `confirmReplace`.
+
 ### Declaration-emit rule
 
 Do not export slice objects or inferred action creators from a module: Immer's unexported

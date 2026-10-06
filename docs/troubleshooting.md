@@ -153,3 +153,15 @@ An agent connection that carries an `Origin` header (any browser) is refused on 
 
 Pane/viewport size can change between a screenshot and the next click, so coordinates go stale: take a screenshot immediately
 before clicking, and prefer `find`/refs where possible. `findBy*` in RTL can return an element that is about to be replaced; wait for the new value.
+
+## Known rough edges
+
+Behaviours that look like bugs but are current, documented state:
+
+- **Two editor tabs evict each other.** The relay keeps one editor; a second tab replaces the first with close code 4000, and
+  the client retries after 4000, so two tabs on the same relay take turns indefinitely. Use one editor tab per relay.
+- **Some core events are declared but never emitted.** `CoreEventMap` lists `asset:changed`, `game:saved` and `game:loaded`;
+  nothing publishes them yet, and `publishEditorEvent` is unused. Do not rely on them until something emits them.
+- **A plugin whose `initialize` throws stays `failed`.** Later `initialize()` calls do not retry it; fix the plugin and reload.
+- **`createGameRenderer` shows 20×15 tiles by default** (`viewTiles`); pass `viewTiles` for a different viewport.
+- **`connectAgent.waitForEditor` times out after 10 s by default**; pass a longer timeout if the editor is slow to attach.

@@ -5,8 +5,8 @@ The game runtime. Read the [root AGENTS.md](../../AGENTS.md) first, then
 
 ## Hard rules for this package
 
-- **The root entry is headless.** `src/ecs`, `src/game`, `src/headless` and `src/plugins` must not import PixiJS /
-  `@pixi/*` or touch `window`/`document` (a test scans them). Browser code goes in `src/renderer`, `src/audio`,
+- **The root entry is headless.** `src/ecs`, `src/game` and `src/headless` must not import PixiJS /
+  `@pixi/*` or touch `window`/`document` (a test scans those three folders; keep `src/plugins` clean by hand). Browser code goes in `src/renderer`, `src/audio`,
   `src/player`, which are separate entry points (`./renderer`, `./audio`, `./player`).
 - **Determinism.** No `Math.random`, `Date.now`, or wall-clock time in simulation code. Use `game.state.rng`. Time is ticks.
 - **Validation at the edge only.** `createGame` takes a validated `Project`. Data from outside (`createHeadlessGame`,

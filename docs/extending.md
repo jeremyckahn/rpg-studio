@@ -38,7 +38,7 @@ A table touches several enumerations, all of which are deliberate single sources
 1. `core/src/schemas/<file>.ts`: the record schema (`XSchema`) and its type.
 2. `core/src/schemas/project.ts`: add it to `DatabaseShapeSchema`, `DATABASE_TABLES`
    and `DATABASE_RECORD_SCHEMAS`; add reference checks to `validateProject` if it links to other tables.
-3. `core/src/project/files.ts`: add it to `TABLE_SCHEMAS` (and the starter project if sensible).
+3. `core/src/project/files.ts`: add it to `TABLE_SCHEMAS` (**required**: `createStarterProject` in `core/src/project/template.ts` must list the new key or typecheck fails).
 4. `core/src/schemas/actions.ts`: add a variant to `UpsertRecordPayloadSchema` and the table name to
    `DeleteRecordPayloadSchema`'s enum.
 5. `core/src/schemas/protocol.ts`: add the name to the `table` enums of `GET_TABLE` and `GET_RECORD`; add a
@@ -55,7 +55,7 @@ A table touches several enumerations, all of which are deliberate single sources
    command blocks: set `interpreter.waitTicks` or `waitingForMessage` to block, otherwise it runs inline.
    Use `rt.audio`, `rt.bus`, `setSwitch`/`setVariable` helpers; do not read clocks or randomness except `state.rng`.
 4. If it references other project data (a map, an item), extend `validateProject` so dangling references are rejected.
-5. Docs: command table in `data-model.md`. Tests: schema accept/reject (`core/test/schemas.test.ts`), compact
+5. Docs: the command table **and** the compact-code list in `data-model.md` §5 (the docs test checks both). Tests: schema accept/reject (`core/test/schemas.test.ts`), compact
    round-trip (`core/test/events.test.ts`, add it to the `commands` list there), engine behaviour
    (`engine/test/events.test.ts`, using `solo([...])`).
 
@@ -72,7 +72,7 @@ An action is how _anything_ edits a project (UI, plugins, console, AI). It must 
 3. `editor/src/store/slices/project.ts`: add `name: operation('name')` to the reducers.
 4. Done for free: undo/redo (derived from the schema), the AI bridge, the plugin `dispatchProjectAction`, the docs checker.
 5. Update `core/test/actions.test.ts` (it enumerates every action type and asserts the count),
-   the table in `editor.md`, and add cases to `editor/test/projectOps.test.ts` (success keeps `ProjectSchema` valid;
+   the table in `editor.md`, bump the action count in `tooling/docs.test.ts`, replace "sixteen"/"16" in `editor.md`, `companion-protocol.md`, `plugins.md`, `troubleshooting.md` and `packages/core/AGENTS.md`, and add cases to `editor/test/projectOps.test.ts` (success keeps `ProjectSchema` valid;
    each refusal has a message assertion) and, for UI, component tests.
 
 ## Add a map editing tool
@@ -103,7 +103,7 @@ See [companion-protocol.md §10](companion-protocol.md#10-extending-the-protocol
 Follow [engine.md §9](engine.md#9-extending-the-engine). Always begin with a failing headless test:
 
 ```ts
-const headless = createHeadlessGame(buildProject({ maps: [mapFromAscii(1, rows('.....'), { events: [...] })] }))
+const headless = createHeadlessGame(buildProject({ maps: [mapFromAscii(1, rows('.....'), { events: [...] })], meta: { startX: 2, startY: 0 } }))
 headless.step('right')
 expect(headless.game.snapshot()).toMatchObject({ player: { x: 3 } })
 ```
@@ -113,16 +113,16 @@ If the change affects saves, bump `SAVE_STATE_VERSION` only for incompatible cha
 
 ## Add an asset kind to export
 
-Edit `editor/src/export/packager.ts` (`IMAGE_EXTENSIONS`/`AUDIO_EXTENSIONS` or a new classifier) **and** make the
+Edit `editor/src/export/packager.ts` (`IMAGE_EXTENSIONS`/`AUDIO_EXTENSIONS` or a new classifier), `editor/src/export/zip.ts` (`STORED_EXTENSIONS`, for already-compressed formats), `engine/src/audio/manager.ts` (`AUDIO_EXTENSIONS`, for audio) and `editor/src/bridge/handler.ts` (`WRITABLE`, if agents may write it) **and** make the
 player able to use it (`player/bundle.ts` for data, the renderer/audio for assets). Add cases to
 `editor/test/export.test.ts` for both "shipped" and "omitted with a reason".
 
 ## Change the project file format
 
 Additive change: add a defaulted field and nothing else. Breaking change: bump `PROJECT_FORMAT_VERSION`
-(`core/src/schemas/project.ts`), keep `filesToProject` accepting the old version (migrate in memory), update
+(`core/src/schemas/project.ts`; note `ProjectMetaSchema.formatVersion` is `z.literal(PROJECT_FORMAT_VERSION)`, so widen it to accept the old version too), keep `filesToProject` accepting the old version (migrate in memory), update
 `projectToFiles`, and write a migration test with a literal old-format fixture. Record the decision in
-[decisions.md](decisions.md). `game.json` has its own `GAME_BUNDLE_FORMAT_VERSION`.
+[decisions.md](decisions.md). `game.json` has its own `GAME_BUNDLE_FORMAT_VERSION` and saves have `SAVE_STATE_VERSION`; both are `z.literal` in `GameBundleSchema`/`SaveStateSchema`, so widen them the same way.
 
 ## Add a package
 
@@ -131,7 +131,7 @@ Additive change: add a defaulted field and nothing else. Breaking change: bump `
    `tsconfig.build.json`, `vite.config.ts` (`libConfig(...)` from `tooling/vite.ts`), `vitest.config.ts`
    (**copy an existing one**: it carries `sourceResolve`, `sourceSsr`, `workspaceServerDeps`).
 2. `pnpm install`; confirm it exits 0 (see [troubleshooting](troubleshooting.md#pnpm-install-exits-non-zero)).
-3. Write `README.md` and `AGENTS.md` (the docs test fails without one).
+3. Write `README.md` and `AGENTS.md` (the docs test fails without one). Name the package in the root `AGENTS.md` and `README.md` (also tested), and give its `AGENTS.md` a file-map code block with more than five real path tokens.
 4. Root `vitest.config.ts` picks up `packages/*` automatically; ESLint uses the root config.
 5. Mind the dependency direction (`core` imports nothing; nothing imports `editor`).
 

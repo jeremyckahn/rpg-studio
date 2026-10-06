@@ -37,7 +37,7 @@ to Zod's `JSONType`).
 
 ## 3. Database records (`actor.ts`, `item.ts`)
 
-Five tables, each an array of records keyed by unique `id`:
+The database tables (see the table below), each an array of records keyed by unique `id`. Every table must also appear in `createStarterProject`:
 
 | Table     | Schema        | Notes                                                                                                  |
 | --------- | ------------- | ------------------------------------------------------------------------------------------------------ |

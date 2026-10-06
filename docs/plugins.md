@@ -175,8 +175,9 @@ export default {
 ```js
 export default {
   initialize(ctx) {
+    let ticks = 0
     ctx.ecs.addSystem((game) => {
-      game.state.variables[9] = (game.state.variables[9] ?? 0) + 1 // runs after built-in systems
+      ticks += 1 // runs after built-in systems; do not write game.state (use it read-only)
     })
   },
 }

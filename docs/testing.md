@@ -64,7 +64,7 @@ Default environment is Node. Component tests start with `// @vitest-environment 
 - `Reflect.set` / `Reflect.defineProperty` (they return booleans) to probe frozen objects;
 - `setAttribute` and `key` bumps instead of DOM property assignment in components;
 - for genuine test doubles that must record by mutating (fake sockets, fake timers, the `@pixi/sound` singleton mock),
-  a **file-level** `/* eslint-disable functional/immutable-data -- <why> */` at the top. Do not scatter inline disables.
+  a **file-level** `/* eslint-disable functional/immutable-data -- <why> */` at the top. Prefer file-level over inline disables; a few single-line inline disables with a reason exist in `editor/test/export.test.ts` and `engine/test/{renderer,player,audio}.test.ts`.
 
 Other lint traps seen repeatedly: `@typescript-eslint/no-base-to-string` on `ws` `RawData` (use `rawDataToString`),
 `require-await` on test callbacks with no `await` (drop `async`), `no-unnecessary-type-assertion` on

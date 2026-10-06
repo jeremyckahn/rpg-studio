@@ -14,5 +14,5 @@ offline and on Vercel without a network build step.
 - This folder is excluded from ESLint and Prettier.
 - After regenerating, **restart the Vite dev server**; it deletes and recreates this folder, and the running server serves stale/404 responses for it.
 - The editor-side counterpart is `src/piskel/`; protocol and security are described in
-  [docs/editor.md §6](../../../../docs/editor.md#6-piskel). The two JavaScript files here (`piskel-packaged-min.js`, `rpgstudio-adapter.js`) are
+  [docs/editor.md §6](../../../../docs/editor.md#6-piskel). The JavaScript files here (`piskel-packaged-min.js`, `rpgstudio-adapter.js` and `js/lib/gif/gif.ie.worker.js`) are
   build artifacts, which is the one sanctioned exception to "TypeScript only".

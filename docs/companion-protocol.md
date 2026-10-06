@@ -97,7 +97,7 @@ for a model to learn what it may send.
 ```
 
 1–1000 actions. The editor validates each, applies them in order to a **working copy**, and
-only if all succeed dispatches them (all sharing one history group). If action _k_ is invalid
+only if all succeed dispatches them (all sharing one history group, unless an action carries its own `meta.historyGroup`, which wins). If action _k_ is invalid
 or refused, **nothing is applied** and the error names it ("Action 3 (project/setTiles) was
 refused: …"). One Undo in the editor reverts the whole batch. Result: `{ applied, revision }`.
 
@@ -154,7 +154,7 @@ A page in the user's browser can open a WebSocket to `localhost`. Defences:
 3. `--token <secret>` makes every connection (both roles) prove it knows the secret.
 4. Strict schemas on every hop; unknown fields are rejected.
 5. In the editor: Zod validation, dry run, atomic batches, asset allow-list and size limit,
-   one history group per request so the user can always undo what an agent did.
+   one history group per request (unless an action sets its own `meta.historyGroup`) so the user can undo what an agent did.
 
 ## 8. Writing an agent
 

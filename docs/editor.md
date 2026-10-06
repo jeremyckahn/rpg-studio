@@ -76,6 +76,7 @@ plugin host accept **only** the sixteen, via `ProjectActionSchema`.
 `applyProjectAction(project, action) → Result<Project>`. Pure; never mutates its input; returns a
 new project sharing everything it did not touch. Behaviour to rely on:
 
+- `resizeMap` also clamps the start position when the start map is resized; `deleteMap` uses explicit checks (not full-schema validation: it refuses the start map and maps that are transfer targets); `removeMapEvent` only checks that the event exists.
 - Tile operations validate their inputs (cells in bounds, layer exists) and apply
   **atomically**: one bad cell refuses the whole action.
 - Operations that change relationships (`resizeMap`, `deleteMap`, records, events, meta)
@@ -127,7 +128,7 @@ creators (`ProjectActionCreators`, `HistoryActionCreators`) and reducers instead
 `MasterLayout` renders: `MenuBar` (File/Edit/View, undo/redo, companion status), a left column
 (`AssetBrowser` plus _left_ panels), tabs for _workspace_ panels, and a right dock of _right_
 panels. It knows nothing about specific features: panels come from the **panel registry**
-(`PanelDefinition { id, title, location: workspace|left|right|bottom, order?, when?, component }`).
+(`PanelDefinition { id, title, location: workspace|left|right|bottom, order?, when?, component }`). **`bottom` is declared but not rendered yet**: `MasterLayout` shows only workspace, left and right panels.
 `when` restricts a docked panel to one workspace panel. Keyboard: Ctrl/Cmd+Z undo,
 Ctrl+Shift+Z / Ctrl+Y redo (not while typing in a field), Ctrl+S save.
 
@@ -137,7 +138,7 @@ The first-party panels (`plugins/corePlugins.ts`):
 | ------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------- |
 | `rpgstudio.map-editor`   | workspace `Map` (toolbar + `MapCanvas`), left `Tools` (maps, layers, tileset palette), right `Properties` (map, game start, events JSON) |
 | `rpgstudio.database`     | workspace `Database` (`DatabaseEditor`)                                                                                                  |
-| `rpgstudio.pixel-editor` | workspace `Sprite Editor` (`createPiskelEditorPanel(ctx.readFiles, ctx.writeFiles)`)                                                     |
+| `rpgstudio.pixel-editor` | workspace `Sprite Editor` (`createPiskelEditorPanel({ read: ctx.readFiles, write: ctx.writeFiles })`)                                    |
 
 Patterns to follow:
 
@@ -178,12 +179,12 @@ are pure and unit-tested.
 `createEditorPluginHost({ handle, assets, panels, logSink? })` → `{ core, manager }`. The editor
 host provides, beyond core's `events`/`schemas`/`log`:
 
-| Capability (manifest) | Context property | What it gives                                                                                                                                                                  |
-| --------------------- | ---------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `store`               | `ctx.store`      | `getProject`, `select`, `dispatchProjectAction(unknown)` (Zod-validated, dry-run, returns `Result`), `registerSlice` (a plain reducer under `plugin/<id>/<name>`), `subscribe` |
-| `ui`                  | `ctx.ui`         | `registerPanel`, and `kit`: host `React`, a MUI subset, `useSelector`/`useDispatch`                                                                                            |
-| `files:read`          | `ctx.readFiles`  | `list`, `readText`, `readBytes` over the AssetStore                                                                                                                            |
-| `files:write`         | `ctx.writeFiles` | `write`, `remove`, limited to `img/`, `audio/` and `plugins/<own id>/`                                                                                                         |
+| Capability (manifest) | Context property | What it gives                                                                                                                                                                                                                              |
+| --------------------- | ---------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `store`               | `ctx.store`      | `getProject`, `select`, `dispatchProjectAction(unknown)` (Zod-validated, dry-run, returns `Result`), `registerSlice` (a plain reducer under the state key `plugin_<id>_<name>` (action types `plugin/<id>/<name>/<reducer>`)), `subscribe` |
+| `ui`                  | `ctx.ui`         | `registerPanel`, and `kit`: host `React`, a MUI subset, `useSelector`/`useDispatch`                                                                                                                                                        |
+| `files:read`          | `ctx.readFiles`  | `list`, `readText`, `readBytes` over the AssetStore                                                                                                                                                                                        |
+| `files:write`         | `ctx.writeFiles` | `write`, `remove`, limited to `img/`, `audio/` and `plugins/<own id>/`                                                                                                                                                                     |
 
 See [plugins.md](plugins.md) for the full contract and an example.
 
@@ -220,8 +221,7 @@ adapter before the **last** `</body>` (earlier ones are inside HTML template str
 Included: `index.html`, `game.json`, `project.json`, `data/*`, `maps/*`, images
 (`png jpg jpeg gif webp avif` under `img/`), audio (`ogg mp3 m4a wav` under `audio/`), and for
 each plugin listed in `meta.plugins`: `manifest.json` plus its `shared` and `engine` entries
-only, and `engine/player.js`. Omitted (and reported): `.piskel`, any other file type, editor-only
-plugin files, plugins not enabled. Refused (`ExportError` with all problems at once): enabled
+only, and `engine/player.js`. Omitted (and reported): `.piskel`, any other file type, and editor-only files of _enabled_ plugins. Files under `plugins/` are silently dropped by `classifyAssets`, so files of plugins that are not enabled are not reported. Refused (`ExportError` with all problems at once): enabled
 plugin missing/invalid/mismatched id/missing entry/missing dependency, a map tileset not in the
 project, no engine build. The page title is HTML-escaped. `exportProjectArchive` /
 `importProjectArchive` round-trip the **whole** project (sources included) for browsers without

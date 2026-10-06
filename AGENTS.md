@@ -59,8 +59,8 @@ failure, which once hid a failing `pnpm install` in this repo.
 ## The rules (and where they are enforced)
 
 1. **Strict TypeScript.** Strictness flags live in `tsconfig.base.json`, including
-   `noUncheckedIndexedAccess`. JavaScript only exists as build output, with two
-   deliberate exceptions that are generated or vendored (see `packages/editor/public/piskel`).
+   `noUncheckedIndexedAccess`. JavaScript only exists as build output, with deliberate
+   exceptions that are generated or vendored (see `packages/editor/public/piskel`) plus the hand-written `eslint.config.js`.
 2. **Immutability.** `functional/immutable-data` is an ESLint **error**. It flags array
    mutators, property assignment, `Map`/`Set` mutation and `Object.assign`-style calls.
    Write new state with spreads, `map`, `filter`, `toSorted`, `toSpliced`, `toReversed`.

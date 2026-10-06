@@ -6,7 +6,7 @@
   "Cannot find native binding". Vercel runs the project on Node 24.x.
 - **pnpm 12.8.1**, pinned by `packageManager`. Workspace: `pnpm-workspace.yaml` (`packages/*`, plus
   `allowBuilds: { esbuild: false }`).
-- No Turborepo; `pnpm -r run build` builds in topological order (core → engine → editor/companion-bridge).
+- No Turborepo; `pnpm -r run build` builds in topological order (core → engine and companion-bridge → editor, since the editor devDepends on the bridge).
 
 ```
 tsconfig.base.json     strict compiler options shared by everyone

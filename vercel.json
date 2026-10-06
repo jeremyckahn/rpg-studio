@@ -3,5 +3,18 @@
   "buildCommand": "pnpm build && pnpm build:app",
   "outputDirectory": "packages/editor/dist-app",
   "installCommand": "rm -rf node_modules packages/*/node_modules && pnpm install --frozen-lockfile",
-  "framework": "vite"
+  "framework": "vite",
+  "redirects": [
+    {
+      "source": "/(.*)",
+      "has": [
+        {
+          "type": "host",
+          "value": "www.rpg-studio.com"
+        }
+      ],
+      "destination": "https://rpg-studio.com/$1",
+      "permanent": true
+    }
+  ]
 }

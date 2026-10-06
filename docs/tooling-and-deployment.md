@@ -99,10 +99,23 @@ All build outputs are git-ignored (`dist/`, `dist-*/`).
   "buildCommand": "pnpm build && pnpm build:app",
   "outputDirectory": "packages/editor/dist-app",
   "installCommand": "rm -rf node_modules packages/*/node_modules && pnpm install --frozen-lockfile",
-  "framework": "vite"
+  "framework": "vite",
+  "redirects": [
+    {
+      "source": "/(.*)",
+      "has": [{ "type": "host", "value": "www.rpg-studio.com" }],
+      "destination": "https://rpg-studio.com/$1",
+      "permanent": true
+    }
+  ]
 }
 ```
 
+- **Domains:** production is served at **https://rpg-studio.com** (the canonical address) and `www.rpg-studio.com`, which
+  redirects to it (the `redirects` entry above). Both are domains of the Vercel project `rpg-studio`; the registrar is
+  Name.com and its DNS points at Vercel with `A @ 76.76.21.21` and `A www 76.76.21.21`. Every push to `main` deploys to
+  production and to all of the project's domains; there is nothing else to configure per deploy. Check the state with
+  `npx vercel domains inspect rpg-studio.com`.
 - **Why the install command removes `node_modules` first:** Vercel restores the previous deployment's build cache. After the
   repository was rewritten, the cache held `packages/*/node_modules` from the old layout whose `vite` shims pointed at files
   that no longer exist, so every build failed with `MODULE_NOT_FOUND`. A plain `pnpm install` does not remove stale

@@ -1,3 +1,4 @@
+import HelpOutlined from '@mui/icons-material/HelpOutlined'
 import Redo from '@mui/icons-material/Redo'
 import Sensors from '@mui/icons-material/Sensors'
 import Undo from '@mui/icons-material/Undo'
@@ -18,6 +19,7 @@ import { useRef, useState } from 'react'
 import { CompanionDialog } from './CompanionDialog.tsx'
 import { useLayoutMode } from './useLayoutMode.ts'
 
+import { WIKI_URL } from '../links.ts'
 import { supportsDirectoryPicker } from '../project/fileSystem.ts'
 import { redo, selectCanRedo, selectCanUndo, selectIsDirty, undo } from '../store/index.ts'
 import { editorUiSlice } from '../store/slices/editorUi.ts'
@@ -77,7 +79,8 @@ export const MenuBar = () => {
           </Typography>
         )}
         <Button size="small" color="inherit" onClick={trigger('file')}>
-          File
+          {/* The name does not fit on a phone, so the unsaved marker rides on File. */}
+          File{compact && dirty ? ' •' : ''}
         </Button>
         <Button size="small" color="inherit" onClick={trigger('edit')}>
           Edit
@@ -110,12 +113,24 @@ export const MenuBar = () => {
             </IconButton>
           </span>
         </Tooltip>
+        <Tooltip title="User guide (opens the wiki)">
+          <IconButton
+            size="small"
+            component="a"
+            href={WIKI_URL}
+            target="_blank"
+            rel="noopener noreferrer"
+            aria-label="User guide"
+            sx={{ ml: 'auto' }}
+          >
+            <HelpOutlined fontSize="small" />
+          </IconButton>
+        </Tooltip>
         {compact ? (
           <IconButton
             size="small"
             aria-label={COMPANION_LABEL[companionStatus]}
             color={companionStatus === 'connected' ? 'success' : 'default'}
-            sx={{ ml: 'auto' }}
             onClick={() => {
               setCompanionOpen(true)
             }}
@@ -126,7 +141,7 @@ export const MenuBar = () => {
           <Button
             size="small"
             color={companionStatus === 'connected' ? 'success' : 'inherit'}
-            sx={{ ml: 'auto', textTransform: 'none' }}
+            sx={{ textTransform: 'none' }}
             onClick={() => {
               setCompanionOpen(true)
             }}
@@ -134,16 +149,13 @@ export const MenuBar = () => {
             {COMPANION_LABEL[companionStatus]}
           </Button>
         )}
-        <Typography
-          variant="body2"
-          noWrap
-          sx={{ ml: compact ? 0.5 : 2, minWidth: 0, maxWidth: compact ? '30vw' : undefined }}
-          aria-label="Project name"
-        >
-          {name}
-          {dirty ? ' •' : ''}
-          {folderName ? ` — ${folderName}` : ''}
-        </Typography>
+        {compact ? null : (
+          <Typography variant="body2" noWrap sx={{ ml: 2, minWidth: 0 }} aria-label="Project name">
+            {name}
+            {dirty ? ' •' : ''}
+            {folderName ? ` — ${folderName}` : ''}
+          </Typography>
+        )}
       </Toolbar>
 
       <Menu anchorEl={open?.anchor} open={open?.name === 'file'} onClose={close}>

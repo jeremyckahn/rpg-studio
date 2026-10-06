@@ -32,6 +32,7 @@ authoring by both human creators and external AI agents.
 
 ## Documentation
 
+- **[User guide (wiki)](https://github.com/jeremyckahn/rpg-studio/wiki)**: how to use the app: maps, events, sprites, exporting, mobile, the AI companion. The app links to it from the **?** button.
 - [`AGENTS.md`](AGENTS.md): start here if you are an AI agent or new to the codebase (commands, rules, gotchas).
 - [`docs/`](docs/README.md): architecture, the decision log, the data model, per-area guides, extension recipes, testing, deployment and troubleshooting.
 - Each package has its own `AGENTS.md` with a file map and local rules.

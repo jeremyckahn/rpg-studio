@@ -158,6 +158,15 @@ describe('MasterLayout on a small screen', () => {
     expect(getComputedStyle(screen.getByLabelText('Tools sheet')).height).not.toBe('')
   })
 
+  it('shows the unsaved marker on the File button, since the project name does not fit', async () => {
+    const harness = phonePortrait()
+    renderInApp(<MasterLayout />, harness)
+    expect(screen.getByRole('button', { name: 'File' })).toBeTruthy()
+    harness.handle.store.dispatch(projectActions.renameMap({ mapId: 1, name: 'Edited' }))
+    expect(await screen.findByRole('button', { name: 'File •' })).toBeTruthy()
+    expect(screen.queryByLabelText('Project name')).toBeNull()
+  })
+
   it('keeps the desktop docks on a wide screen', () => {
     mockViewport(1280, 800)
     renderInApp(<MasterLayout />, harnessWithMapActive())
@@ -226,6 +235,23 @@ describe('MenuBar', () => {
     expect(harness.handle.store.getState().project.data.maps[0]?.name).toBe('Town')
     await userEvent.click(screen.getByRole('button', { name: 'Redo' }))
     expect(harness.handle.store.getState().project.data.maps[0]?.name).toBe('x')
+  })
+
+  it('links to the user guide (the wiki) in a new tab, without leaking the opener', () => {
+    renderInApp(<MenuBar />, createHarness())
+    const link = screen.getByRole('link', { name: 'User guide' })
+    expect(link.getAttribute('href')).toBe('https://github.com/jeremyckahn/rpg-studio/wiki')
+    expect(link.getAttribute('target')).toBe('_blank')
+    expect(link.getAttribute('rel')).toBe('noopener noreferrer')
+  })
+
+  it('links the companion dialog to its setup guide', async () => {
+    renderInApp(<MenuBar />, createHarness())
+    await userEvent.click(screen.getByRole('button', { name: /Companion/ }))
+    const link = await screen.findByRole('link', { name: 'Setup guide' })
+    expect(link.getAttribute('href')).toBe(
+      'https://github.com/jeremyckahn/rpg-studio/wiki/AI-Companion',
+    )
   })
 
   it('starts a new project from File > New project', async () => {

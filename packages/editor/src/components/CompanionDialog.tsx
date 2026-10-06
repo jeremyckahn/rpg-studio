@@ -5,6 +5,7 @@ import {
   DialogActions,
   DialogContent,
   DialogTitle,
+  Link,
   Stack,
   TextField,
   Typography,
@@ -13,6 +14,7 @@ import { DEFAULT_COMPANION_URL } from '@rpgstudio/core'
 import { useState } from 'react'
 
 import { parseCompanionUrl } from '../bridge/companionClient.ts'
+import { WIKI_PAGES, wikiUrl } from '../links.ts'
 import { useAppSelector, useServices } from './services.tsx'
 
 /** Where to connect the editor to a local companion server so AI agents can drive it. */
@@ -43,7 +45,10 @@ export const CompanionDialog = ({ open, onClose }: { open: boolean; onClose: () 
           <Typography variant="body2" color="text.secondary">
             Connect to a local companion server so an AI agent can read and edit this project. Start
             one with <code>pnpm dev:companion</code>. Anything an agent sends is validated before it
-            changes your project, and each request can be undone in one step.
+            changes your project, and each request can be undone in one step.{' '}
+            <Link href={wikiUrl(WIKI_PAGES.companion)} target="_blank" rel="noopener noreferrer">
+              Setup guide
+            </Link>
           </Typography>
           <TextField
             label="Server address"

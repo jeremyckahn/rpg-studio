@@ -138,14 +138,17 @@ All build outputs are git-ignored (`dist/`, `dist-*/`).
 
 `.github/workflows/e2e.yml` runs on every `push` (any branch), every `pull_request` and on demand (`workflow_dispatch`), on
 `ubuntu-latest` with Node 22 and the pnpm version pinned by `packageManager`. A newer run for the same ref cancels the older
-one. Steps: `pnpm install --frozen-lockfile`, `pnpm build`, `pnpm build:app`, install Chromium with its system dependencies
-(`playwright install --with-deps chromium`), `pnpm test:e2e`. The Playwright HTML report, traces, screenshots and videos of
-failures are uploaded as the `playwright-report` artifact, also when the run fails. On CI, Playwright retries a failing test
-twice (a test that only passes on retry is reported as flaky and should be fixed) and uses two workers.
+one. The suite is split into four parallel shards (`--shard=N/4`), because on one runner it takes the best part of half an
+hour. Each shard: `pnpm install --frozen-lockfile`, `pnpm build`, `pnpm build:app`, install Chromium with its system
+dependencies (`playwright install --with-deps chromium`), `pnpm test:e2e --shard=N/4`. The Playwright HTML report, traces,
+screenshots and videos of failures are uploaded per shard as `playwright-report-N`, also when the run fails. On CI,
+Playwright retries a failing test twice (a test that only passes on retry is reported as flaky and should be fixed) and uses
+two workers per shard.
 
-To make the check mandatory, require the **End-to-end tests / Playwright (Chromium)** status check in the branch protection
-rules for `main`; that is a repository setting, not something the workflow file can enforce. A push to a branch that has an
-open pull request runs the workflow twice (once for the push, once for the pull request); that is intended.
+To make the check mandatory, require **End-to-end tests passed** (the `e2e-passed` job, which succeeds only when every shard
+did) in the branch protection rules for `main`; that is a repository setting, not something the workflow file can enforce.
+A push to a branch that has an open pull request runs the workflow twice (once for the push, once for the pull request);
+that is intended.
 
 ## 7. PWA
 

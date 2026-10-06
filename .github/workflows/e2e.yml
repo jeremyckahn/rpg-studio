@@ -16,9 +16,15 @@ permissions:
 
 jobs:
   e2e:
-    name: Playwright (Chromium)
+    name: Playwright (Chromium, shard ${{ matrix.shard }}/4)
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 40
+    strategy:
+      # Let every shard finish, so one failure does not hide the others.
+      fail-fast: false
+      matrix:
+        # The whole suite takes the best part of half an hour on one runner, so it is split in four.
+        shard: [1, 2, 3, 4]
     steps:
       - uses: actions/checkout@v4
 
@@ -44,16 +50,26 @@ jobs:
         run: pnpm --filter @rpgstudio/e2e exec playwright install --with-deps chromium
 
       - name: Run the end-to-end tests
-        run: pnpm test:e2e
+        run: pnpm test:e2e --shard=${{ matrix.shard }}/4
 
       # Traces, screenshots and videos of failures, plus the HTML report.
       - name: Upload the Playwright report
         if: ${{ !cancelled() }}
         uses: actions/upload-artifact@v4
         with:
-          name: playwright-report
+          name: playwright-report-${{ matrix.shard }}
           path: |
             packages/e2e/playwright-report/
             packages/e2e/test-results/
           if-no-files-found: ignore
           retention-days: 14
+
+  # One check with a stable name to require in branch protection, whatever the number of shards.
+  e2e-passed:
+    name: End-to-end tests passed
+    if: ${{ always() }}
+    needs: e2e
+    runs-on: ubuntu-latest
+    steps:
+      - name: Every shard must have passed
+        run: test "${{ needs.e2e.result }}" = "success"

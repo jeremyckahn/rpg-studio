@@ -3,6 +3,8 @@
 The shared foundation of RPG Studio. It contains no rendering or UI code and
 runs unchanged in browsers, Node and Web Workers.
 
+Rules, file map and pitfalls: [AGENTS.md](AGENTS.md). Data model: [docs/data-model.md](../../docs/data-model.md).
+
 | Area      | Entry points                                                                                                                                                           |
 | --------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Schemas   | `ActorSchema`, `ClassSchema`, `ItemSchema`, `SkillSchema`, `EnemySchema`, `TilemapSchema`, `EventCommandSchema`, `EventPageSchema`, `SaveStateSchema`, `ProjectSchema` |

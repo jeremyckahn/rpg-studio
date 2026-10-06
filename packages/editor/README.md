@@ -4,6 +4,8 @@ The authoring workspace: a React/MUI shell around a Redux Toolkit store, a
 PixiJS map canvas, an embedded Piskel sprite editor and an in-browser game
 exporter. It builds as an installable PWA.
 
+Rules, file map and pitfalls: [AGENTS.md](AGENTS.md). Full guide: [docs/editor.md](../../docs/editor.md). Plugins: [docs/plugins.md](../../docs/plugins.md).
+
 ```sh
 pnpm dev          # builds the engine player, then serves the editor at :5173
 pnpm build:app    # production PWA into packages/editor/dist-app

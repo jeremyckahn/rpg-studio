@@ -4,6 +4,8 @@ Lets an AI agent (a Python LangChain script, a local model, anything that can
 open a WebSocket) read and edit an RPG Studio project while a human watches the
 editor update live.
 
+Rules, file map and pitfalls: [AGENTS.md](AGENTS.md). Protocol reference: [docs/companion-protocol.md](../../docs/companion-protocol.md).
+
 ```
  agent  ──ws──▶  companion server  ◀──ws──  editor (browser)
  (Node, Python…)  localhost:8080            dials out; executes requests

@@ -3,6 +3,8 @@
 The game runtime: a `miniplex` ECS, a deterministic fixed-step simulation, a
 PixiJS renderer and an audio manager.
 
+Rules, file map and pitfalls: [AGENTS.md](AGENTS.md). Full guide: [docs/engine.md](../../docs/engine.md).
+
 | Entry point                  | Contents                                                           | Needs a browser |
 | ---------------------------- | ------------------------------------------------------------------ | --------------- |
 | `@rpgstudio/engine`          | ECS world and systems, `createGame`, headless harness, plugin host | no              |

@@ -369,7 +369,7 @@ describe('companion client', () => {
     }
   }
 
-  const build = () => {
+  const build = (pageOrigin = 'http://localhost:5173') => {
     const sockets = fakeSockets()
     const clock = timers()
     const handler = vi.fn<
@@ -383,6 +383,7 @@ describe('companion client', () => {
       createSocket: sockets.factory,
       setTimer: clock.setTimer,
       clearTimer: clock.clearTimer,
+      pageOrigin,
     })
     return { client, handler, clock, ...sockets }
   }
@@ -497,6 +498,40 @@ describe('companion client', () => {
     expect(client.status()).toBe('disconnected')
     expect(client.lastError()).toMatch(/Wrong token/)
     expect(clock.pending).toHaveLength(0)
+  })
+
+  it('tells the user exactly how to allow this page when the server refuses its origin', () => {
+    const { client, created, clock } = build('https://rpg-studio.com')
+    client.connect()
+    created[0]?.emit('close', { code: 4403, reason: 'Origin not allowed' })
+    expect(client.status()).toBe('disconnected')
+    expect(client.lastError()).toContain('pnpm dev:companion --allow-origin https://rpg-studio.com')
+    expect(clock.pending).toHaveLength(0)
+  })
+
+  it('points a refused token at the --token option', () => {
+    const { client, created } = build()
+    client.connect()
+    created[0]?.emit('close', { code: 4401, reason: 'Wrong token' })
+    expect(client.lastError()).toMatch(/token.*Wrong token.*--token/)
+  })
+
+  it('hints that the browser may be blocking a secure page from a local server', () => {
+    const secure = build('https://rpg-studio.com')
+    secure.client.connect({ url: 'ws://localhost:8080' })
+    secure.created[0]?.emit('close', { code: 1006 })
+    expect(secure.client.lastError()).toMatch(/blocking this site.*local network/)
+
+    const local = build('http://localhost:5173')
+    local.client.connect({ url: 'ws://localhost:8080' })
+    local.created[0]?.emit('close', { code: 1006 })
+    expect(local.client.lastError()).toMatch(/^Could not reach the companion server; retrying/)
+    expect(local.client.lastError()).not.toMatch(/blocking/)
+
+    const remote = build('https://rpg-studio.com')
+    remote.client.connect({ url: 'wss://bridge.example.com' })
+    remote.created[0]?.emit('close', { code: 1006 })
+    expect(remote.client.lastError()).not.toMatch(/blocking/)
   })
 
   it('disconnect stops reconnection and closes the socket', () => {

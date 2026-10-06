@@ -137,8 +137,9 @@ By design it applies nothing unless the whole save is consistent with the projec
 
 ### The editor will not connect
 
-Look at the Companion dialog's message. Close code 4403 means the page's origin is not in the server's allow-list (add
-`--allow-origin <url>`); 4401 means a token mismatch; "Could not reach … retrying" means the server is not running. The editor stops retrying
+Look at the Companion dialog's message. Close code 4403 means the page's origin is not in the server's allow-list (the
+message names the page's origin and gives the exact `pnpm dev:companion --allow-origin <url>` command; options go straight
+after the command, a `--` separator makes pnpm drop them); 4401 means a token mismatch; "Could not reach … retrying" means the server is not running. The editor stops retrying
 after 4400/4401/4403.
 
 ### An agent is rejected immediately

@@ -46,11 +46,39 @@ export interface CompanionClientOptions {
   readonly clearTimer?: (handle: unknown) => void
   /** Delays between reconnection attempts; the last one repeats. */
   readonly backoffMs?: readonly number[]
+  /** This page's origin, named in the fix for a refused connection. Defaults to the real one. */
+  readonly pageOrigin?: string
 }
 
 const SOCKET_OPEN = 1
 /** Server close codes after which retrying would be pointless. */
 const FATAL_CODES: ReadonlySet<number> = new Set([4400, 4401, 4403])
+
+/** What to tell the user when the server closes the connection with one of its refusal codes. */
+const refusalMessage = (code: number, reason: string | undefined, origin: string): string => {
+  if (code === 4403) {
+    return `The server does not allow this page (${origin}) to connect. Restart it with: pnpm dev:companion --allow-origin ${origin}`
+  }
+  if (code === 4401) {
+    return `The server refused the token${reason ? ` (${reason})` : ''}. Enter the token the server was started with (--token).`
+  }
+  return reason
+    ? `The server refused the connection: ${reason}`
+    : 'The server refused the connection'
+}
+
+/**
+ * Secure pages can be stopped by the browser from reaching a server on your own computer.
+ * That failure is silent (the socket just closes), so hint at it once we know it could apply.
+ */
+const unreachableMessage = (seconds: number, origin: string, url: string): string => {
+  const local = ['localhost', '127.0.0.1', '[::1]'].includes(new URL(url).hostname)
+  const hint =
+    origin.startsWith('https:') && local
+      ? ' If the server is running, your browser may be blocking this site from reaching it: check the site permissions (the icon left of the address) and allow local network access.'
+      : ''
+  return `Could not reach the companion server; retrying in ${seconds}s.${hint}`
+}
 
 export const parseCompanionUrl = (input: string): string => {
   const url = new URL(input)
@@ -73,6 +101,7 @@ export const createCompanionClient = ({
     clearTimeout(handle as ReturnType<typeof setTimeout>)
   },
   backoffMs = [1_000, 2_000, 4_000, 8_000, 10_000],
+  pageOrigin = globalThis.location?.origin ?? "this page's address",
 }: CompanionClientOptions): CompanionClient => {
   let status: CompanionStatus = 'disconnected'
   let error = ''
@@ -160,12 +189,7 @@ export const createCompanionClient = ({
       const code = event.code ?? 1006
       if (FATAL_CODES.has(code)) {
         wanted = false
-        setStatus(
-          'disconnected',
-          event.reason
-            ? `The server refused the connection: ${event.reason}`
-            : 'The server refused the connection',
-        )
+        setStatus('disconnected', refusalMessage(code, event.reason, pageOrigin))
         return
       }
       if (!wanted) {
@@ -176,7 +200,11 @@ export const createCompanionClient = ({
       attempt += 1
       setStatus(
         'connecting',
-        `Could not reach the companion server; retrying in ${Math.round(delay / 1000)}s`,
+        unreachableMessage(
+          Math.round(delay / 1000),
+          pageOrigin,
+          parseCompanionUrl(options.url ?? DEFAULT_COMPANION_URL),
+        ),
       )
       retry = setTimer(() => {
         retry = null

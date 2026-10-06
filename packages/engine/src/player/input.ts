@@ -15,11 +15,34 @@ const DIRECTION_KEYS: Readonly<Record<string, Direction>> = {
 
 const CONFIRM_KEYS: ReadonlySet<string> = new Set(['Enter', 'Space', 'KeyZ'])
 
-export interface KeyboardInput {
+/** Anything that can supply the game's input once per tick. */
+export interface PlayerInput {
   /** The input for the next tick. A confirm press is reported exactly once. */
   poll: () => GameInput
   dispose: () => void
 }
+
+export type KeyboardInput = PlayerInput
+
+/**
+ * Combines input sources (keyboard and touch pad) into one. Every source is polled
+ * each tick so none keeps a stale press; the first source holding a direction wins,
+ * and a confirm from any source counts.
+ */
+export const mergeInputs = (...sources: readonly PlayerInput[]): PlayerInput => ({
+  poll: () => {
+    const polled = sources.map((source) => source.poll())
+    return {
+      direction: polled.find((input) => input.direction !== null)?.direction ?? null,
+      confirm: polled.some((input) => input.confirm),
+    }
+  },
+  dispose: () => {
+    sources.forEach((source) => {
+      source.dispose()
+    })
+  },
+})
 
 interface KeyTarget {
   addEventListener: (type: string, listener: (event: KeyboardEvent) => void) => void

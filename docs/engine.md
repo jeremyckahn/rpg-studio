@@ -29,7 +29,7 @@ src/plugins/host.ts          engine-side plugin manager (ecs + audio capabilitie
 src/renderer/*               PixiJS: pixelArt, viewport, characters, tilemapPlan, tilemap,
                              textures, sprites, gameRenderer
 src/audio/*                  manager (tiers), unlock, pixiSoundBackend
-src/player/*                 main (startPlayer), bundle (loadGameBundle), input, messageBox
+src/player/*                 main (startPlayer), bundle (loadGameBundle), input, touchControls, messageBox
 ```
 
 ## 2. The simulation
@@ -197,10 +197,18 @@ only; real playback has not been verified in a browser.**
 `startPlayer(root, { baseUrl? })`: fetch `game.json` → `loadGameBundle` (project data via
 `filesToProject`; plugin `manifest.json` plus only the `shared` and `engine` entries) →
 audio manager + unlock → `createGame` → engine plugin manager → texture provider → renderer →
-message box (a DOM overlay; text is set via `textContent`, never HTML) → keyboard input →
+message box (a DOM overlay; text is set via `textContent`, never HTML) → keyboard input (plus touch controls) →
 `app.ticker` loop through `createFixedStepClock`. Failures are shown in the page. Controls:
 arrows/WASD move; Enter/Space/Z confirm; a key tap shorter than one frame is latched so it
-still moves the player a tile. There are **no touch controls yet**.
+still moves the player a tile.
+
+**Touch controls** (`player/touchControls.ts`): `startPlayer(root, { touchControls: 'auto' | 'on' | 'off' })`;
+`auto` (default) shows them when `(pointer: coarse)` matches. A virtual D-pad is one surface, so a thumb can slide
+between directions without lifting (`directionFromOffset`: dominant axis, 25% dead zone, never diagonal), and an
+**A** button confirms. They implement `PlayerInput` and are combined with the keyboard by `mergeInputs`, so
+keyboard play still works on a touch laptop. The game's own area is a `stage` element inside `root`; in portrait
+it stops 200 px (`TOUCH_CONTROLS_HEIGHT`) above the bottom so the controls never cover the picture, and in
+landscape they float over the corners. The message box is attached to the stage.
 
 `vite.player.config.ts` bundles everything into one file (ADR-023). Rebuild with
 `pnpm --filter @rpgstudio/engine build`.

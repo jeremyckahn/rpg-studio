@@ -6,12 +6,18 @@ import { createEnginePluginManager } from '../plugins/host.ts'
 import { createAssetTextureProvider } from '../renderer/textures.ts'
 import { createGameRenderer } from '../renderer/gameRenderer.ts'
 import { loadGameBundle } from './bundle.ts'
-import { createKeyboardInput } from './input.ts'
+import { createKeyboardInput, mergeInputs } from './input.ts'
 import { createMessageBox } from './messageBox.ts'
+import { TOUCH_CONTROLS_HEIGHT, createTouchControls, hasCoarsePointer } from './touchControls.ts'
 
 export interface PlayerOptions {
   /** Where `game.json` and the assets live. Defaults to the page's own folder. */
   readonly baseUrl?: string
+  /**
+   * On-screen D-pad and action button. `auto` (the default) shows them on touch screens
+   * only; `on` and `off` force them.
+   */
+  readonly touchControls?: 'auto' | 'on' | 'off'
 }
 
 export interface PlayerHandle {
@@ -50,10 +56,19 @@ export const startPlayer = async (
     })
     const stopUnlock = installAudioUnlock(window, () => audio.unlock())
 
+    const showTouchControls =
+      options.touchControls === 'on' ||
+      (options.touchControls !== 'off' && hasCoarsePointer(window))
+
     root.style.position = 'relative'
+    // The game's own area. In portrait it stops above the touch controls, so a thumb never
+    // covers the picture; in landscape the controls float over the corners instead.
+    const stage = root.ownerDocument.createElement('div')
+    stage.style.cssText = 'position:absolute;left:0;right:0;top:0;bottom:0'
     const canvas = root.ownerDocument.createElement('canvas')
     canvas.style.cssText = 'display:block;width:100%;height:100%;image-rendering:pixelated'
-    root.replaceChildren(canvas)
+    stage.append(canvas)
+    root.replaceChildren(stage)
 
     const game = createGame({ project: loaded.project, audio })
     const plugins = createEnginePluginManager(game, { audio })
@@ -67,9 +82,20 @@ export const startPlayer = async (
         return response.blob()
       },
     })
-    const renderer = await createGameRenderer({ canvas, game, textures, resizeTo: root })
-    const messageBox = createMessageBox(root, game.bus)
-    const input = createKeyboardInput(window)
+    const renderer = await createGameRenderer({ canvas, game, textures, resizeTo: stage })
+    const messageBox = createMessageBox(stage, game.bus)
+    const keyboard = createKeyboardInput(window)
+    const touch = showTouchControls ? createTouchControls(root) : null
+    const input = touch ? mergeInputs(keyboard, touch) : keyboard
+
+    const portrait =
+      typeof window.matchMedia === 'function' ? window.matchMedia('(orientation: portrait)') : null
+    const reserveControlsSpace = (): void => {
+      stage.style.bottom = touch && portrait?.matches ? `${TOUCH_CONTROLS_HEIGHT}px` : '0'
+      renderer.app.resize()
+    }
+    reserveControlsSpace()
+    portrait?.addEventListener('change', reserveControlsSpace)
     const clock = createFixedStepClock()
 
     const onFrame = ({ deltaMS }: { deltaMS: number }): void => {
@@ -83,6 +109,7 @@ export const startPlayer = async (
       stop: () => {
         renderer.app.ticker.remove(onFrame)
         stopUnlock()
+        portrait?.removeEventListener('change', reserveControlsSpace)
         input.dispose()
         messageBox.dispose()
         audio.stopAll()

@@ -32,7 +32,7 @@ src/headless/harness.ts    createHeadlessGame (simulateTicks, step, hold, walkTo
 src/plugins/host.ts        createEnginePluginManager (ecs + audio capabilities)
 src/renderer/              pixelArt, viewport, characters, tilemapPlan, tilemap, textures, sprites, gameRenderer
 src/audio/                 manager (4 tiers), unlock, pixiSoundBackend
-src/player/                main (startPlayer), bundle (loadGameBundle), input, messageBox
+src/player/                main (startPlayer), bundle (loadGameBundle), input, touchControls, messageBox
 vite.config.ts             library build (index, renderer, audio, player entries)
 vite.player.config.ts      standalone player bundle → dist-player/player.js
 test/                      fixtures.ts (mapFromAscii, buildProject…), one file per area, playerBundle.test.ts
@@ -66,4 +66,4 @@ the repo root.
 - `pnpm build` must produce `dist-player/player.js` before the editor builds; the player bundle needs
   `define: process.env.NODE_ENV` or exported games crash on load.
 - Browser audio is untested beyond mocks; changes to `pixiSoundBackend.ts` need manual verification.
-- There are no touch controls; `createKeyboardInput` latches sub-frame taps (keep that).
+- Touch controls (`touchControls.ts`) are merged with the keyboard through `mergeInputs`; both latch sub-frame taps (keep that).

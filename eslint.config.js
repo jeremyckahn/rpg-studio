@@ -11,6 +11,9 @@ export default tseslint.config(
       '**/dist-*/**',
       '**/coverage/**',
       '**/.vite/**',
+      // Playwright's own output (the HTML report ships minified scripts).
+      '**/playwright-report/**',
+      '**/test-results/**',
       '**/public/piskel/**',
     ],
   },

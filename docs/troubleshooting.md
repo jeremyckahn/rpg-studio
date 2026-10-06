@@ -150,6 +150,44 @@ An agent connection that carries an `Origin` header (any browser) is refused on 
 
 `ws` throws on an unhandled `error` event; a browser WebSocket does not. In test adapters add `socket.on('error', () => undefined)`.
 
+## End-to-end tests
+
+### "The editor has not been built"
+
+_Symptom:_ `pnpm test:e2e` stops straight away. _Cause:_ the suite serves `packages/editor/dist-app` (and needs the engine
+player inside it). _Fix:_ `pnpm build && pnpm build:app`.
+
+### An end-to-end test ignores my change, or a new test fails on code I just fixed
+
+_Cause:_ the suite runs the **built** app, and `globalSetup` only checks that a build exists, not that it is current. Locally it
+also reuses a preview server already listening on port 4173, which may be serving an older build. _Fix:_ rebuild
+(`pnpm build && pnpm build:app`) and stop any `pnpm preview` you left running.
+
+### `browserType.launch: Executable doesn't exist`
+
+_Cause:_ Playwright's Chromium is not installed for this version. _Fix:_
+`pnpm --filter @rpgstudio/e2e exec playwright install --with-deps chromium`. Where downloads are blocked but a Chromium is
+already on the machine, set `PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH` to it.
+
+### A test fails only on CI, or only sometimes
+
+Download the `playwright-report` artifact of the run: it holds a trace (DOM snapshots, network, console, a timeline), a
+screenshot and a video for every failure. Open a trace with `pnpm --filter @rpgstudio/e2e exec playwright show-trace <trace.zip>`.
+Reproduce a flake with `playwright test <spec> --repeat-each 10 --workers 4`; load makes races show. A test that passes only on
+retry is flaky: fix its waiting, do not raise the retries.
+
+### `strict mode violation: getByRole(...) resolved to 2 elements`
+
+_Cause:_ MUI renders rows that are buttons containing icon buttons, and toasts share the `alert` role with inline errors, so a
+loose name matches more than one thing. _Fix:_ `exact: true`, click the visible text, or use the helpers in
+`packages/e2e/support/studio.ts` (`status`, `selectLayer`, `pickTile`). More in [packages/e2e/AGENTS.md](../packages/e2e/AGENTS.md#patterns-and-traps).
+
+### The canvas "did not change" in a test that obviously changes it
+
+_Cause:_ the snapshot was taken before PixiJS redrew, with the pointer hovering the map (the hover highlight differs), or with
+a toast covering the corner. _Fix:_ `expect.poll` the comparison, and use `studio.canvasImage()`, which parks the pointer and
+dismisses the toast first.
+
 ## Verifying in a browser
 
 Pane/viewport size can change between a screenshot and the next click, so coordinates go stale: take a screenshot immediately

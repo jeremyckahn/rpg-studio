@@ -285,4 +285,5 @@ See [testing.md](testing.md). In short: pure logic (`projectOps`, packager, quer
 columns) is tested directly; the store is tested through real dispatches; components run in jsdom with
 RTL against a real store and a real session built from fakes (`test/render.tsx`); WebGL-dependent
 code is not unit-tested (its pure parts are); `test/e2e/companion.e2e.test.ts` runs the real relay,
-the real editor handler/client and the reference agent together.
+the real editor handler/client and the reference agent together (in Node, without a browser). The built editor is
+exercised in a real browser by the Playwright suite in `packages/e2e`.

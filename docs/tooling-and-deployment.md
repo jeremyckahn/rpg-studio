@@ -130,8 +130,22 @@ All build outputs are git-ignored (`dist/`, `dist-*/`).
 - Inspect a deployment with the Vercel CLI (`npx vercel inspect <deployment-url> --logs`) after `npx vercel login`.
 - `.vercel/` (the local project link) and `.env*` are git-ignored.
 - `engines.node` is `>=22`, which Vercel warns will auto-upgrade with new Node majors; pin to `22.x` if that matters.
-- **There is no GitHub Actions workflow.** Vercel's build is the only automated check, and it does not run tests or lint.
-  Run the verification gate locally (see [AGENTS.md](../AGENTS.md#the-verification-gate)); adding CI is a reasonable next step.
+- **The only GitHub Actions workflow is the end-to-end suite** (`.github/workflows/e2e.yml`, see §6a). Vercel's build does not
+  run tests or lint, and there is no workflow for them: run the rest of the verification gate locally (see
+  [AGENTS.md](../AGENTS.md#the-verification-gate)).
+
+### 6a. Continuous integration: end-to-end tests
+
+`.github/workflows/e2e.yml` runs on every `push` (any branch), every `pull_request` and on demand (`workflow_dispatch`), on
+`ubuntu-latest` with Node 22 and the pnpm version pinned by `packageManager`. A newer run for the same ref cancels the older
+one. Steps: `pnpm install --frozen-lockfile`, `pnpm build`, `pnpm build:app`, install Chromium with its system dependencies
+(`playwright install --with-deps chromium`), `pnpm test:e2e`. The Playwright HTML report, traces, screenshots and videos of
+failures are uploaded as the `playwright-report` artifact, also when the run fails. On CI, Playwright retries a failing test
+twice (a test that only passes on retry is reported as flaky and should be fixed) and uses two workers.
+
+To make the check mandatory, require the **End-to-end tests / Playwright (Chromium)** status check in the branch protection
+rules for `main`; that is a repository setting, not something the workflow file can enforce. A push to a branch that has an
+open pull request runs the workflow twice (once for the push, once for the pull request); that is intended.
 
 ## 7. PWA
 

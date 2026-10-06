@@ -19,7 +19,8 @@
     "lint": "eslint . --max-warnings 0",
     "test": "vitest run",
     "format": "prettier --write .",
-    "format:check": "prettier --check ."
+    "format:check": "prettier --check .",
+    "test:e2e": "pnpm --filter @rpgstudio/e2e test"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",

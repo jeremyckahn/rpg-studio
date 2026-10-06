@@ -4,6 +4,7 @@
 
 ```sh
 pnpm test                               # every package (and the docs checker), from the repo root
+pnpm test:e2e                           # the Playwright end-to-end suite (build first, see §7)
 pnpm --filter @rpgstudio/engine test    # one package
 pnpm exec vitest run test/movement.test.ts   # one file (cd into the package first)
 pnpm exec vitest                        # watch mode (cd into the package)
@@ -36,13 +37,14 @@ Default environment is Node. Component tests start with `// @vitest-environment 
 
 ## 3. What lives where
 
-| Package          | Test files (see each directory for the full list)                                                                                                               | Notable                                                                                                   |
-| ---------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------- |
-| core             | `schemas`, `actions`, `protocol`, `events`, `math`, `plugins`, `pixel`, `project`                                                                               | Zod accept/reject tables; plugin lifecycle/sandbox; PNG codec incl. every filter; project file round trip |
-| engine           | `movement`, `events`, `headless`, `saveload`, `renderer`, `audio`, `pixiSound`, `player`, `touchControls`, `plugins`, `playerBundle`                            | Headless simulation; no-GPU renderer maths; mocked `@pixi/sound`; builds the real player bundle           |
-| editor           | `projectOps`, `store`, `canvas`, `export`, `project`, `session`, `piskel`, `bridge`, `plugins`, `columns`, `components`, `gestures`, `pwa`, `e2e/companion.e2e` | Pure ops; store/undo; Piskel bridge security; jsdom component tests; end-to-end bridge                    |
-| companion-bridge | `server`                                                                                                                                                        | Real sockets: handshake, routing, security, agent library                                                 |
-| tooling          | `docs`, `user-guide`                                                                                                                                            | Keeps these documents true                                                                                |
+| Package          | Test files (see each directory for the full list)                                                                                                                                        | Notable                                                                                                   |
+| ---------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------- |
+| core             | `schemas`, `actions`, `protocol`, `events`, `math`, `plugins`, `pixel`, `project`                                                                                                        | Zod accept/reject tables; plugin lifecycle/sandbox; PNG codec incl. every filter; project file round trip |
+| engine           | `movement`, `events`, `headless`, `saveload`, `renderer`, `audio`, `pixiSound`, `player`, `touchControls`, `plugins`, `playerBundle`                                                     | Headless simulation; no-GPU renderer maths; mocked `@pixi/sound`; builds the real player bundle           |
+| editor           | `projectOps`, `store`, `canvas`, `export`, `project`, `session`, `piskel`, `bridge`, `plugins`, `columns`, `components`, `gestures`, `pwa`, `e2e/companion.e2e`                          | Pure ops; store/undo; Piskel bridge security; jsdom component tests; end-to-end bridge                    |
+| companion-bridge | `server`                                                                                                                                                                                 | Real sockets: handshake, routing, security, agent library                                                 |
+| tooling          | `docs`, `wiki` (needs a wiki clone)                                                                                                                                                      | Keeps these documents true                                                                                |
+| e2e              | `app-shell`, `map-*`, `properties-panel`, `undo-redo`, `database`, `assets`, `sprite-editor`, `project-files`, `import-export`, `exported-game`, `plugins`, `companion`, `mobile`, `pwa` | Playwright against the built editor, an exported game and a real relay; see §7                            |
 
 ## 4. Fixtures and helpers
 
@@ -81,27 +83,75 @@ re-renders after a store change; wait for the new value (see `PropertiesPanel` t
 is layout-dependent and is not rendered in unit tests: its behaviour is tested through the pure functions behind it
 (`schemaColumns`, `records`, `projectOps`) and was verified in a browser.
 
-## 7. The end-to-end test
+## 7. End-to-end tests (Playwright)
 
-`packages/editor/test/e2e/companion.e2e.test.ts` starts the real relay on a free port, connects the real editor client
-(wrapping `ws` with an `Origin` header, as a browser would) to a real store, then runs the reference agent. It asserts
-terrain, collision, a Zod-validated actor, PNG/`.piskel` assets, texture-cache invalidation, a path query, and that two
-Undos restore the original project. It also covers refusals, a disconnecting editor and automatic reconnect.
+Everything above runs in Node or jsdom. `packages/e2e` is the layer that runs the real thing: the **production build**
+of the editor (`vite preview`, so minification and the service worker are in play) in Chromium, with WebGL through
+SwiftShader so the PixiJS canvas really draws. Package rules, file map and traps: [packages/e2e/AGENTS.md](../packages/e2e/AGENTS.md).
+
+```sh
+pnpm build && pnpm build:app                                                # the app under test (rebuild after source changes)
+pnpm --filter @rpgstudio/e2e exec playwright install --with-deps chromium   # once per machine
+pnpm test:e2e                                                               # everything
+pnpm --filter @rpgstudio/e2e exec playwright test test/database --repeat-each 5   # one spec, checked for flakiness
+```
+
+**The rule: every non-trivial feature gets an end-to-end test**, in the same piece of work that adds it
+([AGENTS.md](../AGENTS.md#end-to-end-tests-cover-every-non-trivial-feature)). GitHub Actions runs the suite on every push and
+every pull request (`.github/workflows/e2e.yml`: install, `pnpm build`, `pnpm build:app`, install Chromium, `pnpm test:e2e`;
+the HTML report, traces, screenshots and videos of failures are uploaded as an artifact).
+
+### What the suite covers
+
+| Spec               | Covers                                                                                                                                                                                                                |
+| ------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `app-shell`        | Boot into the starter project, workspaces and docked panels, the help link, the `window.RPGStudio` console API                                                                                                        |
+| `map-painting`     | Tile palette; pencil (strokes, undo as one step, layers); eraser; flood fill; collision tool; picture changes and is restored by undo                                                                                 |
+| `map-view`         | Tool selection, zoom (buttons, View menu, wheel), grid / collision / dim overlays, panning (Pan tool, Space, middle and right drag), window resize                                                                    |
+| `map-management`   | New map dialog (defaults, custom size and tile size, limits, cancel), selecting, deleting (and the refusals), layers (add, max 8, show/hide, above characters, delete, undo)                                          |
+| `properties-panel` | Rename, resize (grow, shrink, drops events, clamps the start, refusals), game start, project name, the events JSON editor (apply, replace, validation errors, one undo step)                                          |
+| `undo-redo`        | Buttons, Edit menu, shortcuts, not while typing, redo history, the unsaved marker                                                                                                                                     |
+| `database`         | Tabs and counts, columns from schemas, add / edit / delete for every table, text, number, enum and JSON cells, refusals with reasons, referential protection                                                          |
+| `assets`           | The asset browser, every upload kind and its folder, multi-file and replacing uploads, file-name sanitising, which assets open for editing                                                                            |
+| `sprite-editor`    | Opening a PNG or `.piskel` in Piskel, saving both back, drawing then saving redraws the map, reopening, the in-Piskel Save button                                                                                     |
+| `project-files`    | Save / Save to another folder / Open folder through a real directory handle (OPFS), Ctrl+S, only changed files are written, cancelling, the discard-changes dialog, leaving the page, browsers without folder support |
+| `import-export`    | Download project zip, import (round trip, invalid, hostile and foreign archives), export game (contents, escaping, left-out files, engine errors)                                                                     |
+| `exported-game`    | An exported game served over HTTP and played: messages, NPCs, variables and branches, solid cells, doors between maps, autorun, error screens, desktop vs phone controls, requests made                               |
+| `plugins`          | Plugins in an export: shared and engine heads ship and run, the editor head is stripped and never requested, every export refusal                                                                                     |
+| `companion`        | The connect dialog, tokens, origins, retry and reconnect, and a real agent reading and editing the live editor (batches, refusals, assets, the reference demo)                                                        |
+| `mobile`           | The compact layout (bottom sheet, orientation), touch painting, tools by touch, two-finger pan and pinch                                                                                                              |
+| `pwa`              | Manifest and icons, service worker install, the editor (and export, and Piskel) working offline                                                                                                                       |
+
+### How the tests are built
+
+- **Act through the UI, read through the project.** Clicks, keys and pointer strokes drive the app; assertions read the project
+  back with `window.RPGStudio.query` (the same read path an AI agent has), via the `studio` page object in
+  `packages/e2e/support/studio.ts`. A canvas snapshot is only used to show that the picture changed.
+- **Fresh state per test.** Each test gets a new browser context, so a new project, empty storage and no service worker; the
+  `studio` fixture has already booted the editor.
+- **Console errors fail tests.** The automatic `problems` fixture fails any test during which the page threw or logged an error.
+- **Real collaborators.** The companion tests start the real relay and connect the reference agent library; the game tests
+  export from the editor, unzip the download and serve it from a local HTTP server; the folder tests give the editor a real
+  `FileSystemDirectoryHandle` from the browser's private file system by stubbing only the picker.
+- **Known bugs are `test.fixme`**, each with a comment naming the cause and when to turn it into a plain test. They show up as
+  "skipped" in the report. `grep -rn fixme packages/e2e/test` lists them.
 
 ## 8. What is NOT covered by automated tests
 
-| Area                                                          | Why                         | How it was verified                                                       |
-| ------------------------------------------------------------- | --------------------------- | ------------------------------------------------------------------------- |
-| WebGL rendering output, Pixi scene graph in the editor/player | No GPU in CI                | Pure maths is unit-tested; the whole flow was exercised in a real browser |
-| Real audio playback, `@pixi/sound` streaming switch           | Needs a browser audio stack | **Not verified**, mocks only                                              |
-| File System Access API picker                                 | Browser UI                  | `ProjectFileSystem` is tested with an in-memory fake                      |
-| Service worker caching/updates                                | Needs a browser             | Config and icons tested; build output inspected                           |
-| Piskel inside the iframe                                      | Third-party app             | Bridge/protocol tested; flow verified in a browser                        |
-| Touch input                                                   | Not implemented             | n/a                                                                       |
+Most browser-only behaviour is now covered by the end-to-end suite (§7). What is still not automated:
+
+| Area                                                  | Why                                                     | How it was verified                                                                                                                             |
+| ----------------------------------------------------- | ------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------- |
+| What the canvas shows, pixel by pixel                 | Software GL differs from a GPU; no stored images        | The end-to-end tests prove the picture changes (and is restored) and that every action reaches the project; the look of tiles is checked by eye |
+| Real audio playback, `@pixi/sound` streaming switch   | Needs a browser audio stack                             | **Not verified**, mocks only                                                                                                                    |
+| The real folder picker dialog                         | Native browser UI                                       | The editor's save and open code runs against real directory handles from the private file system; only the picker is stubbed                    |
+| The service worker update prompt (`UpdateNotice`)     | Needs two deployed versions                             | The prompt is covered by component tests; install and offline use are end-to-end tested                                                         |
+| True touch hardware, and browsers other than Chromium | The suite runs desktop Chromium and its phone emulation | Touch gestures are tested with synthetic touch events; Firefox and Safari are reached only through the no-folder-picker path                    |
 
 ### Manual browser checklist
 
-Run these after changes to the canvas, export, Piskel or bridge:
+The end-to-end suite covers most of this. Run the list by hand for a change you cannot trust a headless browser with (the look
+of the canvas, sound, a real phone):
 
 1. `pnpm dev`; paint a stroke, Undo (the whole stroke reverts), edit a Database cell to an invalid reference (refused with a reason).
 2. Double-click `basic.png` in the asset browser; draw; **Save to project**; switch to Map and confirm tiles updated with no reload.

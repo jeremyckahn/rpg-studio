@@ -16,6 +16,7 @@ packages/core              schemas, plugin manager, event bus, math, PNG/Piskel 
 packages/engine            ECS game runtime, headless harness, PixiJS renderer, audio, player
 packages/editor            React/MUI authoring app, Redux store, map canvas, Piskel, export, PWA
 packages/companion-bridge  local WebSocket relay + agent library + CLI for AI agents
+packages/e2e               Playwright end-to-end tests of the built editor, an exported game and the bridge
 tooling/                   shared Vite/Vitest config helpers and the docs checker
 docs/                      architecture, decisions, guides (start at docs/README.md)
 docs/user-guide/           the guide for people using the app (Markdown)
@@ -23,26 +24,28 @@ docs/user-guide/           the guide for people using the app (Markdown)
 
 Dependency direction is strictly `core ← engine ← editor`, and `core ← companion-bridge`.
 `core` must never import from another package. `editor` has `companion-bridge` only as
-a devDependency (for the end-to-end test).
+a devDependency (for the end-to-end test). `e2e` depends on nothing at runtime: it drives the built app in a
+browser and, for the companion tests, starts the relay from `companion-bridge`'s build.
 
 ## Commands
 
 Requires Node.js 22+ and pnpm 12 (`packageManager` is pinned in `package.json`).
 
-| Command                                              | Purpose                                                     |
-| ---------------------------------------------------- | ----------------------------------------------------------- |
-| `pnpm install`                                       | Install (must exit 0; see Gotchas on blocked build scripts) |
-| `pnpm dev`                                           | Build the engine player, then serve the editor on `:5173`   |
-| `pnpm dev:companion`                                 | Start the AI-agent relay on `ws://localhost:8080`           |
-| `pnpm lint`                                          | ESLint, zero warnings allowed                               |
-| `pnpm typecheck`                                     | `tsc --noEmit` for the root and every package               |
-| `pnpm test`                                          | Vitest for every package (and the docs checker)             |
-| `pnpm build`                                         | Build every package in dependency order                     |
-| `pnpm build:app`                                     | Build the editor PWA to `packages/editor/dist-app`          |
-| `pnpm preview`                                       | Serve the built editor PWA locally                          |
-| `pnpm format` / `pnpm format:check`                  | Prettier                                                    |
-| `pnpm --filter @rpgstudio/<pkg> <script>`            | Run a script in one package                                 |
-| `pnpm exec vitest run test/x.test.ts` (in a package) | Run one test file                                           |
+| Command                                              | Purpose                                                                  |
+| ---------------------------------------------------- | ------------------------------------------------------------------------ |
+| `pnpm install`                                       | Install (must exit 0; see Gotchas on blocked build scripts)              |
+| `pnpm dev`                                           | Build the engine player, then serve the editor on `:5173`                |
+| `pnpm dev:companion`                                 | Start the AI-agent relay on `ws://localhost:8080`                        |
+| `pnpm lint`                                          | ESLint, zero warnings allowed                                            |
+| `pnpm typecheck`                                     | `tsc --noEmit` for the root and every package                            |
+| `pnpm test`                                          | Vitest for every package (and the docs checker)                          |
+| `pnpm test:e2e`                                      | Playwright end-to-end tests (needs `pnpm build && pnpm build:app` first) |
+| `pnpm build`                                         | Build every package in dependency order                                  |
+| `pnpm build:app`                                     | Build the editor PWA to `packages/editor/dist-app`                       |
+| `pnpm preview`                                       | Serve the built editor PWA locally                                       |
+| `pnpm format` / `pnpm format:check`                  | Prettier                                                                 |
+| `pnpm --filter @rpgstudio/<pkg> <script>`            | Run a script in one package                                              |
+| `pnpm exec vitest run test/x.test.ts` (in a package) | Run one test file                                                        |
 
 Vercel runs `pnpm build && pnpm build:app` and publishes `packages/editor/dist-app`.
 
@@ -51,10 +54,14 @@ Vercel runs `pnpm build && pnpm build:app` and publishes `packages/editor/dist-a
 Before declaring any change done, all of these must pass with no warnings:
 
 ```sh
-pnpm install --frozen-lockfile && pnpm lint && pnpm typecheck && pnpm test && pnpm build && pnpm build:app
+pnpm install --frozen-lockfile && pnpm lint && pnpm typecheck && pnpm test && pnpm build && pnpm build:app && pnpm test:e2e
 ```
 
-Also confirm the user guide is up to date (see below). Check **exit codes**, not just output. Piping a command through `tail`/`grep` hides its
+Also confirm the wiki is up to date (see below) and that the feature has end-to-end coverage (see below). The first
+time on a machine, install the browser the end-to-end tests use:
+`pnpm --filter @rpgstudio/e2e exec playwright install --with-deps chromium`. GitHub Actions runs `pnpm test:e2e` on
+every push and every pull request (`.github/workflows/e2e.yml`), so a change that breaks it cannot be merged quietly.
+Check **exit codes**, not just output. Piping a command through `tail`/`grep` hides its
 failure, which once hid a failing `pnpm install` in this repo.
 
 ## The rules (and where they are enforced)
@@ -79,6 +86,8 @@ failure, which once hid a failing `pnpm install` in this repo.
 6. **Pixel-perfect rendering.** `scaleMode: 'nearest'`, no antialiasing, integer zoom.
 7. **Two-headed plugins.** `shared` + `editor` + `engine` entries behind a
    `manifest.json`. The exported game must never load editor code. Details in [docs/plugins.md](docs/plugins.md).
+8. **End-to-end coverage for every non-trivial feature.** Stability is a requirement, and unit tests cannot see a canvas
+   that stops redrawing or a menu that stops opening. See the next section.
 
 ## Where to look
 
@@ -94,6 +103,7 @@ failure, which once hid a failing `pnpm install` in this repo.
 | Work on the AI bridge                      | [docs/companion-protocol.md](docs/companion-protocol.md)         |
 | Add an action, command, query, panel, …    | [docs/extending.md](docs/extending.md)                           |
 | Write or fix tests                         | [docs/testing.md](docs/testing.md)                               |
+| Write or fix an end-to-end test            | [packages/e2e/AGENTS.md](packages/e2e/AGENTS.md)                 |
 | Build, lint, deploy, Vercel, pnpm          | [docs/tooling-and-deployment.md](docs/tooling-and-deployment.md) |
 | Something is broken in a confusing way     | [docs/troubleshooting.md](docs/troubleshooting.md)               |
 
@@ -134,6 +144,36 @@ Which page covers what:
 Renaming or removing a page: update `docs/user-guide/README.md`, every link to it, and `USER_GUIDE_PAGES` in
 `packages/editor/src/links.ts`.
 
+## End-to-end tests: cover every non-trivial feature
+
+`packages/e2e` holds Playwright tests that run the **built editor** (and an exported game, and the companion bridge) in
+real Chromium. They are what stops a refactor from quietly breaking something a user does. Details and traps:
+[packages/e2e/AGENTS.md](packages/e2e/AGENTS.md); the suite as a whole: [docs/testing.md](docs/testing.md#7-end-to-end-tests-playwright).
+
+**Rule: whenever you add or change a non-trivial feature, add or update end-to-end tests for it in the same piece of work,
+before you call it done.** "Non-trivial" means anything with behaviour a user can see or do: a menu item, tool, panel,
+dialog, gesture, keyboard shortcut, workspace, project action, event command, file or export format, asset type, companion
+query or action, mobile or offline behaviour, and every bug fix whose symptom was visible in the browser (the test is the
+regression test). A copy change or a pure refactor with no behaviour change does not need one; unsure means write it.
+
+What a good one looks like:
+
+1. **Put it in the spec for that area** (`packages/e2e/test/<area>.e2e.ts`, listed in the package's `AGENTS.md`), or add a
+   new spec and list it there. Reuse `support/` (the `studio` page object, the folder picker stub, the game server);
+   extend it rather than writing one-off helpers in a spec.
+2. **Cover the happy path, the refusals and the undo.** What the user does, what the project then contains (read it back
+   with `studio.map()`, `studio.table()`, `studio.assets()`), the message shown when it is refused and that nothing changed,
+   and that Undo (or Cancel) puts things back. Cover the compact (phone) layout when the feature has UI.
+3. **Make it deterministic.** No fixed sleeps as synchronisation; wait for the outcome. Run the new spec several times
+   (`playwright test test/<area> --repeat-each 5`) and with the whole suite before committing. A flaky test is a failing test.
+4. **Prove it can fail.** Break the feature once and watch the test go red, as for any regression test.
+5. **Found a bug while writing it?** Write the test for the correct behaviour and mark it `test.fixme(...)` with a comment
+   naming the cause, then report the bug in your final message. Do not bend the assertion to match the bug.
+
+Never delete, skip or loosen an end-to-end test to get green; fix the cause. Update the test in the same commit as the
+behaviour it describes when the behaviour is meant to change. If the change affects what the wiki documents, the wiki rule
+above applies too.
+
 ## Conventions
 
 - **Style:** Prettier (`semi: false`, single quotes, width 100, trailing commas). Run
@@ -170,6 +210,9 @@ These are all documented in detail in [docs/troubleshooting.md](docs/troubleshoo
 - **Declaration emit** chokes on inferred Redux slices and on recursive Zod schemas. The
   fixes (explicit action-creator types, an explicit `ConditionalBranchCommand`) are
   load-bearing; read the comments before touching them.
+- **The end-to-end tests run the production build**, not `pnpm dev`. After changing source, run
+  `pnpm build && pnpm build:app` before `pnpm test:e2e`, or you are testing the old code (the suite fails fast only when
+  the build is missing, not when it is stale).
 - **Restart the editor dev server** after regenerating `public/piskel` (it deletes and
   recreates the folder, which Vite's static cache does not survive).
 
@@ -182,7 +225,8 @@ These are all documented in detail in [docs/troubleshooting.md](docs/troubleshoo
   project action (`applyProjectAction`). That single path is what keeps undo, validation
   and the AI bridge consistent.
 - Do not import `@rpgstudio/editor` code from the engine, or React/MUI from `core`/`engine`.
-- Do not disable lint rules, loosen `tsconfig`, or skip tests to get green. Fix the cause.
+- Do not disable lint rules, loosen `tsconfig`, or skip tests to get green. Fix the cause. That includes the
+  end-to-end tests: `test.fixme` is only for a documented, reported bug in the product.
 - Do not commit generated output (`dist/`, `dist-app/`, `dist-player/`), `.env*`, or `.vercel/`.
 
 ## Local-only tooling

@@ -211,8 +211,7 @@ test.describe('with folder support', () => {
     await expect(studio.status).toContainText('Saved')
 
     // A fresh editor opening that folder gets the same project back.
-    await page.reload()
-    await page.waitForFunction(() => window.RPGStudio !== undefined)
+    await studio.reload()
     await expect(studio.projectTitle).toHaveText('My Game')
     await studio.chooseMenuItem('File', 'Open folder…')
     await expect(studio.status).toHaveText('Opened “Saved Quest” from my-game')
@@ -231,8 +230,7 @@ test.describe('with folder support', () => {
     await studio.open()
     await studio.chooseMenuItem('File', SAVE)
     await expect(studio.status).toContainText('Saved')
-    await page.reload()
-    await page.waitForFunction(() => window.RPGStudio !== undefined)
+    await studio.reload()
     await studio.chooseMenuItem('File', 'Open folder…')
     await expect(studio.status).toContainText('Opened')
     const asked = await pickerCalls(page)

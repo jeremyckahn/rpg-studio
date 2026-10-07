@@ -84,12 +84,20 @@ export const createStudio = (page: Page) => {
    * leaves behind fades after four seconds, so it is not a readiness signal and is dismissed here;
    * a test that wants a toast provokes a fresh one.
    */
-  const open = async (path = '/'): Promise<void> => {
-    await page.goto(path)
+  const settle = async (): Promise<void> => {
     await page.waitForFunction(() => window.RPGStudio !== undefined)
     await expect(canvas.locator('canvas')).toBeVisible()
     await expect(tilePalette).toBeVisible()
     await dismissStatus()
+  }
+  const open = async (path = '/'): Promise<void> => {
+    await page.goto(path)
+    await settle()
+  }
+  /** Reloads the page and waits for the editor to be ready again (`window.RPGStudio` appears before the UI does). */
+  const reload = async (): Promise<void> => {
+    await page.reload()
+    await settle()
   }
 
   const menuButton = (name: 'File' | 'Edit' | 'View') =>
@@ -98,8 +106,14 @@ export const createStudio = (page: Page) => {
     menu: 'File' | 'Edit' | 'View',
     item: string | RegExp,
   ): Promise<void> => {
-    await menuButton(menu).click()
-    await page.getByRole('menuitem', { name: item }).click()
+    // A click that lands while the menu is still animating, or while the toast beneath it changes,
+    // can be lost: the menu then stays open and nothing happens. The handler closes the menu, so an
+    // open menu afterwards means it did not run and the click is safe to repeat.
+    await expect(async () => {
+      if (!(await page.getByRole('menu').isVisible())) await menuButton(menu).click()
+      await page.getByRole('menuitem', { name: item }).click({ timeout: 3_000 })
+      await expect(page.getByRole('menu')).toBeHidden({ timeout: 3_000 })
+    }).toPass({ timeout: 15_000 })
   }
   const menuItem = async (menu: 'File' | 'Edit' | 'View', item: string | RegExp) => {
     await menuButton(menu).click()
@@ -226,6 +240,8 @@ export const createStudio = (page: Page) => {
     tileAt,
     collisionAt,
     open,
+    settle,
+    reload,
     menuButton,
     chooseMenuItem,
     menuItem,

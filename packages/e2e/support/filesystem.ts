@@ -55,7 +55,11 @@ export const readFolder = (page: Page, name: string): Promise<Record<string, Fol
         if (entry.kind === 'directory') {
           found = [...found, ...(await walk(entry, `${prefix}${entry.name}/`))]
         } else {
-          const file = await entry.getFile()
+          // A write in flight keeps a temporary `.crswap` file that vanishes when it completes;
+          // listing it, or reading a file that is replaced as we look, is not an error.
+          if (entry.name.endsWith('.crswap')) continue
+          const file = await entry.getFile().catch(() => null)
+          if (!file) continue
           const described: FolderFile = entry.name.endsWith('.json')
             ? { size: file.size, text: await file.text() }
             : { size: file.size }

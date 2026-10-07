@@ -19,8 +19,10 @@ const boot = async (): Promise<void> => {
   const handle = createEditorStore()
   const assets = createAssetStore()
   const panels = createPanelRegistry()
-  const session = createProjectSession({ handle, assets })
+  // Order matters: both subscribe to the asset store, in this order. The texture provider must
+  // drop its cache first, or the canvas (woken by the session's mirror) reloads the old image.
   const textures = createEditorTextureProvider(assets)
+  const session = createProjectSession({ handle, assets })
   session.newProject()
 
   // The companion bridge: the editor dials out to a local server, and also answers

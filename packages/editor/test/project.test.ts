@@ -170,6 +170,28 @@ describe('loading and saving projects', () => {
     expect(again.written).toEqual([])
   })
 
+  it('with `everything`, writes every file into a folder the project was never saved to', async () => {
+    const source = folder()
+    const loaded = await loadProject(source)
+    if (!loaded.success) throw new Error('load failed')
+    const assets = createAssetStore()
+    // Opening a project marks nothing as unsaved, which is why a new folder needs `everything`.
+    assets.replaceAll(loaded.data.assets)
+    expect(assets.unsavedWrites()).toEqual([])
+
+    const target = createMemoryFileSystem({}, 'copy')
+    const incremental = await saveProject(target, loaded.data.project, assets, loaded.data.cache)
+    expect(incremental.written).toEqual([])
+
+    const full = await saveProject(target, loaded.data.project, assets, loaded.data.cache, {
+      everything: true,
+    })
+    expect(Object.keys(target.snapshot()).toSorted()).toEqual(
+      [...Object.keys(projectToFiles(loaded.data.project)), ...assets.list()].toSorted(),
+    )
+    expect(full.deleted).toEqual([])
+  })
+
   it('deletes files for maps and assets that were removed, but not unrelated files', async () => {
     const fs = folder()
     const loaded = await loadProject(fs)

@@ -97,6 +97,15 @@ test.describe('adding records', () => {
     })
   }
 
+  test('labels the Add button with the singular of each table', async ({ page }) => {
+    const labels = ['actor', 'class', 'item', 'skill', 'enemy']
+    const tabs = ['Actors', 'Classes', 'Items', 'Skills', 'Enemies']
+    for (const [index, label] of labels.entries()) {
+      await page.getByRole('tab', { name: new RegExp(`^${tabs[index] ?? ''} \\(`, 'i') }).click()
+      await expect(page.getByRole('button', { name: `Add ${label}`, exact: true })).toBeVisible()
+    }
+  })
+
   test('names new records after their id', async ({ studio, page }) => {
     await page.getByRole('button', { name: /^Add / }).click()
     await expect(cell(page, 2, 'name')).toHaveText('Actor 2')
@@ -281,10 +290,7 @@ test.describe('deleting records', () => {
     await expect(page.getByRole('button', { name: 'Delete selected' })).toBeDisabled()
   })
 
-  // Known bug: DataGrid reports "select all" as `{ type: 'exclude', ids: <empty> }`, but
-  // `onRowSelectionModelChange` copies only `model.ids`, which reads as "nothing selected", so the
-  // header checkbox never selects a row. Make it a plain `test` once the exclude model is handled.
-  test.fixme('select-all selects every row, and all of them can go', async ({ studio, page }) => {
+  test('select-all selects every row, and all of them can go', async ({ studio, page }) => {
     await studio.dispatch({ type: 'project/updateMeta', payload: { changes: { startParty: [] } } })
     await page.getByRole('button', { name: /^Add / }).click()
     await expect(tab(page, 'Actors', 2)).toBeVisible()

@@ -23,6 +23,8 @@ interface CommitFieldProps {
   value: string | number
   onCommit: (value: string) => void
   type?: 'text' | 'number'
+  /** Change this to throw away what was typed and show the stored value again (after a refusal). */
+  resetToken?: number
 }
 
 const CommitFieldInner = ({ label, value, onCommit, type = 'text' }: CommitFieldProps) => {
@@ -52,7 +54,7 @@ const CommitFieldInner = ({ label, value, onCommit, type = 'text' }: CommitField
  * Keyed by its value, so it starts over from the stored value when that changes.
  */
 const CommitField = (props: CommitFieldProps) => (
-  <CommitFieldInner key={String(props.value)} {...props} />
+  <CommitFieldInner key={`${String(props.value)}:${String(props.resetToken ?? 0)}`} {...props} />
 )
 
 const EventsEditor = ({ initial }: { initial: string }) => {
@@ -163,6 +165,8 @@ export const PropertiesPanel = () => {
   const meta = useAppSelector((state) => state.project.data.meta)
   const maps = useAppSelector((state) => state.project.data.maps)
   const [resizeError, setResizeError] = useState<string | null>(null)
+  const [startError, setStartError] = useState<string | null>(null)
+  const [startResets, setStartResets] = useState(0)
   const project = useAppSelector((state) => state.project.data)
 
   return (
@@ -217,13 +221,14 @@ export const PropertiesPanel = () => {
           size="small"
           label="Start map"
           value={meta.startMapId}
-          onChange={(event) =>
+          onChange={(event) => {
+            setStartError(null)
             dispatch(
               projectActions.updateMeta({
                 changes: { startMapId: Number(event.target.value), startX: 0, startY: 0 },
               }),
             )
-          }
+          }}
         >
           {maps.map((candidate) => (
             <MenuItem key={candidate.id} value={candidate.id}>
@@ -232,31 +237,32 @@ export const PropertiesPanel = () => {
           ))}
         </TextField>
         <Stack direction="row" spacing={1}>
-          <CommitField
-            label="Start X"
-            type="number"
-            value={meta.startX}
-            onCommit={(value) =>
-              dispatch(
-                projectActions.updateMeta({
-                  changes: { startX: Math.max(0, Math.round(Number(value))) },
-                }),
-              )
-            }
-          />
-          <CommitField
-            label="Start Y"
-            type="number"
-            value={meta.startY}
-            onCommit={(value) =>
-              dispatch(
-                projectActions.updateMeta({
-                  changes: { startY: Math.max(0, Math.round(Number(value))) },
-                }),
-              )
-            }
-          />
+          {(['startX', 'startY'] as const).map((field) => (
+            <CommitField
+              key={field}
+              label={field === 'startX' ? 'Start X' : 'Start Y'}
+              type="number"
+              value={meta[field]}
+              resetToken={startResets}
+              onCommit={(value) => {
+                const action = {
+                  type: 'project/updateMeta',
+                  payload: { changes: { [field]: Math.max(0, Math.round(Number(value))) } },
+                } as const
+                // Say why a position is refused (off the map, say) and put the old number back.
+                const result = applyProjectAction(project, action)
+                if (!result.success) {
+                  setStartError(result.error)
+                  setStartResets((count) => count + 1)
+                  return
+                }
+                setStartError(null)
+                dispatch(projectActions.updateMeta(action.payload))
+              }}
+            />
+          ))}
         </Stack>
+        {startError ? <Alert severity="warning">{startError}</Alert> : null}
         <CommitField
           label="Project name"
           value={meta.name}

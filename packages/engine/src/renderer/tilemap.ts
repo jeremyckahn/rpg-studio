@@ -10,20 +10,32 @@ export interface TileSink {
     texture: Texture,
     x: number,
     y: number,
-    options: { u: number; v: number; tileWidth: number; tileHeight: number },
+    options: { u: number; v: number; tileWidth: number; tileHeight: number; alpha?: number },
   ) => unknown
   clear: () => unknown
 }
 
+/**
+ * Submits tiles to a tilemap. `alpha` is applied to every tile individually: `@pixi/tilemap`'s
+ * shader multiplies only by each tile's own alpha, so setting `alpha` on the tilemap object
+ * (which the shader never reads) would change nothing on screen.
+ */
 export const drawTiles = (
   sink: TileSink,
   texture: Texture,
   draws: readonly TileDraw[],
   tileSize: number,
+  alpha = 1,
 ): void => {
   sink.clear()
   for (const { x, y, u, v } of draws) {
-    sink.tile(texture, x, y, { u, v, tileWidth: tileSize, tileHeight: tileSize })
+    sink.tile(texture, x, y, {
+      u,
+      v,
+      tileWidth: tileSize,
+      tileHeight: tileSize,
+      ...(alpha === 1 ? {} : { alpha }),
+    })
   }
 }
 

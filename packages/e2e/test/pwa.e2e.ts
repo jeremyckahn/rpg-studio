@@ -122,15 +122,8 @@ test.describe('offline support', () => {
     expect(Object.keys(zip.entries)).toContain('engine/player.js')
   })
 
-  test('the sprite editor is available offline too', async ({
-    studio,
-    page,
-    context,
-    problems,
-  }) => {
-    // Known gap: Piskel asks for its icon fonts (piskel/css/fonts/icomoon.*) with a cache-busting
-    // query string that the precache does not match, so only the icons fail offline; the editor works.
-    problems.allow(/ERR_INTERNET_DISCONNECTED/)
+  test('the sprite editor is available offline too', async ({ studio, page, context }) => {
+    // Any failed request (Piskel's icon fonts used to be one) would show up as a console error.
     await studio.open()
     await installed(page)
     await page.reload()

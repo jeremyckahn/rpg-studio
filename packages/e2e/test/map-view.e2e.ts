@@ -122,11 +122,7 @@ test.describe('overlays', () => {
     await expect.poll(async () => (await studio.canvasImage()).equals(without)).toBe(false)
   })
 
-  // Known bug: MapScene sets `tilemap.alpha`, but @pixi/tilemap's shader only multiplies by each
-  // tile's own alpha, so the layer's alpha never reaches the screen and "Dim other layers" changes
-  // nothing visible. Turn this into a plain `test` once dimming is implemented (for example with
-  // per-tile alpha), and delete this comment.
-  test.fixme('dimming fades layers other than the selected one', async ({ studio, page }) => {
+  test('dimming fades layers other than the selected one', async ({ studio, page }) => {
     await studio.dispatch({
       type: 'project/fillArea',
       payload: { mapId: 1, layer: 1, tile: 5, startX: 2, startY: 2, endX: 12, endY: 10 },

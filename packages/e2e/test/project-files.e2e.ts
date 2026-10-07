@@ -1,6 +1,6 @@
 import { type Page } from '@playwright/test'
 
-import { solidPng } from '../support/files.ts'
+import { downloadZip, makeZip } from '../support/downloads.ts'
 import { expect, test } from '../support/fixtures.ts'
 import { SAVE } from '../support/studio.ts'
 import {
@@ -45,14 +45,7 @@ test.describe('with folder support', () => {
     await expect(studio.projectTitle).toHaveText('My Game — my-game')
   })
 
-  // Known bug: `newProject` loads the starter tileset with `assets.replaceAll`, which marks nothing
-  // as unsaved, and `saveProject` writes only unsaved assets. So the first Save of a new project
-  // leaves `img/tilesets/basic.png` out; reopening that folder gives a map whose tileset is missing,
-  // and exporting it is refused. Make this a plain `test` once the starter assets are saved.
-  test.fixme('the first Save of a new project includes the starter tileset', async ({
-    studio,
-    page,
-  }) => {
+  test('the first Save of a new project includes the starter tileset', async ({ studio, page }) => {
     await studio.open()
     await studio.chooseMenuItem('File', SAVE)
     await expect(studio.status).toContainText('Saved')
@@ -90,6 +83,40 @@ test.describe('with folder support', () => {
     await studio.chooseMenuItem('File', SAVE)
     await expect(studio.status).toHaveText('Already saved')
     expect(await pickerCalls(page)).toBe(1)
+  })
+
+  test('says what a save removed when it only deleted files', async ({ studio, page }) => {
+    await studio.open()
+    await studio.dispatch({
+      type: 'project/createMap',
+      payload: { name: 'Cellar', width: 8, height: 6, tileSize: 16 },
+    })
+    await studio.chooseMenuItem('File', SAVE)
+    await expect(studio.status).toContainText('Saved')
+    await studio.dismissStatus()
+
+    await page.getByRole('button', { name: 'Delete Cellar', exact: true }).click()
+    await studio.chooseMenuItem('File', SAVE)
+    await expect(studio.status).toHaveText('Removed 1 file(s) from my-game')
+  })
+
+  test('a saved copy of an imported project includes its assets', async ({ studio, page }) => {
+    await studio.open()
+    const zip = await downloadZip(page, () => studio.chooseMenuItem('File', /Download project/))
+    const chooser = page.waitForEvent('filechooser')
+    await studio.chooseMenuItem('File', /Import project/)
+    await (
+      await chooser
+    ).setFiles({
+      name: zip.filename,
+      mimeType: 'application/zip',
+      buffer: makeZip({ ...zip.entries }),
+    })
+    await expect(studio.status).toContainText('Imported')
+    await studio.dismissStatus()
+    await studio.chooseMenuItem('File', SAVE)
+    await expect(studio.status).toContainText('Saved')
+    expect(Object.keys(await readFolder(page, 'my-game'))).toContain('img/tilesets/basic.png')
   })
 
   test('only rewrites what changed', async ({ studio, page }) => {
@@ -136,10 +163,7 @@ test.describe('with folder support', () => {
     expect(await pickerCalls(page)).toBe(2)
   })
 
-  // Known bug: `saveTo` reuses the "what is already on disk" cache of the previous folder, so a
-  // project that has not changed since the last save writes nothing into the new folder and the
-  // user is left with an empty copy. Make this a plain `test` once the cache is reset for a new target.
-  test.fixme('Save to another folder writes a complete copy', async ({ studio, page }) => {
+  test('Save to another folder writes a complete copy', async ({ studio, page }) => {
     await stubDirectoryPicker(page, ['my-game', 'second-copy'])
     await studio.open()
     await studio.chooseMenuItem('File', SAVE)
@@ -147,7 +171,12 @@ test.describe('with folder support', () => {
     await studio.chooseMenuItem('File', 'Save to another folder…')
     await expect(studio.projectTitle).toHaveText('My Game — second-copy')
     expect(Object.keys(await readFolder(page, 'second-copy'))).toEqual(
-      expect.arrayContaining(['project.json', 'maps/map-001.json', 'data/actors.json']),
+      expect.arrayContaining([
+        'project.json',
+        'maps/map-001.json',
+        'data/actors.json',
+        'img/tilesets/basic.png',
+      ]),
     )
   })
 
@@ -178,14 +207,6 @@ test.describe('with folder support', () => {
       .getByLabel('Project name')
     await projectName.fill('Saved Quest')
     await projectName.press('Enter')
-    // Adding a picture gives the save an asset to write (see the fixme above about the tileset).
-    await page.getByRole('button', { name: 'Add', exact: true }).click()
-    const chooser = page.waitForEvent('filechooser')
-    await page.getByRole('menuitem', { name: 'Picture' }).click()
-    await (
-      await chooser
-    ).setFiles([{ name: 'title.png', mimeType: 'image/png', buffer: solidPng(8, 8) }])
-    await expect.poll(async () => (await studio.assets()).length).toBe(2)
     await studio.chooseMenuItem('File', SAVE)
     await expect(studio.status).toContainText('Saved')
 
@@ -197,7 +218,8 @@ test.describe('with folder support', () => {
     await expect(studio.status).toHaveText('Opened “Saved Quest” from my-game')
     await expect(studio.projectTitle).toHaveText('Saved Quest — my-game')
     expect(await studio.tileAt(5, 5)).toBe(4)
-    expect((await studio.assets()).map((asset) => asset.path)).toContain('img/pictures/title.png')
+    expect((await studio.assets()).map((asset) => asset.path)).toEqual(['img/tilesets/basic.png'])
+    await expect(page.getByRole('img', { name: /^Tileset / })).toBeVisible()
     // Opening a project is not an edit.
     await expect(page.getByRole('button', { name: 'Undo' })).toBeDisabled()
   })

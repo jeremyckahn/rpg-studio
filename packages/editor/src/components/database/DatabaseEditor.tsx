@@ -24,6 +24,15 @@ import { type FieldSpec, fieldsOf, formatJson, parseJsonCell } from './schemaCol
 
 type Row = Record<string, unknown> & { id: number }
 
+/** The button label for one record of each table ("Add class", not "Add classe"). */
+const SINGULAR: Readonly<Record<DatabaseTableName, string>> = {
+  actors: 'actor',
+  classes: 'class',
+  items: 'item',
+  skills: 'skill',
+  enemies: 'enemy',
+}
+
 const columnFor = (spec: FieldSpec): GridColDef<Row> => {
   const base: GridColDef<Row> = {
     field: spec.field,
@@ -133,7 +142,7 @@ export const DatabaseEditor = () => {
       </Tabs>
       <Stack direction="row" spacing={1} sx={{ p: 1, alignItems: 'center' }}>
         <Button size="small" startIcon={<AddIcon />} onClick={addRow}>
-          Add {table.slice(0, -1)}
+          Add {SINGULAR[table]}
         </Button>
         <Button
           size="small"
@@ -159,7 +168,13 @@ export const DatabaseEditor = () => {
             { type: 'include', ids: new Set(selection) } satisfies GridRowSelectionModel
           }
           onRowSelectionModelChange={(model) => {
-            setSelection([...model.ids])
+            // "Select all" arrives as an exclude model (everything except these ids), so reading
+            // `ids` alone would turn it into an empty selection.
+            setSelection(
+              model.type === 'exclude'
+                ? rows.filter((row) => !model.ids.has(row.id)).map((row) => row.id)
+                : [...model.ids],
+            )
           }}
           processRowUpdate={(next: Row, previous: Row) => {
             const message = tryUpsert(withoutBlanks({ ...previous, ...next }, specs))

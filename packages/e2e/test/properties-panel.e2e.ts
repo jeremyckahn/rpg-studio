@@ -164,10 +164,20 @@ test.describe('game start', () => {
     expect((await studio.summary()).startX).toBe(0)
   })
 
-  test('refuses a start position off the map', async ({ studio, page }) => {
+  test('refuses a start position off the map, says why and restores the field', async ({
+    studio,
+    page,
+  }) => {
     await enter(page, 'Start X', '99')
     expect((await studio.summary()).startX).toBe(10)
+    await expect(right(page).getByRole('alert')).toBeVisible()
+    await expect(right(page).getByLabel('Start X')).toHaveValue('10')
     await expect(page.getByRole('button', { name: 'Undo' })).toBeDisabled()
+
+    // A valid position afterwards clears the warning.
+    await enter(page, 'Start X', '4')
+    await expect(right(page).getByRole('alert')).toBeHidden()
+    expect((await studio.summary()).startX).toBe(4)
   })
 
   test('moves the start to another map and resets the position', async ({ studio, page }) => {

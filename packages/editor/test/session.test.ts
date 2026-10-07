@@ -152,6 +152,79 @@ describe('open and save', () => {
     expect(picks).toBe(1)
   })
 
+  it('writes the starter tileset on the first save of a new project', async () => {
+    const target = createMemoryFileSystem({}, 'chosen')
+    const { session } = setup({ picker: () => Promise.resolve(target) })
+    session.newProject('Fresh')
+    await session.save()
+    expect(Object.keys(target.snapshot())).toContain(DEFAULT_TILESET_PATH)
+    // The folder is a complete project that opens again with its tileset.
+    const reopened = setup()
+    expect(await reopened.session.openFileSystem(target)).toBe(true)
+    expect(reopened.assets.list()).toContain(DEFAULT_TILESET_PATH)
+  })
+
+  it('writes the whole project when saving an imported archive to a folder', async () => {
+    const source = setup()
+    source.session.newProject('Round trip')
+    await source.session.downloadProjectArchive()
+    const archive = source.downloads.values.at(-1)?.bytes
+    if (!archive) throw new Error('no archive was downloaded')
+
+    const target = createMemoryFileSystem({}, 'chosen')
+    const { session } = setup({ picker: () => Promise.resolve(target) })
+    expect(await session.openArchive(archive)).toBe(true)
+    await session.save()
+    expect(Object.keys(target.snapshot())).toEqual(
+      expect.arrayContaining([PROJECT_FILE, 'maps/map-001.json', DEFAULT_TILESET_PATH]),
+    )
+  })
+
+  it('saves a complete copy when saving to another folder, even with nothing changed', async () => {
+    const first = createMemoryFileSystem({}, 'first')
+    const second = createMemoryFileSystem({}, 'second')
+    const folders = [first, second]
+    let picks = 0
+    const { session, handle } = setup({
+      picker: () => {
+        const next = folders[picks] ?? second
+        picks += 1
+        return Promise.resolve(next)
+      },
+    })
+    session.newProject('Fresh')
+    await session.save()
+    await session.saveAs()
+    expect(Object.keys(second.snapshot()).toSorted()).toEqual(
+      Object.keys(first.snapshot()).toSorted(),
+    )
+    expect(handle.store.getState().editorUi.folderName).toBe('second')
+
+    // From then on the second folder is the one that is kept in step.
+    handle.store.dispatch(projectActions.renameMap({ mapId: 1, name: 'Later' }))
+    await session.save()
+    expect(decode(second.snapshot()['maps/map-001.json'])).toContain('Later')
+    expect(decode(first.snapshot()['maps/map-001.json'])).not.toContain('Later')
+  })
+
+  it('says what a save did: files written, files removed, or nothing to do', async () => {
+    const fs = projectFolder()
+    const { handle, assets, session, status } = setup()
+    await session.openFileSystem(fs)
+    await session.save()
+    expect(status()?.text).toBe('Already saved')
+
+    handle.store.dispatch(projectActions.renameMap({ mapId: 1, name: 'Edited' }))
+    await session.save()
+    expect(status()?.text).toBe('Saved 1 file(s) to my-game')
+
+    assets.write('img/pictures/title.png', Uint8Array.of(1))
+    await session.save()
+    assets.remove('img/pictures/title.png')
+    await session.save()
+    expect(status()?.text).toBe('Removed 1 file(s) from my-game')
+  })
+
   it('treats cancelling the folder picker as a quiet no-op, not an error', async () => {
     const { session, status, handle } = setup({
       picker: () => Promise.reject(new DOMException('cancelled', 'AbortError')),

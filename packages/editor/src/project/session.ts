@@ -59,6 +59,22 @@ const defaultPickDirectory = async (): Promise<ProjectFileSystem> => {
 const isAbort = (error: unknown): boolean =>
   error instanceof DOMException && error.name === 'AbortError'
 
+/** What a save did, in words: files written, files removed, or that nothing needed doing. */
+const saveMessage = (
+  {
+    written,
+    deleted,
+  }: { readonly written: readonly string[]; readonly deleted: readonly string[] },
+  folder: string,
+): string => {
+  if (written.length === 0 && deleted.length === 0) return 'Already saved'
+  if (written.length === 0) return `Removed ${deleted.length} file(s) from ${folder}`
+  return (
+    `Saved ${written.length} file(s) to ${folder}` +
+    (deleted.length > 0 ? `, removed ${deleted.length}` : '')
+  )
+}
+
 /**
  * The editor's file operations: new, open, save and export. It owns the
  * connection between the Redux store, the asset store and the folder on disk,
@@ -145,7 +161,12 @@ export const createProjectSession = ({
 
   const saveTo = async (target: ProjectFileSystem): Promise<boolean> => {
     const state = store.getState()
-    const report = await saveProject(target, state.project.data, assets, cache)
+    // Only the folder the project was last saved to or opened from is known to match `cache` and
+    // the asset store's idea of what is unsaved. Anywhere else (a new or imported project, or
+    // "Save to another folder") the whole project has to be written.
+    const report = await saveProject(target, state.project.data, assets, cache, {
+      everything: target !== fs,
+    })
     assets.markSaved()
     store.dispatch(assetsSlice.actions.assetsSaved())
     fs = target
@@ -156,12 +177,7 @@ export const createProjectSession = ({
         folderName: target.name,
       }),
     )
-    say(
-      'success',
-      report.written.length === 0
-        ? 'Already saved'
-        : `Saved ${report.written.length} file(s) to ${target.name}`,
-    )
+    say('success', saveMessage(report, target.name))
     return true
   }
 

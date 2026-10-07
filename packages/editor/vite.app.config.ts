@@ -47,6 +47,10 @@ export default defineConfig({
         // Piskel is its own page inside an iframe, not part of the app shell.
         navigateFallbackDenylist: [/\/piskel\//],
         cleanupOutdatedCaches: true,
+        // Piskel asks for its icon fonts with a cache-busting query string (icomoon.woff?-3olv93).
+        // The precache stores them without one, so ignore every query string when matching, or the
+        // icons are missing offline. Nothing in the app depends on a query string.
+        ignoreURLParametersMatching: [/.*/],
       },
     }),
   ],

@@ -269,12 +269,7 @@ test.describe('companion bridge', () => {
       expect(listed.map((asset) => asset.path)).toContain('img/characters/robot.png')
     })
 
-    // Known bug: when an asset that is already loaded is replaced, the asset store's subscribers run
-    // in registration order. The session's mirror (which makes the map canvas reload its tileset) is
-    // registered before the texture provider's invalidation, so the canvas "reloads" the stale cached
-    // texture and nothing asks again. Under load the map keeps showing the old tileset indefinitely.
-    // Make this a plain `test` once the invalidation runs first (or the reload waits for it).
-    test.fixme('replaces the tileset image and the map is redrawn without a reload', async ({
+    test('replaces the tileset image and the map is redrawn without a reload', async ({
       studio,
     }) => {
       const connection = await connected(studio)

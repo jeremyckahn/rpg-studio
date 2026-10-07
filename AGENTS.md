@@ -191,6 +191,11 @@ above applies too.
 - **Commits:** Conventional Commits (`feat(scope):`, `fix:`, `test:`, `docs:`, `build:`,
   `refactor:`), small and atomic, each leaving the tree passing. Check `git status` before
   committing so nothing is left unstaged.
+- **Pull request descriptions stay current.** When you push to a branch that has an open pull
+  request, check whether the description is still true (what it adds, the test counts, the
+  fixes, what is left undone) and update it in the same piece of work. Describe what the
+  branch does now, not the history of how it got there, and check each claim against the code
+  or the commit rather than from memory.
 
 ## Gotchas that cost real time
 

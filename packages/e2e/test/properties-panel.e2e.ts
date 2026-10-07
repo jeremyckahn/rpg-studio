@@ -110,6 +110,33 @@ test.describe('map properties', () => {
     expect((await studio.map(1)).width).toBe(20)
   })
 
+  test('puts the stored size back in the field when a size is refused', async ({ page }) => {
+    await enter(page, 'Width', '600')
+    await expect(right(page).getByRole('alert')).toBeVisible()
+    await expect(right(page).getByLabel('Width', { exact: true })).toHaveValue('20')
+  })
+
+  test('a refused size does not discard what was typed in the other size field', async ({
+    page,
+  }) => {
+    await right(page).getByLabel('Height', { exact: true }).fill('12')
+    await enter(page, 'Width', '600')
+    await expect(right(page).getByRole('alert')).toBeVisible()
+    await expect(right(page).getByLabel('Height', { exact: true })).toHaveValue('12')
+  })
+
+  test('a size warning does not follow you to another map', async ({ studio, page }) => {
+    await studio.dispatch({
+      type: 'project/createMap',
+      payload: { name: 'Cellar', width: 8, height: 6, tileSize: 16 },
+    })
+    await enter(page, 'Width', '600')
+    await expect(right(page).getByRole('alert')).toBeVisible()
+    await page.getByRole('complementary', { name: 'Asset browser' }).getByText('2. Cellar').click()
+    await expect(right(page).getByLabel('Name', { exact: true })).toHaveValue('Cellar')
+    await expect(right(page).getByRole('alert')).toBeHidden()
+  })
+
   test('a valid size afterwards clears the warning', async ({ page }) => {
     await enter(page, 'Width', '600')
     await expect(right(page).getByRole('alert')).toBeVisible()

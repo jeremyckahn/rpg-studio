@@ -164,9 +164,14 @@ export const PropertiesPanel = () => {
   const map = useAppSelector(selectCurrentMap)
   const meta = useAppSelector((state) => state.project.data.meta)
   const maps = useAppSelector((state) => state.project.data.maps)
-  const [resizeError, setResizeError] = useState<string | null>(null)
+  // The refusal is remembered with its map so it is not shown under another map's fields.
+  const [resizeRefusal, setResizeRefusal] = useState<{ mapId: number; message: string } | null>(
+    null,
+  )
+  // One counter per field: a refusal remounts only the field it refused, not a sibling's draft.
+  const [resizeResets, setResizeResets] = useState({ width: 0, height: 0 })
   const [startError, setStartError] = useState<string | null>(null)
-  const [startResets, setStartResets] = useState(0)
+  const [startResets, setStartResets] = useState({ startX: 0, startY: 0 })
   const project = useAppSelector((state) => state.project.data)
 
   return (
@@ -187,6 +192,7 @@ export const PropertiesPanel = () => {
                 label={dimension === 'width' ? 'Width' : 'Height'}
                 type="number"
                 value={map[dimension]}
+                resetToken={resizeResets[dimension]}
                 onCommit={(value) => {
                   const next = {
                     width: map.width,
@@ -199,16 +205,20 @@ export const PropertiesPanel = () => {
                   } as const
                   const result = applyProjectAction(project, action)
                   if (!result.success) {
-                    setResizeError(result.error)
+                    // Put the stored size back, as the Start fields do, instead of leaving the refused number.
+                    setResizeRefusal({ mapId: map.id, message: result.error })
+                    setResizeResets((counts) => ({ ...counts, [dimension]: counts[dimension] + 1 }))
                     return
                   }
-                  setResizeError(null)
+                  setResizeRefusal(null)
                   dispatch(projectActions.resizeMap(action.payload))
                 }}
               />
             ))}
           </Stack>
-          {resizeError ? <Alert severity="warning">{resizeError}</Alert> : null}
+          {resizeRefusal?.mapId === map.id ? (
+            <Alert severity="warning">{resizeRefusal.message}</Alert>
+          ) : null}
           <Typography variant="caption" color="text.secondary">
             Tileset: {map.tileset} · {map.tileSize}px tiles
           </Typography>
@@ -243,7 +253,7 @@ export const PropertiesPanel = () => {
               label={field === 'startX' ? 'Start X' : 'Start Y'}
               type="number"
               value={meta[field]}
-              resetToken={startResets}
+              resetToken={startResets[field]}
               onCommit={(value) => {
                 const action = {
                   type: 'project/updateMeta',
@@ -253,7 +263,7 @@ export const PropertiesPanel = () => {
                 const result = applyProjectAction(project, action)
                 if (!result.success) {
                   setStartError(result.error)
-                  setStartResets((count) => count + 1)
+                  setStartResets((counts) => ({ ...counts, [field]: counts[field] + 1 }))
                   return
                 }
                 setStartError(null)

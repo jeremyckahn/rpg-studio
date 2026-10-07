@@ -143,7 +143,7 @@ there is no wiki clone). The end-to-end suite is split into four parallel shards
 hour. Each shard: `pnpm install --frozen-lockfile`, `pnpm build`, `pnpm build:app`, install Chromium with its system
 dependencies (`playwright install --with-deps chromium`), `pnpm test:e2e --shard=N/4`. Every test is recorded on video. Each shard uploads two artifacts, also when the run fails: `playwright-report-N` (the HTML
 report, which plays each test's video, plus traces and screenshots of failures) and `playwright-videos-N` (one `.webm` per
-test, named `<spec>/<describe>--<test>.webm` by `packages/e2e/support/videoReporter.ts`, kept 7 days). It is one artifact per
+test, named `<spec>/<describe>--<test>.<hash>.webm` (the hash keeps long or look-alike titles apart) by `packages/e2e/support/videoReporter.ts`, kept 7 days). It is one artifact per
 shard rather than per video because an artifact is one upload step and a workflow step cannot loop. On CI,
 Playwright retries a failing test twice (a test that only passes on retry is reported as flaky and should be fixed) and uses
 two workers per shard.

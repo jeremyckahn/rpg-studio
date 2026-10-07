@@ -13,10 +13,11 @@ on:
   merge_group:
   workflow_dispatch:
 
-# A newer run for the same branch or pull request makes the older one pointless.
+# A newer run for the same pull request makes the older one pointless. Runs on main and in the
+# merge queue are never cancelled: each commit that lands should get its own result.
 concurrency:
   group: tests-${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 permissions:
   contents: read
@@ -95,7 +96,7 @@ jobs:
           if-no-files-found: ignore
           retention-days: 14
 
-      # One video per test, named after it (playwright-videos/<spec>/<test>.webm), for this shard.
+      # One video per test, named after it (playwright-videos/<spec>/<test>.<hash>.webm), for this shard.
       # An artifact is one upload step, and a step cannot loop, so it is one artifact per shard
       # rather than one per video.
       - name: Upload the test videos

@@ -180,6 +180,133 @@ test.describe('with folder support', () => {
     )
   })
 
+  test.describe('a folder that already holds project files', () => {
+    const conflict = (page: Page) =>
+      page.getByRole('dialog', { name: 'This folder already has project files' })
+
+    const SEEDED = {
+      'project.json': '{"old":true}',
+      'maps/map-009.json': '{}',
+      'img/old.png': 'not a png',
+      'README.md': 'not part of a project',
+    } as const
+
+    // The folder is seeded after the editor has loaded: OPFS only exists on a real page.
+    test.beforeEach(async ({ studio, page }) => {
+      await stubDirectoryPicker(page, ['old-game', 'old-game'])
+      await studio.open()
+      await seedFolder(page, 'old-game', SEEDED)
+    })
+
+    test('warns, names what would stay behind, and Cancel leaves the folder alone', async ({
+      studio,
+      page,
+    }) => {
+      await studio.chooseMenuItem('File', SAVE)
+      await expect(conflict(page)).toBeVisible()
+      await expect(conflict(page)).toContainText('“old-game” holds 3 project file(s)')
+      await expect(conflict(page)).toContainText('maps/map-009.json')
+      await expect(conflict(page)).toContainText('img/old.png')
+      await expect(conflict(page)).not.toContainText('README.md')
+
+      await conflict(page).getByRole('button', { name: 'Cancel' }).click()
+      await expect(conflict(page)).toBeHidden()
+      const folder = await readFolder(page, 'old-game')
+      expect(Object.keys(folder).toSorted()).toEqual(Object.keys(SEEDED).toSorted())
+      expect(folder['project.json']?.text).toBe('{"old":true}')
+      // Still not tied to any folder.
+      await expect(studio.projectTitle).toHaveText('My Game')
+    })
+
+    test('Save anyway writes the project and the other files stay', async ({ studio, page }) => {
+      await studio.chooseMenuItem('File', SAVE)
+      await conflict(page).getByRole('button', { name: 'Save anyway' }).click()
+      await expect(studio.status).toContainText(/^Saved \d+ file\(s\) to old-game$/)
+      const folder = await readFolder(page, 'old-game')
+      expect(folder['project.json']?.text).not.toBe('{"old":true}')
+      expect(Object.keys(folder)).toEqual(
+        expect.arrayContaining(['maps/map-001.json', 'maps/map-009.json', 'img/old.png']),
+      )
+      await expect(studio.projectTitle).toHaveText('My Game — old-game')
+    })
+
+    test('Escape counts as Cancel, and asking again after it works', async ({ studio, page }) => {
+      await studio.chooseMenuItem('File', SAVE)
+      await expect(conflict(page)).toBeVisible()
+      await page.keyboard.press('Escape')
+      await expect(conflict(page)).toBeHidden()
+      expect((await readFolder(page, 'old-game'))['project.json']?.text).toBe('{"old":true}')
+
+      await studio.chooseMenuItem('File', SAVE)
+      await expect(conflict(page)).toBeVisible()
+    })
+
+    test('Save to another folder asks too, and the open folder is not asked again', async ({
+      studio,
+      page,
+    }) => {
+      await page.evaluate(() => {
+        let calls = 0
+        Reflect.set(window, 'showDirectoryPicker', async () => {
+          const root = await navigator.storage.getDirectory()
+          const name = ['clean', 'old-game'][Math.min(calls, 1)] ?? 'old-game'
+          calls += 1
+          return root.getDirectoryHandle(name, { create: true })
+        })
+      })
+      await studio.chooseMenuItem('File', SAVE)
+      await expect(studio.projectTitle).toHaveText('My Game — clean')
+      await studio.chooseMenuItem('File', 'Save to another folder…')
+      await expect(conflict(page)).toBeVisible()
+      await conflict(page).getByRole('button', { name: 'Cancel' }).click()
+      await expect(studio.projectTitle).toHaveText('My Game — clean')
+
+      // Saving to the folder the project is already in never asks.
+      await studio.pickTile(3)
+      await studio.clickCell({ x: 5, y: 5 })
+      await studio.chooseMenuItem('File', SAVE)
+      await expect(studio.status).toContainText('Saved')
+      await expect(conflict(page)).toBeHidden()
+    })
+
+    test('cancelling stops Save, then continue from replacing the project', async ({
+      studio,
+      page,
+    }) => {
+      await studio.pickTile(4)
+      await studio.clickCell({ x: 5, y: 5 })
+      await studio.chooseMenuItem('File', 'New project')
+      await dialog(page).getByRole('button', { name: 'Save, then continue' }).click()
+      await conflict(page).getByRole('button', { name: 'Cancel' }).click()
+      await expect(conflict(page)).toBeHidden()
+      expect(await studio.tileAt(5, 5)).toBe(4)
+      await expect(studio.projectTitle).toHaveText('My Game •')
+    })
+
+    test('is the same on a phone', async ({ studio, page }) => {
+      await page.setViewportSize({ width: 375, height: 812 })
+      await expect(page.getByRole('button', { name: 'File' })).toBeVisible()
+      await studio.chooseMenuItem('File', SAVE)
+      await expect(conflict(page)).toBeVisible()
+      await expect(conflict(page).getByRole('button', { name: 'Save anyway' })).toBeInViewport()
+      await conflict(page).getByRole('button', { name: 'Cancel' }).click()
+      await expect(conflict(page)).toBeHidden()
+    })
+  })
+
+  test('does not ask when the folder is empty or has no project files', async ({
+    studio,
+    page,
+  }) => {
+    await studio.open()
+    await seedFolder(page, 'my-game', { 'README.md': 'hello' })
+    await studio.chooseMenuItem('File', SAVE)
+    await expect(studio.status).toContainText(/^Saved \d+ file\(s\) to my-game$/)
+    await expect(
+      page.getByRole('dialog', { name: 'This folder already has project files' }),
+    ).toBeHidden()
+  })
+
   test('saves new, changed and removed assets and maps', async ({ studio, page }) => {
     await studio.open()
     await studio.dispatch({

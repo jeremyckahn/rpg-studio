@@ -16,7 +16,9 @@ export default defineConfig({
   globalSetup: './support/globalSetup.ts',
   fullyParallel: true,
   forbidOnly: CI,
-  retries: CI ? 2 : 0,
+  // Never retried, on CI or locally: a test that passes on a second try hides a flake, and a flake
+  // is a failing test here.
+  retries: 0,
   workers: CI ? 2 : undefined,
   reporter: CI
     ? [['github'], ['html', { open: 'never' }], ['list'], ['./support/videoReporter.ts']]
@@ -25,10 +27,9 @@ export default defineConfig({
   expect: { timeout: 10_000 },
   use: {
     baseURL: `http://localhost:${PORT}`,
-    // Traces are heavy, so on CI keep one only from the retry of a failing test; locally, with no
-    // retries, keep it for every failure. Video is recorded for every test on CI and uploaded
-    // (see `support/videoReporter.ts`); locally only failures keep theirs.
-    trace: CI ? 'on-first-retry' : 'retain-on-failure',
+    // With no retries, a trace is kept for every failure. Video is recorded for every test on CI
+    // and uploaded (see `support/videoReporter.ts`); locally only failures keep theirs.
+    trace: 'retain-on-failure',
     screenshot: 'only-on-failure',
     video: CI ? 'on' : 'retain-on-failure',
     // Needs the real service worker off: it would cache between tests and hide regressions.

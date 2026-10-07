@@ -106,6 +106,14 @@ through `confirmReplace`: clean means act at once; dirty opens `DiscardChangesDi
 The confirmation comes before any picker opens. Downloading a zip is a backup and does not clear dirty. Any new command
 that replaces the project must use `confirmReplace`.
 
+**Saving into a folder with project files.** When `session.save`/`saveAs` targets a folder other than the open one
+(`target !== fs`) and `list()` finds project files in it (`isProjectDataFile` or `isAssetFile`; other files are ignored), the
+session dispatches `editorUi.folderConflictAsked` and waits. `FolderConflictDialog` (mounted in `MasterLayout`) reads
+`editorUi.folderConflict` and answers through `session.answerFolderConflict(true|false)`; the pending resolver lives in the
+session because a promise cannot be kept in Redux. Cancel, Escape and a newer question all answer false, so the save returns
+false and **Save, then continue** does not replace the project. Saving never deletes files in a folder the user chose, so the
+dialog says which files would stay behind (they would reload as ghost maps and assets).
+
 ### Declaration-emit rule
 
 Do not export slice objects or inferred action creators from a module: Immer's unexported

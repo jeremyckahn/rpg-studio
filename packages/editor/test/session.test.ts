@@ -6,7 +6,7 @@ import {
   projectToFiles,
 } from '@rpgstudio/core'
 import { unzipSync } from 'fflate'
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 
 import { createAssetStore } from '../src/project/assetStore'
 import { createMemoryFileSystem } from '../src/project/fileSystem'
@@ -205,6 +205,61 @@ describe('open and save', () => {
     await session.save()
     expect(decode(second.snapshot()['maps/map-001.json'])).toContain('Later')
     expect(decode(first.snapshot()['maps/map-001.json'])).not.toContain('Later')
+  })
+
+  it('asks before saving into a folder that already holds project files, and Cancel leaves it alone', async () => {
+    const existing = createMemoryFileSystem(
+      {
+        ...projectToFiles(sampleProject()),
+        'maps/map-009.json': '{}',
+        [DEFAULT_TILESET_PATH]: 'x',
+      },
+      'old-game',
+    )
+    const before = existing.snapshot()
+    const { session, handle } = setup({ picker: () => Promise.resolve(existing) })
+    session.newProject('Fresh')
+    const saving = session.save()
+    await vi.waitFor(() => {
+      expect(handle.store.getState().editorUi.folderConflict).not.toBeNull()
+    })
+    const conflict = handle.store.getState().editorUi.folderConflict
+    expect(conflict?.folderName).toBe('old-game')
+    expect(conflict?.leftover).toContain('maps/map-009.json')
+
+    session.answerFolderConflict(false)
+    expect(await saving).toBe(false)
+    expect(handle.store.getState().editorUi.folderConflict).toBeNull()
+    expect(existing.snapshot()).toEqual(before)
+    expect(handle.store.getState().editorUi.folderName).toBeNull()
+    expect(selectIsDirty(handle.store.getState())).toBe(false)
+  })
+
+  it('saves into a folder with project files once the user says to', async () => {
+    const existing = createMemoryFileSystem({ 'maps/map-009.json': '{}' }, 'old-game')
+    const { session, handle } = setup({ picker: () => Promise.resolve(existing) })
+    session.newProject('Fresh')
+    const saving = session.save()
+    await vi.waitFor(() => {
+      expect(handle.store.getState().editorUi.folderConflict).not.toBeNull()
+    })
+    session.answerFolderConflict(true)
+    expect(await saving).toBe(true)
+    expect(Object.keys(existing.snapshot())).toContain(PROJECT_FILE)
+    expect(handle.store.getState().editorUi.folderName).toBe('old-game')
+  })
+
+  it('does not ask for an empty folder, for unrelated files, or when saving to the open folder', async () => {
+    const unrelated = createMemoryFileSystem({ 'README.md': 'hi', 'notes/todo.txt': 'x' }, 'notes')
+    const { session, handle } = setup({ picker: () => Promise.resolve(unrelated) })
+    session.newProject('Fresh')
+    expect(await session.save()).toBe(true)
+    expect(handle.store.getState().editorUi.folderConflict).toBeNull()
+
+    // The folder now holds the project, but it is the open folder, so saving again is routine.
+    handle.store.dispatch(projectActions.renameMap({ mapId: 1, name: 'Later' }))
+    expect(await session.save()).toBe(true)
+    expect(handle.store.getState().editorUi.folderConflict).toBeNull()
   })
 
   it('says what a save did: files written, files removed, or nothing to do', async () => {

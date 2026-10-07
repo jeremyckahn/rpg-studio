@@ -145,8 +145,8 @@ dependencies (`playwright install --with-deps chromium`), `pnpm test:e2e --shard
 report, which plays each test's video, plus traces and screenshots of failures) and `playwright-videos-N` (one `.webm` per
 test, named `<spec>/<describe>--<test>.<hash>.webm` (the hash keeps long or look-alike titles apart) by `packages/e2e/support/videoReporter.ts`, kept 7 days). It is one artifact per
 shard rather than per video because an artifact is one upload step and a workflow step cannot loop. On CI,
-Playwright retries a failing test twice (a test that only passes on retry is reported as flaky and should be fixed) and uses
-two workers per shard.
+Playwright never retries a failing test, on CI or locally (a flake is a failing test, so one cannot pass on a second try), keeps
+a trace of every failure, and uses two workers per shard.
 
 A pull request is tested exactly once, by its `pull_request` run, on the pull request merged into its base branch; pushes run
 the workflow only on `main`. That keeps one check name whatever produced it. (The first design ran pushes on every branch and

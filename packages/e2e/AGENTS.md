@@ -33,7 +33,7 @@ Chromium. Private package; nothing is published from here. Read the [root AGENTS
 ## Map
 
 ```
-playwright.config.ts          web server (vite preview of the production build), Chromium, retries and workers on CI
+playwright.config.ts          web server (vite preview of the production build), Chromium, no retries, workers on CI
 package.json
 tsconfig.json
 support/globalSetup.ts        fails fast, with the fix, when the editor has not been built

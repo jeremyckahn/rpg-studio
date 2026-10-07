@@ -12,6 +12,17 @@ export interface StatusMessage {
   readonly text: string
 }
 
+/** A folder chosen to save into that already holds project files, waiting for the user's answer. */
+export interface FolderConflict {
+  readonly folderName: string
+  /** How many project files (data and assets) the folder already has. */
+  readonly existing: number
+  /** Some of the existing files this project would not write, so they would stay behind. */
+  readonly leftover: readonly string[]
+  /** How many files stay behind in all; `leftover` is only the first few. */
+  readonly leftoverCount: number
+}
+
 export type CompanionConnectionStatus = 'disconnected' | 'connecting' | 'connected'
 
 export interface EditorUiState {
@@ -34,6 +45,8 @@ export interface EditorUiState {
   /** Name of the folder on disk the project was opened from, if any. */
   readonly folderName: string | null
   readonly status: StatusMessage | null
+  /** Set while Save is waiting to hear whether to write into a folder that is not empty. */
+  readonly folderConflict: FolderConflict | null
   /** A newer version of the app is downloaded and waiting for the user to reload. */
   readonly updateAvailable: boolean
   readonly companion: {
@@ -58,6 +71,7 @@ const initialState: EditorUiState = {
   savedRevision: 0,
   folderName: null,
   status: null,
+  folderConflict: null,
   updateAvailable: false,
   companion: { status: 'disconnected', error: '' },
 }
@@ -141,6 +155,11 @@ export const editorUiSlice = createSlice({
       ...state,
       status: action.payload,
     }),
+    folderConflictAsked: (state, action: PayloadAction<FolderConflict>): EditorUiState => ({
+      ...state,
+      folderConflict: action.payload,
+    }),
+    folderConflictAnswered: (state): EditorUiState => ({ ...state, folderConflict: null }),
     companionStatusChanged: (
       state,
       action: PayloadAction<{ status: CompanionConnectionStatus; error: string }>,

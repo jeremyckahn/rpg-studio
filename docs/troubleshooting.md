@@ -173,8 +173,8 @@ already on the machine, set `PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH` to it.
 
 Download the artifacts of the run: `playwright-report-N` holds the HTML report with a trace (DOM snapshots, network, console, a
 timeline) and a screenshot for every failure, and `playwright-videos-N` has a video of every test, named after it. Open a trace with `pnpm --filter @rpgstudio/e2e exec playwright show-trace <trace.zip>`.
-Reproduce a flake with `playwright test <spec> --repeat-each 10 --workers 4`; load makes races show. A test that passes only on
-retry is flaky: fix its waiting, do not raise the retries.
+Reproduce a flake with `playwright test <spec> --repeat-each 10 --workers 4`; load makes races show. There are no retries: a test that
+fails one time in ten fails CI one time in ten. Fix its waiting; do not add retries.
 
 ### `strict mode violation: getByRole(...) resolved to 2 elements`
 

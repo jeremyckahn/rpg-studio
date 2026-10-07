@@ -23,7 +23,10 @@ export default defineConfig({
   reporter: CI
     ? [['github'], ['html', { open: 'never' }], ['list'], ['./support/videoReporter.ts']]
     : [['list']],
-  timeout: 30_000,
+  // A test builds a project through the UI, and the exported-game ones also export, serve and boot
+  // the game under software WebGL on a two-core runner: 20 to 35 seconds there, so 30 left no room
+  // once retries were off. A hang still fails, only later; assertions keep their own 10 s.
+  timeout: 60_000,
   expect: { timeout: 10_000 },
   use: {
     baseURL: `http://localhost:${PORT}`,

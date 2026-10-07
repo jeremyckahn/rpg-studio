@@ -18,16 +18,19 @@ export default defineConfig({
   forbidOnly: CI,
   retries: CI ? 2 : 0,
   workers: CI ? 2 : undefined,
-  reporter: CI ? [['github'], ['html', { open: 'never' }], ['list']] : [['list']],
+  reporter: CI
+    ? [['github'], ['html', { open: 'never' }], ['list'], ['./support/videoReporter.ts']]
+    : [['list']],
   timeout: 30_000,
   expect: { timeout: 10_000 },
   use: {
     baseURL: `http://localhost:${PORT}`,
-    // Recording costs CPU, and software WebGL has little to spare: on CI keep evidence only from the
-    // retry of a failing test; locally, with no retries, keep it for every failure.
+    // Traces are heavy, so on CI keep one only from the retry of a failing test; locally, with no
+    // retries, keep it for every failure. Video is recorded for every test on CI and uploaded
+    // (see `support/videoReporter.ts`); locally only failures keep theirs.
     trace: CI ? 'on-first-retry' : 'retain-on-failure',
     screenshot: 'only-on-failure',
-    video: CI ? 'on-first-retry' : 'retain-on-failure',
+    video: CI ? 'on' : 'retain-on-failure',
     // Needs the real service worker off: it would cache between tests and hide regressions.
     serviceWorkers: 'block',
   },

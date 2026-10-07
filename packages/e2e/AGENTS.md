@@ -43,6 +43,7 @@ support/filesystem.ts         File System Access picker stub backed by the brows
 support/downloads.ts          capture and unzip a download; build a zip to import
 support/files.ts              generated PNGs and fake audio for upload tests
 support/touch.ts              multi-finger touch (pan, pinch) through the DevTools protocol
+support/videoReporter.ts      CI reporter: copies each test's video to playwright-videos/<spec>/<test>.webm
 support/gameServer.ts         serves an exported game over HTTP, recording every request
 support/demoGame.ts           a small playable game built through project actions
 test/app-shell.e2e.ts         boot, panels, console API

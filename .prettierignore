@@ -6,3 +6,4 @@ packages/editor/public/piskel
 # Playwright output
 playwright-report
 test-results
+playwright-videos

@@ -14,6 +14,7 @@ export default tseslint.config(
       // Playwright's own output (the HTML report ships minified scripts).
       '**/playwright-report/**',
       '**/test-results/**',
+      '**/playwright-videos/**',
       '**/public/piskel/**',
     ],
   },

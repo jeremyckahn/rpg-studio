@@ -171,8 +171,8 @@ already on the machine, set `PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH` to it.
 
 ### A test fails only on CI, or only sometimes
 
-Download the `playwright-report` artifact of the run: it holds a trace (DOM snapshots, network, console, a timeline), a
-screenshot and a video for every failure. Open a trace with `pnpm --filter @rpgstudio/e2e exec playwright show-trace <trace.zip>`.
+Download the artifacts of the run: `playwright-report-N` holds the HTML report with a trace (DOM snapshots, network, console, a
+timeline) and a screenshot for every failure, and `playwright-videos-N` has a video of every test, named after it. Open a trace with `pnpm --filter @rpgstudio/e2e exec playwright show-trace <trace.zip>`.
 Reproduce a flake with `playwright test <spec> --repeat-each 10 --workers 4`; load makes races show. A test that passes only on
 retry is flaky: fix its waiting, do not raise the retries.
 

@@ -384,10 +384,12 @@ describe('MenuBar', () => {
     expect(harness.handle.store.getState().project.data.maps[0]?.name).toBe('x')
   })
 
-  it('links to the user guide (the wiki) in a new tab, without leaking the opener', () => {
+  it('links to the user guide (docs/user-guide) in a new tab, without leaking the opener', () => {
     renderInApp(<MenuBar />, createHarness())
     const link = screen.getByRole('link', { name: 'User guide' })
-    expect(link.getAttribute('href')).toBe('https://github.com/jeremyckahn/rpg-studio/wiki')
+    expect(link.getAttribute('href')).toBe(
+      'https://github.com/jeremyckahn/rpg-studio/tree/main/docs/user-guide',
+    )
     expect(link.getAttribute('target')).toBe('_blank')
     expect(link.getAttribute('rel')).toBe('noopener noreferrer')
   })
@@ -397,7 +399,7 @@ describe('MenuBar', () => {
     await userEvent.click(screen.getByRole('button', { name: /Companion/ }))
     const link = await screen.findByRole('link', { name: 'Setup guide' })
     expect(link.getAttribute('href')).toBe(
-      'https://github.com/jeremyckahn/rpg-studio/wiki/AI-Companion',
+      'https://github.com/jeremyckahn/rpg-studio/blob/main/docs/user-guide/ai-companion.md',
     )
   })
 

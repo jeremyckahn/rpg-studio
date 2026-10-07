@@ -9,9 +9,8 @@ Shared build/test configuration and repository checks. Not a package; nothing is
 - `docs.test.ts`: keeps the documentation true. It fails on broken links/anchors, backticked repository paths that no longer exist,
   packages without an `AGENTS.md`, and project actions / queries / schema names / event commands / capabilities / close codes missing from
   the docs that must list them. When it fails after your change, update the docs.
-- `wiki.test.ts`: validates a local clone of the GitHub wiki (the user guide, a separate repository) at `../rpg-studio.wiki` or
-  `WIKI_DIR`: links and anchors, sidebar coverage, pages the app links to, and that JSON examples pass the real schemas. It is skipped
-  when no clone exists. See [AGENTS.md](../AGENTS.md#the-wiki-user-guide-keep-it-current).
-- `vitest.config.ts`: the Vitest project for `docs.test.ts` and `wiki.test.ts`.
+- `user-guide.test.ts`: validates the user guide in `docs/user-guide`: links and anchors, index coverage, pages the app links to,
+  and that JSON examples pass the real schemas. See [AGENTS.md](../AGENTS.md#the-user-guide-keep-it-current).
+- `vitest.config.ts`: the Vitest project for `docs.test.ts` and `user-guide.test.ts`.
 
 Changing `vite.ts` affects every package; run the full verification gate.

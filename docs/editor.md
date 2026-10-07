@@ -140,9 +140,9 @@ panels. It knows nothing about specific features: panels come from the **panel r
 (`PanelDefinition { id, title, location: workspace|left|right|bottom, order?, when?, component }`). **`bottom` is declared but not rendered yet**: `MasterLayout` shows only workspace, left and right panels.
 `when` restricts a docked panel to one workspace panel.
 
-The menu bar's **?** button opens the user guide (the GitHub wiki) in a new tab, and the companion dialog links to
-its setup page; both read `src/links.ts` (`WIKI_URL`, `WIKI_PAGES`). The wiki is a separate repository that must be kept
-current: see [AGENTS.md](../AGENTS.md#the-wiki-user-guide-keep-it-current).
+The menu bar's **?** button opens the user guide (`docs/user-guide`, on GitHub) in a new tab, and the companion dialog links to
+its setup page; both read `src/links.ts` (`USER_GUIDE_URL`, `USER_GUIDE_PAGES`). The guide must be kept
+current: see [AGENTS.md](../AGENTS.md#the-user-guide-keep-it-current).
 
 **Compact layout (phones, small tablets).** `useLayoutMode()` (`components/useLayoutMode.ts`) is
 `compact` below MUI's `md` breakpoint (900 px) and `portrait` from `(orientation: portrait)`. Compact

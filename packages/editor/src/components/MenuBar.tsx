@@ -20,7 +20,7 @@ import { CompanionDialog } from './CompanionDialog.tsx'
 import { DiscardChangesDialog } from './DiscardChangesDialog.tsx'
 import { useLayoutMode } from './useLayoutMode.ts'
 
-import { WIKI_URL } from '../links.ts'
+import { USER_GUIDE_URL } from '../links.ts'
 import { supportsDirectoryPicker } from '../project/fileSystem.ts'
 import { redo, selectCanRedo, selectCanUndo, selectIsDirty, undo } from '../store/index.ts'
 import { editorUiSlice } from '../store/slices/editorUi.ts'
@@ -124,11 +124,11 @@ export const MenuBar = () => {
             </IconButton>
           </span>
         </Tooltip>
-        <Tooltip title="User guide (opens the wiki)">
+        <Tooltip title="User guide (opens the docs)">
           <IconButton
             size="small"
             component="a"
-            href={WIKI_URL}
+            href={USER_GUIDE_URL}
             target="_blank"
             rel="noopener noreferrer"
             aria-label="User guide"

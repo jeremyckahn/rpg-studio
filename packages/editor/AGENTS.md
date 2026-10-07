@@ -38,7 +38,7 @@ src/piskel/                   protocol, bridge, PiskelEditorPanel, textureInvali
 src/export/                   packager (pure), zip, archive, engineFiles (+ download helper)
 src/bridge/                   companionClient, handler, queries, global (window.RPGStudio)
 src/pwa/register.ts           service worker registration and update flow (production only)
-src/links.ts                  WIKI_URL and the wiki pages the app links to (wiki: see root AGENTS.md)
+src/links.ts                  USER_GUIDE_URL and the user-guide pages the app links to (docs/user-guide: see root AGENTS.md)
 scripts/                      vendor-piskel.ts, piskel-adapter.ts, generate-icons.ts, enginePlayerPlugin.ts
 public/                       icons/ (generated), piskel/ (vendored; see its AGENTS.md)
 vite.config.ts                library build;  vite.app.config.ts  the PWA app build (dev/build:app/preview)

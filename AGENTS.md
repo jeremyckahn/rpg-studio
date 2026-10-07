@@ -18,6 +18,7 @@ packages/editor            React/MUI authoring app, Redux store, map canvas, Pis
 packages/companion-bridge  local WebSocket relay + agent library + CLI for AI agents
 tooling/                   shared Vite/Vitest config helpers and the docs checker
 docs/                      architecture, decisions, guides (start at docs/README.md)
+docs/user-guide/           the guide for people using the app (Markdown)
 ```
 
 Dependency direction is strictly `core ← engine ← editor`, and `core ← companion-bridge`.
@@ -53,7 +54,7 @@ Before declaring any change done, all of these must pass with no warnings:
 pnpm install --frozen-lockfile && pnpm lint && pnpm typecheck && pnpm test && pnpm build && pnpm build:app
 ```
 
-Also confirm the wiki is up to date (see below). Check **exit codes**, not just output. Piping a command through `tail`/`grep` hides its
+Also confirm the user guide is up to date (see below). Check **exit codes**, not just output. Piping a command through `tail`/`grep` hides its
 failure, which once hid a failing `pnpm install` in this repo.
 
 ## The rules (and where they are enforced)
@@ -88,6 +89,7 @@ failure, which once hid a failing `pnpm install` in this repo.
 | Change a data shape or project file format | [docs/data-model.md](docs/data-model.md)                         |
 | Work on game simulation, rendering, audio  | [docs/engine.md](docs/engine.md)                                 |
 | Work on the editor, store, undo, export    | [docs/editor.md](docs/editor.md)                                 |
+| Document a user-visible change             | [docs/user-guide/README.md](docs/user-guide/README.md)           |
 | Write or load a plugin                     | [docs/plugins.md](docs/plugins.md)                               |
 | Work on the AI bridge                      | [docs/companion-protocol.md](docs/companion-protocol.md)         |
 | Add an action, command, query, panel, …    | [docs/extending.md](docs/extending.md)                           |
@@ -95,46 +97,41 @@ failure, which once hid a failing `pnpm install` in this repo.
 | Build, lint, deploy, Vercel, pnpm          | [docs/tooling-and-deployment.md](docs/tooling-and-deployment.md) |
 | Something is broken in a confusing way     | [docs/troubleshooting.md](docs/troubleshooting.md)               |
 
-## The wiki (user guide): keep it current
+## The user guide: keep it current
 
-The **GitHub wiki** at <https://github.com/jeremyckahn/rpg-studio/wiki> is the guide for people **using** the app
-(`docs/` is for people changing the code). It is a **separate git repository**, not part of this one:
-`git@github.com:jeremyckahn/rpg-studio.wiki.git`, default branch `master`. The app links to it (the **?** button in
-the menu bar and the companion dialog; `packages/editor/src/links.ts`).
+[`docs/user-guide/`](docs/user-guide/README.md) is the guide for people **using** the app; the rest of `docs/` is for people
+changing the code. The app links to it (the **?** button in the menu bar and the companion dialog;
+`packages/editor/src/links.ts`). The old GitHub wiki is retired and must not be edited.
 
-**Rule: whenever a change affects anything a user can see or do, update the wiki in the same piece of work, before
+**Rule: whenever a change affects anything a user can see or do, update the user guide in the same commit, before
 you call it done.** That includes menu items and labels, tools, panels, gestures and keyboard shortcuts, event commands
 and their fields, file and folder formats, export contents, supported file types, limits and validation messages,
 mobile behaviour, companion setup, and anything added to or removed from the "Current Limitations" page. Removing a
-limitation is as important as documenting a feature. Unsure whether a change is user-visible? Update the wiki.
+limitation is as important as documenting a feature. Unsure whether a change is user-visible? Update the guide.
 
 How:
 
-1. Clone (or `git pull`) the wiki next to this repository: `git clone git@github.com:jeremyckahn/rpg-studio.wiki.git ../rpg-studio.wiki`.
-2. Edit the Markdown pages. Page name = file name (`Building-Maps.md` is "Building Maps"); link pages by bare name,
-   as the existing pages do (a link target of just the page name, optionally followed by `#heading`); keep `_Sidebar.md` and `Home.md` listing every page.
-3. Run `pnpm test`: `tooling/wiki.test.ts` validates the clone at `../rpg-studio.wiki` (or `WIKI_DIR`): links and heading
-   anchors, sidebar coverage, the pages the app links to, and that every `json` example is accepted by the real Zod
-   schemas. Do not weaken it; write examples that are true.
-4. Commit with `docs(wiki): <what changed>` and `git push origin master`. If you cannot push (no access, no clone), say so
-   in your final message and list the pages that need updating; never silently skip it.
+1. Edit the Markdown pages in `docs/user-guide/`. File names are lowercase and hyphenated (`building-maps.md`); link
+   pages with relative links (`building-maps.md#collision`); keep `docs/user-guide/README.md` listing every page.
+2. Run `pnpm test`: `tooling/user-guide.test.ts` validates links and heading anchors, index coverage, the pages the app
+   links to, and that every `json` example is accepted by the real Zod schemas. Do not weaken it; write examples that are true.
 
 Which page covers what:
 
-| Area changed                                     | Page(s)                                                                     |
-| ------------------------------------------------ | --------------------------------------------------------------------------- |
-| Menu bar, panels, shortcuts, layout              | `The-Interface`, `Mobile-and-Touch`                                         |
-| Save, open, zip, browser support                 | `Projects-and-Saving`, `Project-File-Format`                                |
-| Map tools, layers, collision, map properties     | `Building-Maps`                                                             |
-| Asset kinds, folders, formats, tilesets, sprites | `Assets`, `Sprite-Editor`                                                   |
-| Database tables and fields                       | `Database`                                                                  |
-| Event commands, triggers, conditions             | `Events`                                                                    |
-| Export, player, controls                         | `Playing-and-Exporting`, `Mobile-and-Touch`                                 |
-| Companion bridge, console API                    | `AI-Companion`                                                              |
-| Plugin system                                    | `Plugins`                                                                   |
-| New features, fixed gaps, new gaps               | `Current-Limitations`, `Troubleshooting-and-FAQ`, `Home`, `Getting-Started` |
+| Area changed                                     | Page(s)                                                                               |
+| ------------------------------------------------ | ------------------------------------------------------------------------------------- |
+| Menu bar, panels, shortcuts, layout              | `the-interface`, `mobile-and-touch`                                                   |
+| Save, open, zip, browser support                 | `projects-and-saving`, `project-file-format`                                          |
+| Map tools, layers, collision, map properties     | `building-maps`                                                                       |
+| Asset kinds, folders, formats, tilesets, sprites | `assets`, `sprite-editor`                                                             |
+| Database tables and fields                       | `database`                                                                            |
+| Event commands, triggers, conditions             | `events`                                                                              |
+| Export, player, controls                         | `playing-and-exporting`, `mobile-and-touch`                                           |
+| Companion bridge, console API                    | `ai-companion`                                                                        |
+| Plugin system                                    | `plugins`                                                                             |
+| New features, fixed gaps, new gaps               | `current-limitations`, `troubleshooting-and-faq`, `README` (index), `getting-started` |
 
-Renaming or removing a wiki page: update `_Sidebar.md`, `Home.md`, every link to it, and `WIKI_PAGES` in
+Renaming or removing a page: update `docs/user-guide/README.md`, every link to it, and `USER_GUIDE_PAGES` in
 `packages/editor/src/links.ts`.
 
 ## Conventions

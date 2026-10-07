@@ -432,8 +432,8 @@ later choice. With several editor tabs open, only the tab that clicks Reload is 
 **Decision.**
 
 1. `packages/e2e` runs Playwright (Chromium) against `vite preview` of the **production build** of the editor, and against games
-   exported from it, with WebGL through SwiftShader. A GitHub Actions workflow runs the suite on every push and every pull
-   request.
+   exported from it, with WebGL through SwiftShader. A GitHub Actions workflow runs the suite on every pull request (once,
+   on the pull request merged into its base) and on every push to `main`.
 2. Tests act through the UI and read the result back through `window.RPGStudio.query`, the read path an AI agent already has.
 3. Anything outside the page is real where it can be: the companion tests start the real relay and agent library, the game tests
    serve the real export over HTTP, the folder tests give the editor real directory handles from the browser's private file

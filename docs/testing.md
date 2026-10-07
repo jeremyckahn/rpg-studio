@@ -97,8 +97,8 @@ pnpm --filter @rpgstudio/e2e exec playwright test test/database --repeat-each 5 
 ```
 
 **The rule: every non-trivial feature gets an end-to-end test**, in the same piece of work that adds it
-([AGENTS.md](../AGENTS.md#end-to-end-tests-cover-every-non-trivial-feature)). GitHub Actions runs the suite, together with the unit tests (`pnpm test`), on every push to
-any branch and on every pull request from a fork, so every pull request is covered (`.github/workflows/tests.yml`: install, `pnpm build`, `pnpm build:app`, install Chromium, `pnpm test:e2e`;
+([AGENTS.md](../AGENTS.md#end-to-end-tests-cover-every-non-trivial-feature)). GitHub Actions runs the suite, together with the unit tests (`pnpm test`), on every pull
+request and every push to `main`, so every pull request is covered (`.github/workflows/tests.yml`: install, `pnpm build`, `pnpm build:app`, install Chromium, `pnpm test:e2e`;
 in four parallel shards; the HTML report, traces, screenshots and videos of failures are uploaded as artifacts).
 
 ### What the suite covers

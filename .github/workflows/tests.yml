@@ -1,13 +1,12 @@
 name: Tests
 
-# Every commit pushed to any branch runs the unit tests and the full browser suite. Pull requests from forks are
-# covered by the pull_request trigger, since their pushes happen in the fork. A pull request from
-# a branch of this repository is skipped there (see FROM_FORK below): its commits are pushes, so
-# it would only run everything twice.
+# Every pull request, from this repository or a fork, runs the unit tests and the full browser suite
+# once, on the pull request merged into its base. Pushes run them only on main, so a pull request is
+# never tested twice and every check has one name, whichever event produced it. A branch with no pull
+# request open is not tested; open a draft one to get a run.
 on:
   push:
-    # The merge queue pushes temporary branches of this name; its merge_group run covers them.
-    branches-ignore: ['gh-readonly-queue/**']
+    branches: [main]
   pull_request:
   # A merge queue tests the pull request merged into the latest base branch before merging it, and
   # waits for the checks of this event. Without this trigger a queued pull request would wait forever.
@@ -25,8 +24,6 @@ permissions:
 jobs:
   unit:
     name: Unit tests
-    # FROM_FORK: run for pushes and manual runs, and for pull requests only when the head is a fork.
-    if: ${{ github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name != github.repository }}
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
@@ -49,8 +46,6 @@ jobs:
 
   e2e:
     name: Playwright (Chromium, shard ${{ matrix.shard }}/4)
-    # FROM_FORK: run for pushes and manual runs, and for pull requests only when the head is a fork.
-    if: ${{ github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name != github.repository }}
     runs-on: ubuntu-latest
     timeout-minutes: 40
     strategy:
@@ -101,8 +96,8 @@ jobs:
   # One check with a stable name to require in branch protection, whatever the number of shards.
   tests-passed:
     name: All tests passed
-    # Same condition as the shards, so a skipped pull_request run reports skipped, not failed.
-    if: ${{ always() && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name != github.repository) }}
+    # Runs even when a job failed or was cancelled, so the check always reports and blocks the merge.
+    if: ${{ always() }}
     needs: [unit, e2e]
     runs-on: ubuntu-latest
     steps:

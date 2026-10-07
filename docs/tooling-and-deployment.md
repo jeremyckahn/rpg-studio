@@ -136,7 +136,7 @@ All build outputs are git-ignored (`dist/`, `dist-*/`).
 
 ### 6a. Continuous integration: unit and end-to-end tests
 
-`.github/workflows/tests.yml` runs on every `push` (any branch), on every `pull_request` that comes from a fork, and on demand (`workflow_dispatch`), on
+`.github/workflows/tests.yml` runs on every `pull_request` (from this repository or a fork), on every `push` to `main`, in the merge queue (`merge_group`) and on demand (`workflow_dispatch`), on
 `ubuntu-latest` with Node 22 and the pnpm version pinned by `packageManager`. A newer run for the same ref cancels the older
 one. The `unit` job installs and runs `pnpm test` (Vitest for every package and the docs checker; the wiki checks skip because
 there is no wiki clone). The end-to-end suite is split into four parallel shards (`--shard=N/4`), because on one runner it takes the best part of half an
@@ -146,11 +146,12 @@ screenshots and videos of failures are uploaded per shard as `playwright-report-
 Playwright retries a failing test twice (a test that only passes on retry is reported as flaky and should be fixed) and uses
 two workers per shard.
 
-A pull request from a branch of this repository runs once, for its pushes: its `pull_request` run is skipped by an `if` on the
-jobs (head repository equals this repository), because the same commits would otherwise be tested twice. A pull request from a
-fork has no push here, so its `pull_request` run is the one that tests it (GitHub may ask for approval before running a
-first-time contributor's workflow). A merge queue (below) runs the `merge_group` event instead; pushes to the queue's temporary
-`gh-readonly-queue/**` branches are ignored so they are not tested twice either.
+A pull request is tested exactly once, by its `pull_request` run, on the pull request merged into its base branch; pushes run
+the workflow only on `main`. That keeps one check name whatever produced it. (The first design ran pushes on every branch and
+skipped the `pull_request` run for own-repository pull requests; the skipped run reported the required check as passing while
+the real one was still running, so a pull request could be merged early.) The cost is that a branch with no pull request is not
+tested: open a draft pull request to get a run. GitHub may ask for approval before running the workflow for a first-time
+contributor's pull request. A merge queue (below) runs the `merge_group` event.
 
 ### 6b. Requiring the checks and the merge queue
 
@@ -159,9 +160,9 @@ target branch `main`):
 
 1. **Require status checks to pass**, with the single check **All tests passed** (the `tests-passed` job: it succeeds only when
    the unit tests and every end-to-end shard did, so adding or re-sharding jobs never changes what you require). A required check
-   is matched by its job name, which is the same for pushes, fork pull requests and the merge queue; the `(push)` /
-   `(pull_request)` suffix GitHub shows in the list is not part of it. A skipped run counts as passing, so the skipped
-   `pull_request` run of your own pull requests does not block them.
+   is matched by its job name, which is the same for pull requests, pushes to `main` and the merge queue; the `(pull_request)` /
+   `(push)` suffix GitHub shows in the list is not part of it. Never let a job with this name be skipped for some runs: a skipped
+   check counts as passing.
 2. **Require a pull request before merging**, and optionally **Require branches to be up to date before merging** (see below).
 3. **Require merge queue** (if available), with the check above as the condition. Suggested: merge method as you prefer,
    maximum group size 1-3, "Only merge non-failing pull requests", status check timeout of 60 minutes (a run takes about 8).

@@ -60,7 +60,7 @@ pnpm install --frozen-lockfile && pnpm lint && pnpm typecheck && pnpm test && pn
 Also confirm the wiki is up to date (see below) and that the feature has end-to-end coverage (see below). The first
 time on a machine, install the browser the end-to-end tests use:
 `pnpm --filter @rpgstudio/e2e exec playwright install --with-deps chromium`. GitHub Actions runs `pnpm test` and `pnpm test:e2e` on
-every push to any branch and every pull request from a fork (`.github/workflows/tests.yml`), so a pull request is always covered and a change that breaks either cannot be merged quietly.
+every pull request and every push to `main` (`.github/workflows/tests.yml`), so a pull request is always covered and a change that breaks either cannot be merged quietly.
 Check **exit codes**, not just output. Piping a command through `tail`/`grep` hides its
 failure, which once hid a failing `pnpm install` in this repo.
 

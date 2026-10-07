@@ -117,6 +117,12 @@ sandbox with a pre-installed browser). Leave it unset otherwise. A failed test k
 - **The game polls input once per frame.** Two key presses in the same frame count as one confirm, so wait for each
   effect before the next press. `message` (the box) stays in the page, hidden, between messages: select it with a plain
   locator, not `getByRole`.
+- **Wait on game time, not wall time.** The exported game exposes no state, so a test cannot read the player's position
+  and must not sleep to let it move. `addGameClock` (in `support/demoGame.ts`) adds a parallel event that counts the
+  simulation's own ticks and then speaks, so "hold this key for N ticks" is `holdKeyUntilClockRunsOut` in
+  `exported-game.e2e.ts`; `addTransferNotices` makes a door's transfer visible the same way. Both are autorun messages,
+  so something else speaking first (a probe, an NPC) keeps them quiet and the wait fails, which is what a "did not
+  happen" check needs.
 - **Games are served over HTTP** (`serveFiles`) because the player fetches its data; `file://` does not work.
 - **Software GL.** The config passes `--use-angle=swiftshader` so Pixi has WebGL on machines without a GPU. Canvas snapshot
   comparisons are within one machine, never against stored images.

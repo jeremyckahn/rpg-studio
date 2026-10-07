@@ -1,6 +1,13 @@
 import { type Browser, type Page, devices } from '@playwright/test'
 
-import { buildDemoGame } from '../support/demoGame.ts'
+import {
+  CELLAR_NOTICE,
+  GAME_CLOCK_TEXT,
+  VILLAGE_NOTICE,
+  addGameClock,
+  addTransferNotices,
+  buildDemoGame,
+} from '../support/demoGame.ts'
 import { type DownloadedZip, downloadZip } from '../support/downloads.ts'
 import { type ServedGame, serveFiles } from '../support/gameServer.ts'
 import { expect, test } from '../support/fixtures.ts'
@@ -23,6 +30,13 @@ const openOnPhone = async (browser: Browser, url: string): Promise<Page> => {
   return page
 }
 
+/**
+ * How long the game's clock runs, in ticks. The player walks 4 tiles per second, so a tile takes
+ * 15 ticks and 90 ticks are six tiles: more than enough to cross the wall to the left probe (two
+ * tiles) or to walk down through the Elder and off the map.
+ */
+const CLOCK_FRAMES = 90
+
 test.describe('exported game', () => {
   let served: ServedGame | null = null
   test.afterEach(async () => {
@@ -30,9 +44,17 @@ test.describe('exported game', () => {
     served = null
   })
 
-  /** Exports the demo game, serves it, and opens it in a new tab of the same browser context. */
-  const play = async (studio: Studio): Promise<{ game: Page; zip: DownloadedZip }> => {
+  /**
+   * Exports the demo game, serves it, and opens it in a new tab of the same browser context.
+   * `clock` adds the in-game clock and `notices` the door notices (see `support/demoGame.ts`).
+   */
+  const play = async (
+    studio: Studio,
+    { clock = false, notices = false }: { clock?: boolean; notices?: boolean } = {},
+  ): Promise<{ game: Page; zip: DownloadedZip }> => {
     await buildDemoGame(studio)
+    if (clock) await addGameClock(studio, CLOCK_FRAMES)
+    if (notices) await addTransferNotices(studio)
     const zip = await exportGame(studio)
     served = await serveFiles(zip.entries)
     const game = await studio.page.context().newPage()
@@ -57,17 +79,24 @@ test.describe('exported game', () => {
     await expect(message(page)).toBeHidden()
   }
   /**
-   * Presses Enter every so often until `text` is on screen. Each press is given time to take effect
-   * before the message is read, because the next press would dismiss what the last one opened.
+   * Holds `key` through the whole life of the game's clock (`play(studio, { clock: true })`): from
+   * before the greeting is dismissed, so the input is already down when the clock starts, until
+   * the clock says `GAME_CLOCK_TEXT`. That text is the proof that `CLOCK_FRAMES` ticks were
+   * simulated with the key held, and the player has had every one of them to move. It is also the
+   * proof of what did not happen: the clock only speaks when nothing else is, so a probe, an NPC
+   * or a repeated greeting appearing first keeps it quiet and this wait fails.
    */
-  const talkUntil = async (page: Page, text: string): Promise<void> => {
-    await expect
-      .poll(async () => {
-        await page.keyboard.press('Enter')
-        await page.waitForTimeout(300)
-        return ((await message(page).textContent()) ?? '').includes(text)
-      })
-      .toBe(true)
+  const holdKeyUntilClockRunsOut = async (page: Page, key: string): Promise<void> => {
+    await expect(message(page)).toHaveText('Welcome to the village.')
+    await page.keyboard.down(key)
+    try {
+      await page.keyboard.press('Enter')
+      await expect(message(page)).toHaveText(GAME_CLOCK_TEXT, { timeout: 20_000 })
+    } finally {
+      await page.keyboard.up(key)
+    }
+    await page.keyboard.press('Enter')
+    await expect(message(page)).toBeHidden()
   }
   const messageShown = (page: Page, text: string) => async () =>
     ((await message(page).textContent()) ?? '').includes(text)
@@ -82,12 +111,14 @@ test.describe('exported game', () => {
   test('a message is dismissed with Enter and an autorun event does not repeat', async ({
     studio,
   }) => {
-    const { game } = await play(studio)
+    const { game } = await play(studio, { clock: true })
     await expect(message(game)).toHaveText('Welcome to the village.')
     await game.keyboard.press('Enter')
     await expect(message(game)).toBeHidden()
-    await game.waitForTimeout(500)
-    await expect(message(game)).toBeHidden()
+    // An autorun event restarts on the tick after it ends, so a repeat would show the greeting
+    // again and keep the clock (which only speaks when nothing else is) quiet. The clock being the
+    // next thing said, CLOCK_FRAMES ticks later, is the proof that the greeting did not repeat.
+    await expect(message(game)).toHaveText(GAME_CLOCK_TEXT, { timeout: 20_000 })
   })
 
   test('Space and Z confirm as well', async ({ studio }) => {
@@ -114,12 +145,17 @@ test.describe('exported game', () => {
   })
 
   test('the player cannot walk through a solid cell', async ({ studio }) => {
-    const { game } = await play(studio)
-    await dismissGreeting(game)
-    // The wall at (9, 7) stands between the player and the probe at (8, 7).
-    await game.keyboard.down('ArrowLeft')
-    await game.waitForTimeout(1500)
-    await game.keyboard.up('ArrowLeft')
+    const { game } = await play(studio, { clock: true })
+    // The wall at (9, 7) stands between the player and the probe at (8, 7). Walking left for
+    // CLOCK_FRAMES ticks would reach the probe within 30 of them (two tiles), and its message
+    // would stop the clock from speaking, so the clock text is proof the wall held.
+    await holdKeyUntilClockRunsOut(game, 'ArrowLeft')
+    // The player never left (10, 7): the Elder is still directly below. Turning down and pressing
+    // Enter in the same frame works because movement runs before events.
+    await game.keyboard.press('ArrowDown')
+    await game.keyboard.press('Enter')
+    await expect(message(game)).toHaveText('First visit.')
+    await game.keyboard.press('Enter')
     await expect(message(game)).toBeHidden()
     // The way right is open: stepping onto the probe at (11, 7) triggers it.
     await walk(game, 'ArrowRight', messageShown(game, 'Reached the right probe.'))
@@ -132,44 +168,50 @@ test.describe('exported game', () => {
   })
 
   test('an NPC blocks the way', async ({ studio }) => {
-    const { game } = await play(studio)
-    await dismissGreeting(game)
-    // Walking down into the Elder does nothing by itself; only Enter talks to them.
-    await game.keyboard.down('ArrowDown')
-    await game.waitForTimeout(800)
-    await game.keyboard.up('ArrowDown')
-    await expect(message(game)).toBeHidden()
+    const { game } = await play(studio, { clock: true })
+    // Walking down into the Elder does nothing by itself; only Enter talks to them. Had the Elder
+    // not blocked the way, CLOCK_FRAMES ticks of walking down would take the player six tiles
+    // away, so the Elder would no longer be the cell in front of them.
+    await holdKeyUntilClockRunsOut(game, 'ArrowDown')
     await game.keyboard.press('Enter')
     await expect(message(game)).toHaveText('First visit.')
   })
 
   test('a door transfers the player to another map and back', async ({ studio }) => {
-    const { game } = await play(studio)
+    const { game } = await play(studio, { notices: true })
     await dismissGreeting(game)
     // A key press shorter than a frame still moves exactly one tile, onto the door at (10, 6).
     await game.keyboard.press('ArrowUp')
-    // On the Cellar map the cat is directly below the arrival point (5, 3), so Enter reaches it
-    // only if the transfer happened; on the Village map nothing answers.
-    await talkUntil(game, 'Meow.')
+    // The Cellar's notice speaks on arrival: that is the transfer, observed rather than awaited.
+    await expect(message(game)).toHaveText(CELLAR_NOTICE)
+    await game.keyboard.press('Enter')
+    await expect(message(game)).toBeHidden()
+    // The cat is directly below the arrival point (5, 3), so Enter reaches it only on the Cellar
+    // map, at the right spot; on the Village map nothing answers.
+    await game.keyboard.press('Enter')
+    await expect(message(game)).toHaveText('Meow.')
     await game.keyboard.press('Enter')
     await expect(message(game)).toBeHidden()
 
     // One step up is the stairs at (5, 2), back to the Village beside the Elder.
     await game.keyboard.press('ArrowUp')
-    await talkUntil(game, 'First visit.')
+    await expect(message(game)).toHaveText(VILLAGE_NOTICE)
+    await game.keyboard.press('Enter')
+    await expect(message(game)).toBeHidden()
+    await game.keyboard.press('Enter')
+    await expect(message(game)).toHaveText('First visit.')
   })
 
   test('draws something different after the player moves', async ({ studio }) => {
     const { game } = await play(studio)
     await dismissGreeting(game)
-    await game.waitForTimeout(300)
-    const before = await game.locator('canvas').screenshot()
-    await game.keyboard.down('ArrowRight')
-    await game.waitForTimeout(600)
-    await game.keyboard.up('ArrowRight')
+    const canvas = game.locator('canvas')
+    const before = await canvas.screenshot()
+    await walk(game, 'ArrowRight', messageShown(game, 'Reached the right probe.'))
+    // The message box is part of the picture too: close it, so only the player's move is compared.
     await game.keyboard.press('Enter')
-    await game.waitForTimeout(300)
-    expect((await game.locator('canvas').screenshot()).equals(before)).toBe(false)
+    await expect(message(game)).toBeHidden()
+    await expect.poll(async () => (await canvas.screenshot()).equals(before)).toBe(false)
   })
 
   test('only ever requests files that were exported', async ({ studio }) => {

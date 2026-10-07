@@ -13,11 +13,16 @@ import { type Studio } from './studio.ts'
  *   (5, 4)   Cat, solid, action.
  *   (5, 2)   Stairs, non-solid, touch: back to the Village at (10, 7).
  */
-export const buildDemoGame = async (studio: Studio): Promise<void> => {
-  const check = async (action: unknown): Promise<void> => {
+/** Dispatches a setup action and throws, naming the reason, when the project refuses it. */
+const checked =
+  (studio: Studio) =>
+  async (action: unknown): Promise<void> => {
     const result = await studio.dispatch(action)
     if (!result.success) throw new Error(`Setup failed: ${result.error ?? 'unknown'}`)
   }
+
+export const buildDemoGame = async (studio: Studio): Promise<void> => {
+  const check = checked(studio)
 
   await check({ type: 'project/renameMap', payload: { mapId: 1, name: 'Village' } })
   await check({
@@ -101,4 +106,119 @@ export const buildDemoGame = async (studio: Studio): Promise<void> => {
       commands: [{ command: 'TransferPlayer', mapId: 1, x: 10, y: 7, direction: 'down' }],
     },
   ])
+}
+
+/** What the clock from `addGameClock` says when it runs out. */
+export const GAME_CLOCK_TEXT = 'The clock ran out.'
+
+/**
+ * Adds a clock to the Village that counts the game's own ticks, so a test can wait for "this many
+ * ticks have passed" instead of sleeping for a guessed number of milliseconds. It starts the tick
+ * after the greeting has been dismissed (switch 2) and, `frames` ticks later, says
+ * `GAME_CLOCK_TEXT` once. A parallel event counts in the simulation's own time, so a slow machine
+ * simply takes longer in real time. The message is an autorun event, so it only appears when
+ * nothing else (a probe, an NPC) is speaking: if the player stumbles into something first, the
+ * clock text never shows and the test fails instead of passing by accident.
+ */
+export const addGameClock = async (studio: Studio, frames: number): Promise<void> => {
+  await checked(studio)({
+    type: 'project/upsertMapEvent',
+    payload: {
+      mapId: 1,
+      event: {
+        id: 6,
+        name: 'Clock',
+        x: 0,
+        y: 0,
+        pages: [
+          {
+            conditions: [
+              { type: 'switch', switchId: 2, equals: true },
+              { type: 'switch', switchId: 3, equals: false },
+            ],
+            trigger: 'parallel',
+            solid: false,
+            commands: [
+              { command: 'Wait', frames },
+              { command: 'SetSwitch', switchId: 3, value: true },
+            ],
+          },
+          {
+            conditions: [
+              { type: 'switch', switchId: 3, equals: true },
+              { type: 'switch', switchId: 4, equals: false },
+            ],
+            trigger: 'autorun',
+            solid: false,
+            commands: [
+              { command: 'ShowText', text: GAME_CLOCK_TEXT },
+              { command: 'SetSwitch', switchId: 4, value: true },
+            ],
+          },
+        ],
+      },
+    },
+  })
+}
+
+/** What the notices from `addTransferNotices` say. */
+export const CELLAR_NOTICE = 'You are in the cellar.'
+export const VILLAGE_NOTICE = 'Back in the village.'
+
+/**
+ * Makes both doors observable: an autorun notice speaks once on arriving in the Cellar and once
+ * on coming back to the Village, so a test can wait for the transfer instead of guessing when it
+ * has happened.
+ */
+export const addTransferNotices = async (studio: Studio): Promise<void> => {
+  const check = checked(studio)
+  await check({
+    type: 'project/upsertMapEvent',
+    payload: {
+      mapId: 2,
+      event: {
+        id: 3,
+        name: 'Cellar notice',
+        x: 0,
+        y: 0,
+        pages: [
+          {
+            conditions: [{ type: 'switch', switchId: 5, equals: false }],
+            trigger: 'autorun',
+            solid: false,
+            commands: [
+              { command: 'ShowText', text: CELLAR_NOTICE },
+              { command: 'SetSwitch', switchId: 5, value: true },
+            ],
+          },
+        ],
+      },
+    },
+  })
+  await check({
+    type: 'project/upsertMapEvent',
+    payload: {
+      mapId: 1,
+      event: {
+        id: 7,
+        name: 'Village notice',
+        x: 0,
+        y: 0,
+        pages: [
+          {
+            conditions: [
+              { type: 'switch', switchId: 5, equals: true },
+              { type: 'switch', switchId: 6, equals: false },
+            ],
+            trigger: 'autorun',
+            solid: false,
+            commands: [
+              { command: 'ShowText', text: VILLAGE_NOTICE },
+              { command: 'SetSwitch', switchId: 6, value: true },
+            ],
+          },
+        ],
+      },
+    },
+  })
 }

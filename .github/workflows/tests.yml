@@ -6,7 +6,12 @@ name: Tests
 # it would only run everything twice.
 on:
   push:
+    # The merge queue pushes temporary branches of this name; its merge_group run covers them.
+    branches-ignore: ['gh-readonly-queue/**']
   pull_request:
+  # A merge queue tests the pull request merged into the latest base branch before merging it, and
+  # waits for the checks of this event. Without this trigger a queued pull request would wait forever.
+  merge_group:
   workflow_dispatch:
 
 # A newer run for the same branch or pull request makes the older one pointless.

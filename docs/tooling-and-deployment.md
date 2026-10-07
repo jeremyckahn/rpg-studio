@@ -146,13 +146,36 @@ screenshots and videos of failures are uploaded per shard as `playwright-report-
 Playwright retries a failing test twice (a test that only passes on retry is reported as flaky and should be fixed) and uses
 two workers per shard.
 
-To make the checks mandatory, require **All tests passed** (the `tests-passed` job, which succeeds only when the unit tests
-and every shard did) in the branch protection rules for `main`; that is a repository setting, not something the workflow file can enforce.
 A pull request from a branch of this repository runs once, for its pushes: its `pull_request` run is skipped by an `if` on the
 jobs (head repository equals this repository), because the same commits would otherwise be tested twice. A pull request from a
 fork has no push here, so its `pull_request` run is the one that tests it (GitHub may ask for approval before running a
-first-time contributor's workflow). The branch protection check differs by event, **(push)** for your own branches and
-**(pull_request)** for forks, so require the one that fits how the repository is used; a skipped check counts as passing.
+first-time contributor's workflow). A merge queue (below) runs the `merge_group` event instead; pushes to the queue's temporary
+`gh-readonly-queue/**` branches are ignored so they are not tested twice either.
+
+### 6b. Requiring the checks and the merge queue
+
+The workflow cannot enforce anything by itself; that is repository settings (Settings ▸ Rules ▸ Rulesets ▸ New branch ruleset,
+target branch `main`):
+
+1. **Require status checks to pass**, with the single check **All tests passed** (the `tests-passed` job: it succeeds only when
+   the unit tests and every end-to-end shard did, so adding or re-sharding jobs never changes what you require). A required check
+   is matched by its job name, which is the same for pushes, fork pull requests and the merge queue; the `(push)` /
+   `(pull_request)` suffix GitHub shows in the list is not part of it. A skipped run counts as passing, so the skipped
+   `pull_request` run of your own pull requests does not block them.
+2. **Require a pull request before merging**, and optionally **Require branches to be up to date before merging** (see below).
+3. **Require merge queue** (if available), with the check above as the condition. Suggested: merge method as you prefer,
+   maximum group size 1-3, "Only merge non-failing pull requests", status check timeout of 60 minutes (a run takes about 8).
+
+**A merge queue tests the pull request merged into the latest `main`** (a `merge_group` run) and only then merges, so two pull
+requests that pass alone cannot break each other. The workflow already listens for `merge_group` for this reason: without that
+trigger the required check would never report and queued pull requests would wait until the timeout.
+
+**Merge queues are only offered for repositories owned by an organization** (public ones included); a repository under a personal
+account, which is where this one lives today, does not show the option. Moving the repository to an organization (Settings ▸ Danger
+zone ▸ Transfer; free for public repositories) enables it, and nothing in the workflow has to change. Until then, get most of the
+protection from steps 1-2 with **Require branches to be up to date before merging** (GitHub then blocks a merge until the branch
+contains the latest `main` and the checks have run on that), plus **Allow auto-merge** on the repository so a pull request merges
+itself the moment the checks pass.
 
 ## 7. PWA
 

@@ -40,6 +40,7 @@ Requires Node.js 22+ and pnpm 12 (`packageManager` is pinned in `package.json`).
 | `pnpm typecheck`                                     | `tsc --noEmit` for the root and every package                            |
 | `pnpm test`                                          | Vitest for every package (and the docs checker)                          |
 | `pnpm test:e2e`                                      | Playwright end-to-end tests (needs `pnpm build && pnpm build:app` first) |
+| `pnpm test:e2e:ui`                                   | Rebuild, then open Playwright's UI to pick, run, watch and replay tests  |
 | `pnpm build`                                         | Build every package in dependency order                                  |
 | `pnpm build:app`                                     | Build the editor PWA to `packages/editor/dist-app`                       |
 | `pnpm preview`                                       | Serve the built editor PWA locally                                       |

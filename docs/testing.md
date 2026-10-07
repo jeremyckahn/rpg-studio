@@ -93,6 +93,7 @@ SwiftShader so the PixiJS canvas really draws. Package rules, file map and traps
 pnpm build && pnpm build:app                                                # the app under test (rebuild after source changes)
 pnpm --filter @rpgstudio/e2e exec playwright install --with-deps chromium   # once per machine
 pnpm test:e2e                                                               # everything
+pnpm test:e2e:ui                                                            # rebuild, then Playwright's UI: pick, run, watch, replay with time-travel traces
 pnpm --filter @rpgstudio/e2e exec playwright test test/database --repeat-each 5   # one spec, checked for flakiness
 ```
 

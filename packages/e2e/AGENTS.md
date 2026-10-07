@@ -72,9 +72,28 @@ pnpm build && pnpm build:app                                          # the app 
 pnpm --filter @rpgstudio/e2e exec playwright install --with-deps chromium   # once per machine
 pnpm test:e2e                                                          # all specs
 pnpm --filter @rpgstudio/e2e exec playwright test test/database        # one spec
-pnpm --filter @rpgstudio/e2e exec playwright test --ui                 # watch, time-travel, pick locators
+pnpm test:e2e:ui                                                       # rebuild, then Playwright's UI (see below)
+pnpm --filter @rpgstudio/e2e test:headed                               # watch a real browser window run the tests
+pnpm --filter @rpgstudio/e2e test:debug                                # step through with the inspector
 pnpm --filter @rpgstudio/e2e exec playwright show-report               # HTML report after a CI-style run
 ```
+
+### Playwright UI
+
+`pnpm test:e2e:ui` rebuilds the libraries and the app (so you never look at a stale build), then opens Playwright's UI mode.
+It lists every spec; run one test, a spec or everything with the play buttons, and turn on **watch** (the eye) to rerun a test when
+you save it. Select a test for its **time-travel trace**: every action with a before/after DOM snapshot, the network and console
+logs, the error with the line of source, and a button to open the test in your editor. **Pick locator** lets you click an element
+in the snapshot and copy a locator for it, which is the quickest way to write a new selector. Filter by title, spec, `@tag` or
+status (passed, failed, skipped) at the top. UI mode records traces itself, so nothing in the config needs changing.
+
+To skip the rebuild when only the tests changed: `pnpm --filter @rpgstudio/e2e test:ui`. The UI starts the preview server from
+`playwright.config.ts` and reuses one that is already running on port 4173, so after changing app source rebuild first.
+
+On a machine with no display (a container, a remote box) serve the UI and open it from your own browser:
+`pnpm --filter @rpgstudio/e2e exec playwright test --ui-host=0.0.0.0 --ui-port=9323`, then visit `http://<host>:9323`.
+The Playwright extension for VS Code offers the same run, debug and locator-picking from the editor, using this package's
+`playwright.config.ts`.
 
 `PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH` points at an existing Chromium when `playwright install` cannot download one (a
 sandbox with a pre-installed browser). Leave it unset otherwise. A failed test keeps a trace, screenshot and video under

@@ -1,12 +1,15 @@
 name: End-to-end tests
 
-# Every commit pushed to any branch runs the full browser suite. There is deliberately no
-# pull_request trigger: a pull request's commits are pushes, so it would only run everything twice.
+# Every commit pushed to any branch runs the full browser suite. Pull requests from forks are
+# covered by the pull_request trigger, since their pushes happen in the fork. A pull request from
+# a branch of this repository is skipped there (see FROM_FORK below): its commits are pushes, so
+# it would only run everything twice.
 on:
   push:
+  pull_request:
   workflow_dispatch:
 
-# A newer run for the same branch makes the older one pointless.
+# A newer run for the same branch or pull request makes the older one pointless.
 concurrency:
   group: e2e-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
@@ -17,6 +20,8 @@ permissions:
 jobs:
   e2e:
     name: Playwright (Chromium, shard ${{ matrix.shard }}/4)
+    # FROM_FORK: run for pushes and manual runs, and for pull requests only when the head is a fork.
+    if: ${{ github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name != github.repository }}
     runs-on: ubuntu-latest
     timeout-minutes: 40
     strategy:
@@ -67,7 +72,8 @@ jobs:
   # One check with a stable name to require in branch protection, whatever the number of shards.
   e2e-passed:
     name: End-to-end tests passed
-    if: ${{ always() }}
+    # Same condition as the shards, so a skipped pull_request run reports skipped, not failed.
+    if: ${{ always() && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name != github.repository) }}
     needs: e2e
     runs-on: ubuntu-latest
     steps:

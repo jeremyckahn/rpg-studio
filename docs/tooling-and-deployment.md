@@ -136,7 +136,7 @@ All build outputs are git-ignored (`dist/`, `dist-*/`).
 
 ### 6a. Continuous integration: end-to-end tests
 
-`.github/workflows/e2e.yml` runs on every `push` (any branch) and on demand (`workflow_dispatch`), on
+`.github/workflows/e2e.yml` runs on every `push` (any branch), on every `pull_request` that comes from a fork, and on demand (`workflow_dispatch`), on
 `ubuntu-latest` with Node 22 and the pnpm version pinned by `packageManager`. A newer run for the same ref cancels the older
 one. The suite is split into four parallel shards (`--shard=N/4`), because on one runner it takes the best part of half an
 hour. Each shard: `pnpm install --frozen-lockfile`, `pnpm build`, `pnpm build:app`, install Chromium with its system
@@ -147,9 +147,11 @@ two workers per shard.
 
 To make the check mandatory, require **End-to-end tests passed** (the `e2e-passed` job, which succeeds only when every shard
 did) in the branch protection rules for `main`; that is a repository setting, not something the workflow file can enforce.
-There is no `pull_request` trigger on purpose: a pull request's commits are pushes, so adding it runs everything twice. The
-trade-off is that a pull request from a fork is not tested in this repository (its pushes run in the fork), and the suite
-tests the branch itself rather than its merge with `main`.
+A pull request from a branch of this repository runs once, for its pushes: its `pull_request` run is skipped by an `if` on the
+jobs (head repository equals this repository), because the same commits would otherwise be tested twice. A pull request from a
+fork has no push here, so its `pull_request` run is the one that tests it (GitHub may ask for approval before running a
+first-time contributor's workflow). The branch protection check differs by event, **(push)** for your own branches and
+**(pull_request)** for forks, so require the one that fits how the repository is used; a skipped check counts as passing.
 
 ## 7. PWA
 

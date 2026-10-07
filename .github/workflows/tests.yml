@@ -1,6 +1,6 @@
-name: End-to-end tests
+name: Tests
 
-# Every commit pushed to any branch runs the full browser suite. Pull requests from forks are
+# Every commit pushed to any branch runs the unit tests and the full browser suite. Pull requests from forks are
 # covered by the pull_request trigger, since their pushes happen in the fork. A pull request from
 # a branch of this repository is skipped there (see FROM_FORK below): its commits are pushes, so
 # it would only run everything twice.
@@ -11,13 +11,37 @@ on:
 
 # A newer run for the same branch or pull request makes the older one pointless.
 concurrency:
-  group: e2e-${{ github.workflow }}-${{ github.ref }}
+  group: tests-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
 permissions:
   contents: read
 
 jobs:
+  unit:
+    name: Unit tests
+    # FROM_FORK: run for pushes and manual runs, and for pull requests only when the head is a fork.
+    if: ${{ github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name != github.repository }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      # The version comes from "packageManager" in package.json.
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      # Vitest for every package, plus the checks that keep the documentation true.
+      - name: Run the unit tests
+        run: pnpm test
+
   e2e:
     name: Playwright (Chromium, shard ${{ matrix.shard }}/4)
     # FROM_FORK: run for pushes and manual runs, and for pull requests only when the head is a fork.
@@ -70,12 +94,12 @@ jobs:
           retention-days: 14
 
   # One check with a stable name to require in branch protection, whatever the number of shards.
-  e2e-passed:
-    name: End-to-end tests passed
+  tests-passed:
+    name: All tests passed
     # Same condition as the shards, so a skipped pull_request run reports skipped, not failed.
     if: ${{ always() && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name != github.repository) }}
-    needs: e2e
+    needs: [unit, e2e]
     runs-on: ubuntu-latest
     steps:
-      - name: Every shard must have passed
-        run: test "${{ needs.e2e.result }}" = "success"
+      - name: The unit tests and every shard must have passed
+        run: test "${{ needs.unit.result }}" = "success" && test "${{ needs.e2e.result }}" = "success"

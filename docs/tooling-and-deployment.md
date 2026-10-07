@@ -130,23 +130,24 @@ All build outputs are git-ignored (`dist/`, `dist-*/`).
 - Inspect a deployment with the Vercel CLI (`npx vercel inspect <deployment-url> --logs`) after `npx vercel login`.
 - `.vercel/` (the local project link) and `.env*` are git-ignored.
 - `engines.node` is `>=22`, which Vercel warns will auto-upgrade with new Node majors; pin to `22.x` if that matters.
-- **The only GitHub Actions workflow is the end-to-end suite** (`.github/workflows/e2e.yml`, see §6a). Vercel's build does not
-  run tests or lint, and there is no workflow for them: run the rest of the verification gate locally (see
-  [AGENTS.md](../AGENTS.md#the-verification-gate)).
+- **The only GitHub Actions workflow runs the tests** (`.github/workflows/tests.yml`, see §6a): the unit tests and the
+  end-to-end suite. Vercel's build does not run tests or lint, and nothing runs lint or typecheck in CI: run the rest of the
+  verification gate locally (see [AGENTS.md](../AGENTS.md#the-verification-gate)).
 
-### 6a. Continuous integration: end-to-end tests
+### 6a. Continuous integration: unit and end-to-end tests
 
-`.github/workflows/e2e.yml` runs on every `push` (any branch), on every `pull_request` that comes from a fork, and on demand (`workflow_dispatch`), on
+`.github/workflows/tests.yml` runs on every `push` (any branch), on every `pull_request` that comes from a fork, and on demand (`workflow_dispatch`), on
 `ubuntu-latest` with Node 22 and the pnpm version pinned by `packageManager`. A newer run for the same ref cancels the older
-one. The suite is split into four parallel shards (`--shard=N/4`), because on one runner it takes the best part of half an
+one. The `unit` job installs and runs `pnpm test` (Vitest for every package and the docs checker; the wiki checks skip because
+there is no wiki clone). The end-to-end suite is split into four parallel shards (`--shard=N/4`), because on one runner it takes the best part of half an
 hour. Each shard: `pnpm install --frozen-lockfile`, `pnpm build`, `pnpm build:app`, install Chromium with its system
 dependencies (`playwright install --with-deps chromium`), `pnpm test:e2e --shard=N/4`. The Playwright HTML report, traces,
 screenshots and videos of failures are uploaded per shard as `playwright-report-N`, also when the run fails. On CI,
 Playwright retries a failing test twice (a test that only passes on retry is reported as flaky and should be fixed) and uses
 two workers per shard.
 
-To make the check mandatory, require **End-to-end tests passed** (the `e2e-passed` job, which succeeds only when every shard
-did) in the branch protection rules for `main`; that is a repository setting, not something the workflow file can enforce.
+To make the checks mandatory, require **All tests passed** (the `tests-passed` job, which succeeds only when the unit tests
+and every shard did) in the branch protection rules for `main`; that is a repository setting, not something the workflow file can enforce.
 A pull request from a branch of this repository runs once, for its pushes: its `pull_request` run is skipped by an `if` on the
 jobs (head repository equals this repository), because the same commits would otherwise be tested twice. A pull request from a
 fork has no push here, so its `pull_request` run is the one that tests it (GitHub may ask for approval before running a

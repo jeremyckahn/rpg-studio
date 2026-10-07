@@ -1,12 +1,12 @@
 name: End-to-end tests
 
-# Every commit pushed to any branch, and every pull request, runs the full browser suite.
+# Every commit pushed to any branch runs the full browser suite. There is deliberately no
+# pull_request trigger: a pull request's commits are pushes, so it would only run everything twice.
 on:
   push:
-  pull_request:
   workflow_dispatch:
 
-# A newer run for the same branch or pull request makes the older one pointless.
+# A newer run for the same branch makes the older one pointless.
 concurrency:
   group: e2e-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true

@@ -10,4 +10,4 @@ pnpm --filter @rpgstudio/e2e exec playwright install --with-deps chromium   # on
 pnpm test:e2e
 ```
 
-GitHub Actions runs them on every push and every pull request (`.github/workflows/e2e.yml`).
+GitHub Actions runs them on every push to any branch (`.github/workflows/e2e.yml`).

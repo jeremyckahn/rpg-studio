@@ -58,7 +58,7 @@ Before declaring any change done, all of these must pass with no warnings:
 pnpm install --frozen-lockfile && pnpm lint && pnpm typecheck && pnpm test && pnpm build && pnpm build:app && pnpm test:e2e
 ```
 
-Also confirm the wiki is up to date (see below) and that the feature has end-to-end coverage (see below). The first
+Also confirm the user guide is up to date (see below) and that the feature has end-to-end coverage (see below). The first
 time on a machine, install the browser the end-to-end tests use:
 `pnpm --filter @rpgstudio/e2e exec playwright install --with-deps chromium`. GitHub Actions runs `pnpm test` and `pnpm test:e2e` on
 every pull request and every push to `main` (`.github/workflows/tests.yml`), so a pull request is always covered and a change that breaks either cannot be merged quietly.
@@ -172,8 +172,8 @@ What a good one looks like:
    naming the cause, then report the bug in your final message. Do not bend the assertion to match the bug.
 
 Never delete, skip or loosen an end-to-end test to get green; fix the cause. Update the test in the same commit as the
-behaviour it describes when the behaviour is meant to change. If the change affects what the wiki documents, the wiki rule
-above applies too.
+behaviour it describes when the behaviour is meant to change. If the change affects what the user guide documents, the user
+guide rule above applies too.
 
 ## Conventions
 

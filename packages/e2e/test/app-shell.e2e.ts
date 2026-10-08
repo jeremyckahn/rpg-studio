@@ -42,7 +42,10 @@ test.describe('app shell', () => {
 
   test('links the ? button to the user guide in a new tab', async ({ page }) => {
     const guide = page.getByRole('link', { name: 'User guide' })
-    await expect(guide).toHaveAttribute('href', 'https://github.com/jeremyckahn/rpg-studio/wiki')
+    await expect(guide).toHaveAttribute(
+      'href',
+      'https://github.com/jeremyckahn/rpg-studio/tree/main/docs/user-guide',
+    )
     await expect(guide).toHaveAttribute('target', '_blank')
     await expect(guide).toHaveAttribute('rel', /noopener/)
   })

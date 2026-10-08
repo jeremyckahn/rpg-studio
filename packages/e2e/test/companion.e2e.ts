@@ -61,12 +61,12 @@ test.describe('companion bridge', () => {
       await expect(dialog(page).getByText('pnpm dev:companion')).toBeVisible()
     })
 
-    test('links to the setup guide in the wiki', async ({ page }) => {
+    test('links to the setup guide in the user guide', async ({ page }) => {
       await companionButton(page).click()
       const link = dialog(page).getByRole('link', { name: 'Setup guide' })
       await expect(link).toHaveAttribute(
         'href',
-        /github\.com\/jeremyckahn\/rpg-studio\/wiki\/AI-Companion/,
+        /github\.com\/jeremyckahn\/rpg-studio\/blob\/main\/docs\/user-guide\/ai-companion\.md/,
       )
       await expect(link).toHaveAttribute('target', '_blank')
     })

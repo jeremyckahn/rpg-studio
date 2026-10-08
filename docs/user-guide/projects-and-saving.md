@@ -19,6 +19,8 @@ A **project** is everything that makes up your game: its settings, database, map
 
 **Save to another folder…** writes a complete copy somewhere else, even if nothing has changed, and switches to it.
 
+If the folder you choose (for the first Save or for **Save to another folder…**) already contains project files, a **This folder already has project files** window asks first. Saving overwrites files with the same name and never deletes anything else, so it lists any files that would stay behind: they are not part of your project, but they would show up as extra maps and assets the next time you open that folder. **Cancel** (or Esc) leaves the folder untouched and your project unsaved; **Save anyway** goes ahead. Pick an empty folder to avoid the question. Files that are not part of a project, such as a README, are ignored.
+
 ### Opening a project
 
 **File ▸ Open folder…**, choose a folder containing a `project.json`. If anything inside is invalid (a broken JSON file, a map that points to a missing map, …) nothing is opened and the first few problems are listed, naming the file and field.

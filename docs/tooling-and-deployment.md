@@ -138,8 +138,7 @@ All build outputs are git-ignored (`dist/`, `dist-*/`).
 
 `.github/workflows/tests.yml` runs on every `pull_request` (from this repository or a fork), on every `push` to `main`, in the merge queue (`merge_group`) and on demand (`workflow_dispatch`), on
 `ubuntu-latest` with Node 22 and the pnpm version pinned by `packageManager`. A newer run for the same ref cancels the older
-one. The `unit` job installs and runs `pnpm test` (Vitest for every package and the docs checker; the wiki checks skip because
-there is no wiki clone). The end-to-end suite is split into four parallel shards (`--shard=N/4`), because on one runner it takes the best part of half an
+one. The `unit` job installs and runs `pnpm test` (Vitest for every package, the docs checker and the user guide checker). The end-to-end suite is split into four parallel shards (`--shard=N/4`), because on one runner it takes the best part of half an
 hour. Each shard: `pnpm install --frozen-lockfile`, `pnpm build`, `pnpm build:app`, install Chromium with its system
 dependencies (`playwright install --with-deps chromium`), `pnpm test:e2e --shard=N/4`. Every test is recorded on video. Each shard uploads two artifacts, also when the run fails: `playwright-report-N` (the HTML
 report, which plays each test's video, plus traces and screenshots of failures) and `playwright-videos-N` (one `.webm` per

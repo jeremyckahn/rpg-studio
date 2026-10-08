@@ -182,11 +182,13 @@ export const createStudio = (page: Page) => {
 
   const dismissStatus = async (): Promise<void> => {
     const close = status.getByRole('button', { name: 'Close' })
-    if (await close.isVisible()) {
-      // The toast also fades by itself after a few seconds; losing that race is fine.
-      await close.click({ timeout: 2_000 }).catch(() => undefined)
-      await expect(status).toBeHidden()
-    }
+    // The toast also fades by itself after a few seconds, so losing the click race is fine. A second
+    // toast can also replace the first (the service worker's "ready to work offline" arrives just
+    // after the boot toast), so keep closing until none is left.
+    await expect(async () => {
+      if (await close.isVisible()) await close.click({ timeout: 1_000 }).catch(() => undefined)
+      await expect(status).toBeHidden({ timeout: 2_000 })
+    }).toPass({ timeout: 15_000 })
   }
 
   /**

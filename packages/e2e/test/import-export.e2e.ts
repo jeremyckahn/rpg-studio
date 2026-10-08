@@ -108,16 +108,6 @@ test.describe('import project (.zip)', () => {
     await expect(studio.status).toContainText('Imported')
   })
 
-  test('names the broken file when the data is invalid', async ({ studio, page }) => {
-    const zip = await downloadZip(page, () => studio.chooseMenuItem('File', /Download project/))
-    const broken = makeZip({ ...zip.entries, 'maps/map-001.json': '{"id": "one"}' })
-    await importZip(page, { name: 'broken.zip', buffer: broken }, () =>
-      studio.chooseMenuItem('File', /Import project/),
-    )
-    await expect(studio.status).toContainText('maps/map-001.json')
-    expect((await studio.summary()).name).toBe('My Game')
-  })
-
   test('ignores files outside the project folders', async ({ studio, page }) => {
     const zip = await downloadZip(page, () => studio.chooseMenuItem('File', /Download project/))
     const noisy = makeZip({

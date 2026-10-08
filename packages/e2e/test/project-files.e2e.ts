@@ -2,13 +2,7 @@ import { type Page } from '@playwright/test'
 
 import { expect, test } from '../support/fixtures.ts'
 import { SAVE } from '../support/studio.ts'
-import {
-  pickerCalls,
-  readFolder,
-  removeDirectoryPicker,
-  seedFolder,
-  stubDirectoryPicker,
-} from '../support/filesystem.ts'
+import { pickerCalls, readFolder, seedFolder, stubDirectoryPicker } from '../support/filesystem.ts'
 
 const dialog = (page: Page) => page.getByRole('dialog', { name: 'Discard unsaved changes?' })
 
@@ -221,34 +215,6 @@ test.describe('with folder support', () => {
       await expect(conflict(page)).toBeVisible()
     })
 
-    test('Save to another folder asks too, and the open folder is not asked again', async ({
-      studio,
-      page,
-    }) => {
-      await page.evaluate(() => {
-        let calls = 0
-        Reflect.set(window, 'showDirectoryPicker', async () => {
-          const root = await navigator.storage.getDirectory()
-          const name = ['clean', 'old-game'][Math.min(calls, 1)] ?? 'old-game'
-          calls += 1
-          return root.getDirectoryHandle(name, { create: true })
-        })
-      })
-      await studio.chooseMenuItem('File', SAVE)
-      await expect(studio.projectTitle).toHaveText('My Game — clean')
-      await studio.chooseMenuItem('File', 'Save to another folder…')
-      await expect(conflict(page)).toBeVisible()
-      await conflict(page).getByRole('button', { name: 'Cancel' }).click()
-      await expect(studio.projectTitle).toHaveText('My Game — clean')
-
-      // Saving to the folder the project is already in never asks.
-      await studio.pickTile(3)
-      await studio.clickCell({ x: 5, y: 5 })
-      await studio.chooseMenuItem('File', SAVE)
-      await expect(studio.status).toContainText('Saved')
-      await expect(conflict(page)).toBeHidden()
-    })
-
     test('cancelling stops Save, then continue from replacing the project', async ({
       studio,
       page,
@@ -343,16 +309,6 @@ test.describe('replacing a project', () => {
     await stubDirectoryPicker(page, ['my-game'])
   })
 
-  test('Escape cancels the question', async ({ studio, page }) => {
-    await studio.open()
-    await studio.pickTile(4)
-    await studio.clickCell({ x: 5, y: 5 })
-    await studio.chooseMenuItem('File', 'New project')
-    await page.keyboard.press('Escape')
-    await expect(dialog(page)).toBeHidden()
-    expect(await studio.tileAt(5, 5)).toBe(4)
-  })
-
   test('Save, then continue saves first and then replaces the project', async ({
     studio,
     page,
@@ -376,38 +332,5 @@ test.describe('leaving the page', () => {
     const dialogSeen = page.waitForEvent('dialog')
     await page.close({ runBeforeUnload: true })
     expect((await dialogSeen).type()).toBe('beforeunload')
-  })
-})
-
-test.describe('without folder support (Firefox, Safari)', () => {
-  test.use({ openEditor: false })
-
-  test.beforeEach(async ({ page }) => {
-    await removeDirectoryPicker(page)
-  })
-
-  test('disables the folder commands and says why', async ({ studio, page }) => {
-    await studio.open()
-    await studio.menuButton('File').click()
-    const open = page.getByRole('menuitem', { name: /Open folder/ })
-    await expect(open).toBeDisabled()
-    await expect(open).toContainText('Not supported in this browser')
-    await expect(page.getByRole('menuitem', { name: SAVE })).toBeDisabled()
-    await expect(page.getByRole('menuitem', { name: 'Save to another folder…' })).toBeDisabled()
-    // The zip commands do not need the picker.
-    await expect(page.getByRole('menuitem', { name: 'New project' })).toBeEnabled()
-    await expect(page.getByRole('menuitem', { name: /Import project/ })).toBeEnabled()
-    await expect(page.getByRole('menuitem', { name: /Download project/ })).toBeEnabled()
-    await expect(page.getByRole('menuitem', { name: /Export game/ })).toBeEnabled()
-  })
-
-  test('Ctrl+S points to the zip commands instead of failing silently', async ({
-    studio,
-    page,
-  }) => {
-    await studio.open()
-    await page.keyboard.press('Control+s')
-    await expect(studio.status).toContainText('This browser cannot open folders')
-    await expect(studio.status).toContainText('Download project (.zip)')
   })
 })

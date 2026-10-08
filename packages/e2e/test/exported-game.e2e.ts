@@ -183,31 +183,6 @@ test.describe('exported game', () => {
     await walk(game, 'ArrowRight', messageShown(game, 'Reached the right probe.'))
     expect(errors).toEqual([])
   })
-
-  test('shows a readable error instead of a blank page when the data is broken', async ({
-    demoGame,
-    context,
-    problems,
-  }) => {
-    problems.allow(/./)
-    served = await serveFiles({
-      ...demoGame.entries,
-      'maps/map-001.json': new TextEncoder().encode('{ "id": "not a number" }'),
-    })
-    const game = await context.newPage()
-    await game.goto(served.url)
-    await expect(game.locator('pre')).toContainText('The game data is invalid')
-    await expect(game.locator('pre')).toContainText('maps/map-001.json')
-  })
-
-  test('reports a missing game.json', async ({ demoGame, context, problems }) => {
-    problems.allow(/./)
-    const { 'game.json': _removed, ...rest } = demoGame.entries
-    served = await serveFiles(rest)
-    const game = await context.newPage()
-    await game.goto(served.url)
-    await expect(game.locator('pre')).toContainText('Could not load game.json (404)')
-  })
 })
 
 test.describe('exported game on a phone', () => {

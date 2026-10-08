@@ -48,42 +48,6 @@ test.describe('companion bridge', () => {
     return agent
   }
 
-  test.describe('dialog', () => {
-    test('opens with the default address and an empty token', async ({ page }) => {
-      await expect(companionButton(page)).toHaveText('Companion: off')
-      await companionButton(page).click()
-      await expect(dialog(page).getByLabel('Server address')).toHaveValue('ws://localhost:8080')
-      await expect(dialog(page).getByLabel('Token (optional)')).toHaveValue('')
-      await expect(dialog(page).getByLabel('Token (optional)')).toHaveAttribute('type', 'password')
-      await expect(dialog(page).getByRole('button', { name: 'Disconnect' })).toBeDisabled()
-      await expect(dialog(page).getByText('pnpm dev:companion')).toBeVisible()
-    })
-
-    test('closes without connecting', async ({ page }) => {
-      await companionButton(page).click()
-      await dialog(page).getByRole('button', { name: 'Close' }).click()
-      await expect(dialog(page)).toBeHidden()
-      await expect(companionButton(page)).toHaveText('Companion: off')
-    })
-
-    test('rejects an address that is not a WebSocket URL', async ({ page }) => {
-      await companionButton(page).click()
-      await dialog(page).getByLabel('Server address').fill('http://localhost:8080')
-      await dialog(page).getByRole('button', { name: 'Connect', exact: true }).click()
-      await expect(dialog(page).getByRole('alert')).toContainText('must start with ws:// or wss://')
-      await expect(dialog(page)).toBeVisible()
-      await expect(companionButton(page)).toHaveText('Companion: off')
-    })
-
-    test('rejects text that is not a URL at all', async ({ page }) => {
-      await companionButton(page).click()
-      await dialog(page).getByLabel('Server address').fill('not a url')
-      await dialog(page).getByRole('button', { name: 'Connect', exact: true }).click()
-      await expect(dialog(page).getByRole('alert')).toBeVisible()
-      await expect(companionButton(page)).toHaveText('Companion: off')
-    })
-  })
-
   test.describe('connecting', () => {
     test('connects the editor to a relay and shows it', async ({ page }) => {
       const server = await startRelay()

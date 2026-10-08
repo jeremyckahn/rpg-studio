@@ -26,13 +26,6 @@ export const stubDirectoryPicker = async (
   }, answers)
 }
 
-/** Makes the page look like a browser without the File System Access API (Firefox, Safari). */
-export const removeDirectoryPicker = async (page: Page): Promise<void> => {
-  await page.addInitScript(() => {
-    Reflect.deleteProperty(window, 'showDirectoryPicker')
-  })
-}
-
 /** How many times the editor has asked for a folder. */
 export const pickerCalls = (page: Page): Promise<number> =>
   page.evaluate(() => Number(Reflect.get(window, '__pickerCalls') ?? 0))

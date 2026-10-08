@@ -113,7 +113,7 @@ sandbox with a pre-installed browser). Leave it unset otherwise. A failed test k
 - **Data grid checkboxes** rename themselves (`Select row` ↔ `Unselect row`) when toggled, so locate them by row, not by
   name. A refused cell edit stays in edit mode; press Escape to get the old value back.
 - **Folders.** `stubDirectoryPicker` swaps `showDirectoryPicker` for one that answers from OPFS; `readFolder` and
-  `seedFolder` look inside and prepare it. `removeDirectoryPicker` imitates Firefox and Safari.
+  `seedFolder` look inside and prepare it.
 - **The game polls input once per frame.** Two key presses in the same frame count as one confirm, so wait for each
   effect before the next press. `message` (the box) stays in the page, hidden, between messages: select it with a plain
   locator, not `getByRole`.

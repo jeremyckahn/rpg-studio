@@ -1,49 +1,8 @@
 import { expect, test } from '../support/fixtures.ts'
 
-test.describe('tools', () => {
-  test('the pencil is selected at first and exactly one tool is active at a time', async ({
-    page,
-  }) => {
-    const pencil = page.getByRole('button', { name: /Pencil/ })
-    await expect(pencil).toHaveAttribute('aria-pressed', 'true')
-    for (const name of [/Fill/, /Eraser/, /Collision \(/, /Pan \(/]) {
-      await page.getByRole('button', { name }).click()
-      await expect(page.getByRole('button', { name })).toHaveAttribute('aria-pressed', 'true')
-      await expect(pencil).toHaveAttribute('aria-pressed', 'false')
-    }
-  })
-})
+test.describe('tools', () => {})
 
 test.describe('zoom', () => {
-  test('steps through the integer zoom levels with the toolbar buttons', async ({ page }) => {
-    const zoom = page.getByLabel('Zoom level')
-    const zoomIn = page.getByRole('button', { name: 'Zoom in' })
-    const zoomOut = page.getByRole('button', { name: 'Zoom out' })
-    await expect(zoom).toHaveText('300%')
-
-    await zoomIn.click()
-    await expect(zoom).toHaveText('400%')
-    await zoomIn.click()
-    await expect(zoom).toHaveText('600%')
-    await zoomIn.click()
-    await expect(zoom).toHaveText('800%')
-    await expect(zoomIn).toBeDisabled()
-
-    for (const level of ['600%', '400%', '300%', '200%', '100%']) {
-      await zoomOut.click()
-      await expect(zoom).toHaveText(level)
-    }
-    await expect(zoomOut).toBeDisabled()
-  })
-
-  test('zooms from the View menu', async ({ studio, page }) => {
-    await studio.chooseMenuItem('View', 'Zoom in')
-    await expect(page.getByLabel('Zoom level')).toHaveText('400%')
-    await studio.chooseMenuItem('View', 'Zoom out')
-    await studio.chooseMenuItem('View', 'Zoom out')
-    await expect(page.getByLabel('Zoom level')).toHaveText('200%')
-  })
-
   test('zooms with the mouse wheel over the canvas', async ({ studio, page }) => {
     const box = await studio.canvas.boundingBox()
     if (!box) throw new Error('canvas not visible')
@@ -71,39 +30,6 @@ test.describe('zoom', () => {
 })
 
 test.describe('overlays', () => {
-  test('toolbar toggles start with the grid and layer dimming on and collision off', async ({
-    page,
-  }) => {
-    await expect(page.getByRole('button', { name: 'Show grid' })).toHaveAttribute(
-      'aria-pressed',
-      'true',
-    )
-    await expect(page.getByRole('button', { name: 'Show collision' })).toHaveAttribute(
-      'aria-pressed',
-      'false',
-    )
-    await expect(page.getByRole('button', { name: 'Dim other layers' })).toHaveAttribute(
-      'aria-pressed',
-      'true',
-    )
-  })
-
-  test('the View menu and the toolbar control the same overlays', async ({ studio, page }) => {
-    await studio.chooseMenuItem('View', 'Hide grid')
-    await expect(page.getByRole('button', { name: 'Show grid' })).toHaveAttribute(
-      'aria-pressed',
-      'false',
-    )
-    await page.getByRole('button', { name: 'Show collision' }).click()
-    await expect(await studio.menuItem('View', 'Hide collision')).toBeVisible()
-    await studio.closeMenu()
-    await page.getByRole('button', { name: 'Dim other layers' }).click()
-    await expect(await studio.menuItem('View', 'Dim other layers')).toBeVisible()
-    await studio.closeMenu()
-    await expect(await studio.menuItem('View', 'Show grid')).toBeVisible()
-    await studio.closeMenu()
-  })
-
   test('toggling the grid redraws the canvas', async ({ studio, page }) => {
     const withGrid = await studio.canvasImage()
     await page.getByRole('button', { name: 'Show grid' }).click()

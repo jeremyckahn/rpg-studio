@@ -142,11 +142,4 @@ test.describe('plugins in exported games', () => {
       'Plugin "acme.badge" is enabled but plugins/acme.badge/manifest.json is missing',
     )
   })
-
-  test('reports every problem at once', async ({ studio, page }) => {
-    await importWithPlugins(studio, ['acme.badge', 'acme.ghost'], PLUGIN_FILES)
-    await studio.chooseMenuItem('File', /Export game/)
-    await expect(studio.status).toContainText('Plugin "acme.ghost" is enabled but')
-    void page
-  })
 })

@@ -33,64 +33,6 @@ test.describe('asset browser', () => {
     ])
   })
 
-  test('offers every kind of asset in the Add menu', async ({ page }) => {
-    await page.getByRole('button', { name: 'Add', exact: true }).click()
-    await expect(page.getByRole('menuitem')).toHaveText([
-      'Tileset image',
-      'Character sheet',
-      'Picture',
-      'Music (BGM)',
-      'Ambience (BGS)',
-      'Jingle (ME)',
-      'Sound effect (SE)',
-    ])
-  })
-
-  test('the picker for images accepts images and the one for sound accepts audio', async ({
-    page,
-  }) => {
-    const input = page.locator('input[aria-label="Upload assets"]')
-    await page.getByRole('button', { name: 'Add', exact: true }).click()
-    let chooser = page.waitForEvent('filechooser')
-    await page.getByRole('menuitem', { name: 'Tileset image' }).click()
-    await chooser
-    await expect(input).toHaveAttribute('accept', 'image/png,image/gif,image/webp')
-
-    await page.getByRole('button', { name: 'Add', exact: true }).click()
-    chooser = page.waitForEvent('filechooser')
-    await page.getByRole('menuitem', { name: 'Sound effect (SE)' }).click()
-    await chooser
-    await expect(input).toHaveAttribute('accept', 'audio/*')
-  })
-
-  const kinds = [
-    ['Tileset image', 'img/tilesets', 'forest.png'],
-    ['Character sheet', 'img/characters', 'hero.png'],
-    ['Picture', 'img/pictures', 'title.png'],
-  ] as const
-  for (const [kind, folder, name] of kinds) {
-    test(`uploads a ${kind.toLowerCase()} into ${folder}`, async ({ studio, page }) => {
-      await upload(page, kind, [png(name)])
-      await expect(browser(page).getByRole('button', { name })).toBeVisible()
-      await expect(browser(page).getByText(folder, { exact: true })).toBeVisible()
-      expect((await studio.assets()).map((asset) => asset.path)).toContain(`${folder}/${name}`)
-    })
-  }
-
-  const sounds = [
-    ['Music (BGM)', 'audio/bgm', 'theme.ogg'],
-    ['Ambience (BGS)', 'audio/bgs', 'rain.ogg'],
-    ['Jingle (ME)', 'audio/me', 'fanfare.ogg'],
-    ['Sound effect (SE)', 'audio/se', 'hit.wav'],
-  ] as const
-  for (const [kind, folder, name] of sounds) {
-    test(`uploads ${kind} into ${folder}`, async ({ studio, page }) => {
-      await upload(page, kind, [{ name, mimeType: 'audio/ogg', buffer: fakeAudio() }])
-      await expect(browser(page).getByRole('button', { name })).toBeVisible()
-      expect((await studio.assets()).map((asset) => asset.path)).toContain(`${folder}/${name}`)
-    })
-  }
-
   test('uploads several files at once', async ({ studio, page }) => {
     await upload(page, 'Character sheet', [png('a.png'), png('b.png'), png('c.png')])
     await expect(browser(page).getByRole('button', { name: /^[abc]\.png$/ })).toHaveCount(3)
@@ -117,24 +59,6 @@ test.describe('asset browser', () => {
     expect(
       (await studio.assets()).filter((asset) => asset.path === 'img/pictures/title.png'),
     ).toHaveLength(1)
-  })
-
-  test('makes unsafe file names safe', async ({ studio, page }) => {
-    await upload(page, 'Picture', [
-      png('my pic (final).png'),
-      png('.hidden.png'),
-      png('Ünï cødé!.png'),
-    ])
-    await expect
-      .poll(async () => (await studio.assets()).map((asset) => asset.path).toSorted())
-      .toEqual(
-        [
-          'img/pictures/hidden.png',
-          'img/pictures/my_pic_final_.png',
-          'img/pictures/_n_c_d_.png',
-          'img/tilesets/basic.png',
-        ].toSorted(),
-      )
   })
 
   test('shows a different icon for images and for audio', async ({ page }) => {

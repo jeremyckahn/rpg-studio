@@ -746,6 +746,12 @@ describe('PropertiesPanel', () => {
     await userEvent.type(field, '   {Enter}')
     expect(name(harness)).toBe('Town')
     expect(harness.handle.store.getState().project.data.maps[0]?.name).toBe('Town')
+    // Nothing changed, so there is nothing to undo, and the field shows the stored name again.
+    expect(harness.handle.store.getState().history.past).toHaveLength(0)
+    // The field remounts, so look it up again rather than reading the old element.
+    expect((screen.getByLabelText('Name', { selector: 'input' }) as HTMLInputElement).value).toBe(
+      'Town',
+    )
   })
 
   it('resizes the map, and explains why a resize that breaks a transfer is refused', async () => {
@@ -1019,6 +1025,10 @@ describe('PropertiesPanel', () => {
       expect(screen.getByLabelText('Project name', { selector: 'p' }).textContent).toContain(
         'Sample',
       )
+      expect(harness.handle.store.getState().history.past).toHaveLength(0)
+      expect(
+        (screen.getByRole('textbox', { name: 'Project name' }) as HTMLInputElement).value,
+      ).toBe('Sample')
     })
   })
 })

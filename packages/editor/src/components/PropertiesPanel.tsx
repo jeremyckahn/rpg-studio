@@ -170,9 +170,23 @@ export const PropertiesPanel = () => {
   )
   // One counter per field: a refusal remounts only the field it refused, not a sibling's draft.
   const [resizeResets, setResizeResets] = useState({ width: 0, height: 0 })
+  // A blank or unchanged name changes nothing, so the field is put back to the stored name.
+  const [nameResets, setNameResets] = useState({ map: 0, project: 0 })
   const [startError, setStartError] = useState<string | null>(null)
   const [startResets, setStartResets] = useState({ startX: 0, startY: 0 })
   const project = useAppSelector((state) => state.project.data)
+
+  /** Renames only to a different, non-blank name; otherwise shows the stored name again. */
+  const commitName = (
+    field: 'map' | 'project',
+    stored: string,
+    typed: string,
+    rename: (name: string) => void,
+  ): void => {
+    const name = typed.trim()
+    if (name && name !== stored) rename(name)
+    else setNameResets((counts) => ({ ...counts, [field]: counts[field] + 1 }))
+  }
 
   return (
     <Box sx={{ overflow: 'auto', height: '100%', py: 1 }}>
@@ -181,8 +195,11 @@ export const PropertiesPanel = () => {
           <CommitField
             label="Name"
             value={map.name}
-            onCommit={(name) =>
-              dispatch(projectActions.renameMap({ mapId: map.id, name: name.trim() || map.name }))
+            resetToken={nameResets.map}
+            onCommit={(typed) =>
+              commitName('map', map.name, typed, (name) =>
+                dispatch(projectActions.renameMap({ mapId: map.id, name })),
+              )
             }
           />
           <Stack direction="row" spacing={1}>
@@ -276,8 +293,11 @@ export const PropertiesPanel = () => {
         <CommitField
           label="Project name"
           value={meta.name}
-          onCommit={(name) =>
-            dispatch(projectActions.updateMeta({ changes: { name: name.trim() || meta.name } }))
+          resetToken={nameResets.project}
+          onCommit={(typed) =>
+            commitName('project', meta.name, typed, (name) =>
+              dispatch(projectActions.updateMeta({ changes: { name } })),
+            )
           }
         />
       </Section>

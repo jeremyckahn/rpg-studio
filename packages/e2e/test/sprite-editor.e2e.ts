@@ -75,12 +75,16 @@ test.describe('sprite editor', () => {
     await page.getByRole('tab', { name: 'Sprite Editor' }).click()
     await expect(piskel(page).locator('.drawing-canvas')).toBeVisible()
     await expect(save(page)).toBeEnabled()
-    await piskel(page)
-      .locator('.drawing-canvas')
-      .click({ position: { x: 40, y: 300 }, force: true })
-    await save(page).click()
-    await expect(saved(page)).toBeVisible()
-    await expect.poll(pngSize).not.toBe(baselineSize)
+    // Piskel is still laying itself out for a moment after its tab comes back, and a click then
+    // lands on nothing. Painting the same pixel again is harmless, so paint and save until the new
+    // pixel shows up in the PNG.
+    await expect(async () => {
+      await piskel(page)
+        .locator('.drawing-canvas')
+        .click({ position: { x: 40, y: 300 }, force: true })
+      await save(page).click()
+      await expect.poll(pngSize, { timeout: 3_000 }).not.toBe(baselineSize)
+    }).toPass({ timeout: 20_000 })
 
     // The map picks up the new pixels without a reload: texture caches are invalidated on save.
     await page.getByRole('tab', { name: 'Map' }).click()

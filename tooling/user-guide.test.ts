@@ -1,5 +1,5 @@
 import { existsSync, readFileSync, readdirSync } from 'node:fs'
-import { join, resolve } from 'node:path'
+import { dirname, join, resolve } from 'node:path'
 
 import { describe, expect, it } from 'vitest'
 
@@ -10,25 +10,18 @@ import {
   MapEventSchema,
   ProjectMetaSchema,
 } from '../packages/core/src/index.ts'
-import { WIKI_PAGES } from '../packages/editor/src/links.ts'
+import { USER_GUIDE_PAGES } from '../packages/editor/src/links.ts'
 
 /**
- * Checks a local clone of the GitHub wiki (the user guide, a separate git repo). It runs only
- * when a clone exists, at `../rpg-studio.wiki` or wherever `WIKI_DIR` points, so a fresh
- * checkout is unaffected. See AGENTS.md ("The wiki") and tooling/AGENTS.md.
+ * Checks the user guide in `docs/user-guide`: links and heading anchors, that the index lists
+ * every page, that the pages the app links to exist, and that JSON examples pass the real
+ * schemas. See AGENTS.md ("The user guide") and tooling/AGENTS.md.
  */
-const wikiDir = process.env.WIKI_DIR ?? resolve(import.meta.dirname, '../../rpg-studio.wiki')
-const present = existsSync(join(wikiDir, 'Home.md'))
+const guideDir = resolve(import.meta.dirname, '../docs/user-guide')
 
-const pages = present
-  ? readdirSync(wikiDir)
-      .filter((name) => name.endsWith('.md'))
-      .map((name) => ({
-        file: name,
-        page: name.slice(0, -3),
-        text: readFileSync(join(wikiDir, name), 'utf8'),
-      }))
-  : []
+const pages = readdirSync(guideDir)
+  .filter((name) => name.endsWith('.md'))
+  .map((name) => ({ file: name, text: readFileSync(join(guideDir, name), 'utf8') }))
 
 const withoutFences = (text: string): string => text.replace(/^```[\s\S]*?^```/gm, '')
 
@@ -45,38 +38,41 @@ const anchorsOf = (text: string): Set<string> =>
     ),
   )
 
-const anchors = new Map(pages.map(({ page, text }) => [page, anchorsOf(text)]))
-const content = pages.filter(({ page }) => !page.startsWith('_'))
+const anchors = new Map(pages.map(({ file, text }) => [file, anchorsOf(text)]))
+const content = pages
 
-describe.skipIf(!present)('the wiki (user guide)', () => {
-  it('links only to pages and headings that exist', () => {
-    const broken = pages.flatMap(({ file, page, text }) =>
+describe('the user guide', () => {
+  it('links only to files and headings that exist', () => {
+    const broken = pages.flatMap(({ file, text }) =>
       [...withoutFences(text).matchAll(/\]\(([^)\s]+)\)/g)].flatMap((m) => {
         const target = m[1] ?? ''
         if (/^[a-z]+:/i.test(target)) return []
-        const [targetPage = '', anchor = ''] = target.split('#')
-        const resolved = targetPage === '' ? page : targetPage
-        const known = anchors.get(resolved)
-        if (!known) return [`${file}: no page "${resolved}" (${target})`]
-        return anchor === '' || known.has(anchor)
-          ? []
-          : [`${file}: no heading "#${anchor}" in ${resolved}`]
+        const [targetPath = '', anchor = ''] = target.split('#')
+        const resolvedPath = targetPath === '' ? file : targetPath
+        const absolute = resolve(guideDir, dirname(file), resolvedPath)
+        if (!existsSync(absolute)) return [`${file}: no file "${resolvedPath}" (${target})`]
+        if (anchor === '') return []
+        const known =
+          dirname(resolvedPath) === '.'
+            ? anchors.get(resolvedPath)
+            : anchorsOf(readFileSync(absolute, 'utf8'))
+        return known?.has(anchor) ? [] : [`${file}: no heading "#${anchor}" in ${resolvedPath}`]
       }),
     )
     expect(broken).toEqual([])
   })
 
-  it('lists every page in the sidebar', () => {
-    const sidebar = pages.find(({ page }) => page === '_Sidebar')?.text ?? ''
+  it('lists every page in the index', () => {
+    const index = pages.find(({ file }) => file === 'README.md')?.text ?? ''
     const missing = content
-      .map(({ page }) => page)
-      .filter((page) => page !== 'Home' && !sidebar.includes(`](${page})`))
+      .map(({ file }) => file)
+      .filter((file) => file !== 'README.md' && !index.includes(`](${file})`))
     expect(missing).toEqual([])
   })
 
   it('has every page the app links to', () => {
-    const names = new Set(pages.map(({ page }) => page))
-    expect(Object.values(WIKI_PAGES).filter((page) => !names.has(page))).toEqual([])
+    const names = new Set(pages.map(({ file }) => file))
+    expect(Object.values(USER_GUIDE_PAGES).filter((page) => !names.has(page))).toEqual([])
   })
 
   it('shows only JSON examples that the real schemas accept', () => {

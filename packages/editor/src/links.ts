@@ -1,8 +1,12 @@
-/** The user guide: the project's GitHub wiki. Keep page names in step with the wiki (AGENTS.md). */
-export const WIKI_URL = 'https://github.com/jeremyckahn/rpg-studio/wiki'
+/** The user guide: Markdown in `docs/user-guide`. Keep page names in step with it (AGENTS.md). */
+export const USER_GUIDE_URL = 'https://github.com/jeremyckahn/rpg-studio/tree/main/docs/user-guide'
 
-/** Wiki pages the app links to directly; `tooling/wiki.test.ts` checks each exists in the wiki. */
-export const WIKI_PAGES = { companion: 'AI-Companion' } as const
+/** Guide pages the app links to directly; `tooling/user-guide.test.ts` checks each exists. */
+export const USER_GUIDE_PAGES = { companion: 'ai-companion.md' } as const
 
-export const wikiUrl = (page?: (typeof WIKI_PAGES)[keyof typeof WIKI_PAGES]): string =>
-  page === undefined ? WIKI_URL : `${WIKI_URL}/${page}`
+export const userGuideUrl = (
+  page?: (typeof USER_GUIDE_PAGES)[keyof typeof USER_GUIDE_PAGES],
+): string =>
+  page === undefined
+    ? USER_GUIDE_URL
+    : `https://github.com/jeremyckahn/rpg-studio/blob/main/docs/user-guide/${page}`

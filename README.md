@@ -3,7 +3,7 @@
 An open-source, web-native, PWA-first alternative to RPG Maker, engineered for
 authoring by both human creators and external AI agents.
 
-**Try it:** <https://rpg-studio.com> · **User guide:** <https://github.com/jeremyckahn/rpg-studio/wiki>
+**Try it:** <https://rpg-studio.com> · **User guide:** [`docs/user-guide`](docs/user-guide/README.md)
 
 ## Principles
 
@@ -34,7 +34,7 @@ authoring by both human creators and external AI agents.
 
 ## Documentation
 
-- **[User guide (wiki)](https://github.com/jeremyckahn/rpg-studio/wiki)**: how to use the app: maps, events, sprites, exporting, mobile, the AI companion. The app links to it from the **?** button.
+- **[User guide](docs/user-guide/README.md)**: how to use the app: maps, events, sprites, exporting, mobile, the AI companion. The app links to it from the **?** button.
 - [`AGENTS.md`](AGENTS.md): start here if you are an AI agent or new to the codebase (commands, rules, gotchas).
 - [`docs/`](docs/README.md): architecture, the decision log, the data model, per-area guides, extension recipes, testing, deployment and troubleshooting.
 - Each package has its own `AGENTS.md` with a file map and local rules.

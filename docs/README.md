@@ -1,5 +1,7 @@
 # Documentation index
 
+Looking for the guide to **using** the app? See the [user guide](user-guide/README.md). The rest of this folder is for people changing the code.
+
 Start with the root [AGENTS.md](../AGENTS.md) for commands, rules and gotchas. This folder holds the details.
 Every package also has its own `AGENTS.md` with a file map and local rules: [core](../packages/core/AGENTS.md),
 [engine](../packages/engine/AGENTS.md), [editor](../packages/editor/AGENTS.md),

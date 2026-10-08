@@ -42,7 +42,7 @@ Default environment is Node. Component tests start with `// @vitest-environment 
 | engine           | `movement`, `events`, `headless`, `saveload`, `renderer`, `audio`, `pixiSound`, `player`, `touchControls`, `plugins`, `playerBundle`                            | Headless simulation; no-GPU renderer maths; mocked `@pixi/sound`; builds the real player bundle           |
 | editor           | `projectOps`, `store`, `canvas`, `export`, `project`, `session`, `piskel`, `bridge`, `plugins`, `columns`, `components`, `gestures`, `pwa`, `e2e/companion.e2e` | Pure ops; store/undo; Piskel bridge security; jsdom component tests; end-to-end bridge                    |
 | companion-bridge | `server`                                                                                                                                                        | Real sockets: handshake, routing, security, agent library                                                 |
-| tooling          | `docs`, `wiki` (needs a wiki clone)                                                                                                                             | Keeps these documents true                                                                                |
+| tooling          | `docs`, `user-guide`                                                                                                                                            | Keeps these documents true                                                                                |
 
 ## 4. Fixtures and helpers
 

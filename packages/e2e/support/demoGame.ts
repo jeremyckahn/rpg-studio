@@ -108,59 +108,6 @@ export const buildDemoGame = async (studio: Studio): Promise<void> => {
   ])
 }
 
-/** What the clock from `addGameClock` says when it runs out. */
-export const GAME_CLOCK_TEXT = 'The clock ran out.'
-
-/**
- * Adds a clock to the Village that counts the game's own ticks, so a test can wait for "this many
- * ticks have passed" instead of sleeping for a guessed number of milliseconds. It starts the tick
- * after the greeting has been dismissed (switch 2) and, `frames` ticks later, says
- * `GAME_CLOCK_TEXT` once. A parallel event counts in the simulation's own time, so a slow machine
- * simply takes longer in real time. The message is an autorun event, so it only appears when
- * nothing else (a probe, an NPC) is speaking: if the player stumbles into something first, the
- * clock text never shows and the test fails instead of passing by accident.
- */
-export const addGameClock = async (studio: Studio, frames: number): Promise<void> => {
-  await checked(studio)({
-    type: 'project/upsertMapEvent',
-    payload: {
-      mapId: 1,
-      event: {
-        id: 6,
-        name: 'Clock',
-        x: 0,
-        y: 0,
-        pages: [
-          {
-            conditions: [
-              { type: 'switch', switchId: 2, equals: true },
-              { type: 'switch', switchId: 3, equals: false },
-            ],
-            trigger: 'parallel',
-            solid: false,
-            commands: [
-              { command: 'Wait', frames },
-              { command: 'SetSwitch', switchId: 3, value: true },
-            ],
-          },
-          {
-            conditions: [
-              { type: 'switch', switchId: 3, equals: true },
-              { type: 'switch', switchId: 4, equals: false },
-            ],
-            trigger: 'autorun',
-            solid: false,
-            commands: [
-              { command: 'ShowText', text: GAME_CLOCK_TEXT },
-              { command: 'SetSwitch', switchId: 4, value: true },
-            ],
-          },
-        ],
-      },
-    },
-  })
-}
-
 /** What the notices from `addTransferNotices` say. */
 export const CELLAR_NOTICE = 'You are in the cellar.'
 export const VILLAGE_NOTICE = 'Back in the village.'

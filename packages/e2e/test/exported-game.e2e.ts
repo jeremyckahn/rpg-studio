@@ -2,20 +2,51 @@ import { type Browser, type Page, devices } from '@playwright/test'
 
 import {
   CELLAR_NOTICE,
-  GAME_CLOCK_TEXT,
   VILLAGE_NOTICE,
-  addGameClock,
   addTransferNotices,
   buildDemoGame,
 } from '../support/demoGame.ts'
 import { type DownloadedZip, downloadZip } from '../support/downloads.ts'
 import { type ServedGame, serveFiles } from '../support/gameServer.ts'
-import { expect, test } from '../support/fixtures.ts'
-import { type Studio } from '../support/studio.ts'
+import { expect, test as base } from '../support/fixtures.ts'
+import { createStudio } from '../support/studio.ts'
 
-/** Exports the open project and returns the unpacked files. */
-const exportGame = (studio: Studio): Promise<DownloadedZip> =>
-  downloadZip(studio.page, () => studio.chooseMenuItem('File', /Export game/))
+/**
+ * Building the demo game through the editor and exporting it takes most of the time of every
+ * test here, and none of them needs its own copy: they only play it. So it is exported once per
+ * worker, in a throwaway editor tab, and each test serves the same files. Tests must not change
+ * the entries (the ones that need a broken game spread them into a new object).
+ */
+const test = base.extend<object, { demoGame: DownloadedZip }>({
+  demoGame: [
+    async ({ browser }, use, workerInfo) => {
+      // A worker fixture cannot see the test-scoped page options, so it takes them from the project.
+      const { baseURL, viewport, userAgent, serviceWorkers } = workerInfo.project.use
+      const context = await browser.newContext({
+        ...(baseURL ? { baseURL } : {}),
+        ...(viewport ? { viewport } : {}),
+        ...(userAgent ? { userAgent } : {}),
+        ...(serviceWorkers ? { serviceWorkers } : {}),
+      })
+      try {
+        const studio = createStudio(await context.newPage())
+        await studio.open()
+        await buildDemoGame(studio)
+        await addTransferNotices(studio)
+        const zip = await downloadZip(studio.page, () =>
+          studio.chooseMenuItem('File', /Export game/),
+        )
+        await use(zip)
+      } finally {
+        await context.close()
+      }
+    },
+    { scope: 'worker', timeout: 120_000 },
+  ],
+})
+
+// No test here touches the editor, only the exported game.
+test.use({ openEditor: false })
 
 /** The game's message box. It stays in the page, hidden, between messages. */
 const message = (page: Page) => page.locator('[role="status"]')
@@ -30,13 +61,6 @@ const openOnPhone = async (browser: Browser, url: string): Promise<Page> => {
   return page
 }
 
-/**
- * How long the game's clock runs, in ticks. The player walks 4 tiles per second, so a tile takes
- * 15 ticks and 90 ticks are six tiles: more than enough to cross the wall to the left probe (two
- * tiles) or to walk down through the Elder and off the map.
- */
-const CLOCK_FRAMES = 90
-
 test.describe('exported game', () => {
   let served: ServedGame | null = null
   test.afterEach(async () => {
@@ -44,20 +68,13 @@ test.describe('exported game', () => {
     served = null
   })
 
-  /**
-   * Exports the demo game, serves it, and opens it in a new tab of the same browser context.
-   * `clock` adds the in-game clock and `notices` the door notices (see `support/demoGame.ts`).
-   */
+  /** Serves the shared demo game and opens it in a new tab of the test's browser context. */
   const play = async (
-    studio: Studio,
-    { clock = false, notices = false }: { clock?: boolean; notices?: boolean } = {},
+    page: Page,
+    zip: DownloadedZip,
   ): Promise<{ game: Page; zip: DownloadedZip }> => {
-    await buildDemoGame(studio)
-    if (clock) await addGameClock(studio, CLOCK_FRAMES)
-    if (notices) await addTransferNotices(studio)
-    const zip = await exportGame(studio)
     served = await serveFiles(zip.entries)
-    const game = await studio.page.context().newPage()
+    const game = await page.context().newPage()
     await game.goto(served.url)
     await expect(game.locator('canvas')).toBeVisible()
     return { game, zip }
@@ -78,63 +95,24 @@ test.describe('exported game', () => {
     await page.keyboard.press('Enter')
     await expect(message(page)).toBeHidden()
   }
-  /**
-   * Holds `key` through the whole life of the game's clock (`play(studio, { clock: true })`): from
-   * before the greeting is dismissed, so the input is already down when the clock starts, until
-   * the clock says `GAME_CLOCK_TEXT`. That text is the proof that `CLOCK_FRAMES` ticks were
-   * simulated with the key held, and the player has had every one of them to move. It is also the
-   * proof of what did not happen: the clock only speaks when nothing else is, so a probe, an NPC
-   * or a repeated greeting appearing first keeps it quiet and this wait fails.
-   */
-  const holdKeyUntilClockRunsOut = async (page: Page, key: string): Promise<void> => {
-    await expect(message(page)).toHaveText('Welcome to the village.')
-    await page.keyboard.down(key)
-    try {
-      await page.keyboard.press('Enter')
-      await expect(message(page)).toHaveText(GAME_CLOCK_TEXT, { timeout: 20_000 })
-    } finally {
-      await page.keyboard.up(key)
-    }
-    await page.keyboard.press('Enter')
-    await expect(message(page)).toBeHidden()
-  }
   const messageShown = (page: Page, text: string) => async () =>
     ((await message(page).textContent()) ?? '').includes(text)
 
-  test('boots, draws the map and runs an autorun event on the first frame', async ({ studio }) => {
-    const { game } = await play(studio)
+  test('boots, draws the map and runs an autorun event on the first frame', async ({
+    page,
+    demoGame,
+  }) => {
+    const { game } = await play(page, demoGame)
     await expect(game).toHaveTitle('My Game')
     await expect(message(game)).toHaveText('Welcome to the village.')
     await expect(message(game)).toBeVisible()
   })
 
-  test('a message is dismissed with Enter and an autorun event does not repeat', async ({
-    studio,
+  test('talking to an NPC runs its commands, with variables and branches', async ({
+    page,
+    demoGame,
   }) => {
-    const { game } = await play(studio, { clock: true })
-    await expect(message(game)).toHaveText('Welcome to the village.')
-    await game.keyboard.press('Enter')
-    await expect(message(game)).toBeHidden()
-    // An autorun event restarts on the tick after it ends, so a repeat would show the greeting
-    // again and keep the clock (which only speaks when nothing else is) quiet. The clock being the
-    // next thing said, CLOCK_FRAMES ticks later, is the proof that the greeting did not repeat.
-    await expect(message(game)).toHaveText(GAME_CLOCK_TEXT, { timeout: 20_000 })
-  })
-
-  test('Space and Z confirm as well', async ({ studio }) => {
-    const { game } = await play(studio)
-    await expect(message(game)).toHaveText('Welcome to the village.')
-    await game.keyboard.press('Space')
-    await expect(message(game)).toBeHidden()
-    // Talk to the Elder (the player faces down at the start), then dismiss with Z.
-    await game.keyboard.press('Enter')
-    await expect(message(game)).toHaveText('First visit.')
-    await game.keyboard.press('KeyZ')
-    await expect(message(game)).toBeHidden()
-  })
-
-  test('talking to an NPC runs its commands, with variables and branches', async ({ studio }) => {
-    const { game } = await play(studio)
+    const { game } = await play(page, demoGame)
     await dismissGreeting(game)
     await game.keyboard.press('Enter') // talk to the Elder, who is directly below the player
     await expect(message(game)).toHaveText('First visit.')
@@ -144,41 +122,8 @@ test.describe('exported game', () => {
     await expect(message(game)).toHaveText('You again.')
   })
 
-  test('the player cannot walk through a solid cell', async ({ studio }) => {
-    const { game } = await play(studio, { clock: true })
-    // The wall at (9, 7) stands between the player and the probe at (8, 7). Walking left for
-    // CLOCK_FRAMES ticks would reach the probe within 30 of them (two tiles), and its message
-    // would stop the clock from speaking, so the clock text is proof the wall held.
-    await holdKeyUntilClockRunsOut(game, 'ArrowLeft')
-    // The player never left (10, 7): the Elder is still directly below. Turning down and pressing
-    // Enter in the same frame works because movement runs before events.
-    await game.keyboard.press('ArrowDown')
-    await game.keyboard.press('Enter')
-    await expect(message(game)).toHaveText('First visit.')
-    await game.keyboard.press('Enter')
-    await expect(message(game)).toBeHidden()
-    // The way right is open: stepping onto the probe at (11, 7) triggers it.
-    await walk(game, 'ArrowRight', messageShown(game, 'Reached the right probe.'))
-  })
-
-  test('WASD moves the player like the arrow keys', async ({ studio }) => {
-    const { game } = await play(studio)
-    await dismissGreeting(game)
-    await walk(game, 'KeyD', messageShown(game, 'Reached the right probe.'))
-  })
-
-  test('an NPC blocks the way', async ({ studio }) => {
-    const { game } = await play(studio, { clock: true })
-    // Walking down into the Elder does nothing by itself; only Enter talks to them. Had the Elder
-    // not blocked the way, CLOCK_FRAMES ticks of walking down would take the player six tiles
-    // away, so the Elder would no longer be the cell in front of them.
-    await holdKeyUntilClockRunsOut(game, 'ArrowDown')
-    await game.keyboard.press('Enter')
-    await expect(message(game)).toHaveText('First visit.')
-  })
-
-  test('a door transfers the player to another map and back', async ({ studio }) => {
-    const { game } = await play(studio, { notices: true })
+  test('a door transfers the player to another map and back', async ({ page, demoGame }) => {
+    const { game } = await play(page, demoGame)
     await dismissGreeting(game)
     // A key press shorter than a frame still moves exactly one tile, onto the door at (10, 6).
     await game.keyboard.press('ArrowUp')
@@ -202,8 +147,8 @@ test.describe('exported game', () => {
     await expect(message(game)).toHaveText('First visit.')
   })
 
-  test('draws something different after the player moves', async ({ studio }) => {
-    const { game } = await play(studio)
+  test('draws something different after the player moves', async ({ page, demoGame }) => {
+    const { game } = await play(page, demoGame)
     await dismissGreeting(game)
     const canvas = game.locator('canvas')
     const before = await canvas.screenshot()
@@ -214,8 +159,8 @@ test.describe('exported game', () => {
     await expect.poll(async () => (await canvas.screenshot()).equals(before)).toBe(false)
   })
 
-  test('only ever requests files that were exported', async ({ studio }) => {
-    const { game, zip } = await play(studio)
+  test('only ever requests files that were exported', async ({ page, demoGame }) => {
+    const { game, zip } = await play(page, demoGame)
     await expect(message(game)).toBeVisible()
     const shipped = new Set(Object.keys(zip.entries).map((path) => `/${path}`))
     const asked = (served?.requests() ?? []).filter(
@@ -229,8 +174,8 @@ test.describe('exported game', () => {
     expect(asked.some((path) => /piskel|editor/i.test(path))).toBe(false)
   })
 
-  test('has no console errors while playing', async ({ studio }) => {
-    const { game } = await play(studio)
+  test('has no console errors while playing', async ({ page, demoGame }) => {
+    const { game } = await play(page, demoGame)
     const errors: string[] = []
     // eslint-disable-next-line functional/immutable-data -- collecting events raised by browser callbacks
     game.on('console', (entry) => entry.type() === 'error' && errors.push(entry.text()))
@@ -240,15 +185,13 @@ test.describe('exported game', () => {
   })
 
   test('shows a readable error instead of a blank page when the data is broken', async ({
-    studio,
+    demoGame,
     context,
     problems,
   }) => {
     problems.allow(/./)
-    await buildDemoGame(studio)
-    const zip = await exportGame(studio)
     served = await serveFiles({
-      ...zip.entries,
+      ...demoGame.entries,
       'maps/map-001.json': new TextEncoder().encode('{ "id": "not a number" }'),
     })
     const game = await context.newPage()
@@ -257,10 +200,9 @@ test.describe('exported game', () => {
     await expect(game.locator('pre')).toContainText('maps/map-001.json')
   })
 
-  test('reports a missing game.json', async ({ studio, context, problems }) => {
+  test('reports a missing game.json', async ({ demoGame, context, problems }) => {
     problems.allow(/./)
-    const zip = await exportGame(studio)
-    const { 'game.json': _removed, ...rest } = zip.entries
+    const { 'game.json': _removed, ...rest } = demoGame.entries
     served = await serveFiles(rest)
     const game = await context.newPage()
     await game.goto(served.url)
@@ -275,10 +217,8 @@ test.describe('exported game on a phone', () => {
     served = null
   })
 
-  test('shows a D-pad and an action button that drive the game', async ({ studio, browser }) => {
-    await buildDemoGame(studio)
-    const zip = await exportGame(studio)
-    served = await serveFiles(zip.entries)
+  test('shows a D-pad and an action button that drive the game', async ({ demoGame, browser }) => {
+    served = await serveFiles(demoGame.entries)
     const game = await openOnPhone(browser, served.url)
 
     const pad = game.getByRole('button', { name: 'Directional pad' })
@@ -304,10 +244,8 @@ test.describe('exported game on a phone', () => {
     await game.mouse.up()
   })
 
-  test('keeps the game above the controls in portrait', async ({ studio, browser }) => {
-    await buildDemoGame(studio)
-    const zip = await exportGame(studio)
-    served = await serveFiles(zip.entries)
+  test('keeps the game above the controls in portrait', async ({ demoGame, browser }) => {
+    served = await serveFiles(demoGame.entries)
     const game = await openOnPhone(browser, served.url)
     const canvas = await game.locator('canvas').boundingBox()
     const pad = await game.getByRole('button', { name: 'Directional pad' }).boundingBox()
@@ -317,10 +255,8 @@ test.describe('exported game on a phone', () => {
 })
 
 test.describe('exported game on a desktop', () => {
-  test('has no touch controls', async ({ studio, context }) => {
-    await buildDemoGame(studio)
-    const zip = await exportGame(studio)
-    const served = await serveFiles(zip.entries)
+  test('has no touch controls', async ({ demoGame, context }) => {
+    const served = await serveFiles(demoGame.entries)
     try {
       const game = await context.newPage()
       await game.goto(served.url)

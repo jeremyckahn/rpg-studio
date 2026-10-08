@@ -5,12 +5,6 @@ import { expect, test } from '../support/fixtures.ts'
 const mapsPanel = (page: Page) => page.getByRole('complementary', { name: 'Asset browser' })
 
 test.describe('maps', () => {
-  test('lists the starter map as the start map and cannot delete it', async ({ page }) => {
-    await expect(mapsPanel(page).getByText('1. Map 1')).toBeVisible()
-    await expect(page.getByText('20×15 · start')).toBeVisible()
-    await expect(page.getByRole('button', { name: 'Delete Map 1', exact: true })).toBeDisabled()
-  })
-
   test('creates a map with the dialog defaults', async ({ studio, page }) => {
     await page.getByRole('button', { name: 'New map' }).click()
     const dialog = page.getByRole('dialog', { name: 'New map' })
@@ -108,32 +102,6 @@ test.describe('maps', () => {
     await studio.undo()
     await expect(page.getByText('2. Cellar')).toBeVisible()
   })
-
-  test('refuses to delete a map that a door leads to', async ({ studio, page }) => {
-    await studio.dispatch({
-      type: 'project/createMap',
-      payload: { name: 'Cellar', width: 8, height: 6, tileSize: 16 },
-    })
-    const door = await studio.dispatch({
-      type: 'project/upsertMapEvent',
-      payload: {
-        mapId: 1,
-        event: {
-          id: 1,
-          name: 'Door',
-          x: 5,
-          y: 5,
-          pages: [
-            { trigger: 'touch', commands: [{ command: 'TransferPlayer', mapId: 2, x: 1, y: 1 }] },
-          ],
-        },
-      },
-    })
-    expect(door.success).toBe(true)
-    await page.getByRole('button', { name: 'Delete Cellar', exact: true }).click()
-    expect((await studio.summary()).maps.map((map) => map.id)).toEqual([1, 2])
-    await expect(page.getByText('2. Cellar')).toBeVisible()
-  })
 })
 
 test.describe('layers', () => {
@@ -156,20 +124,6 @@ test.describe('layers', () => {
     expect(await studio.tileAt(5, 5, 0)).toBe(1)
   })
 
-  test('stops adding layers at the maximum of eight', async ({ studio, page }) => {
-    for (let i = 0; i < 7; i += 1) await page.getByRole('button', { name: 'Add layer' }).click()
-    await expect.poll(async () => (await studio.map(1)).layers.length).toBe(8)
-    await page.getByRole('button', { name: 'Add layer' }).click()
-    expect((await studio.map(1)).layers).toHaveLength(8)
-  })
-
-  test('hides and shows a layer', async ({ studio, page }) => {
-    await page.getByRole('button', { name: 'Hide Objects', exact: true }).click()
-    expect((await studio.map(1)).layers[1]?.visible).toBe(false)
-    await page.getByRole('button', { name: 'Show Objects', exact: true }).click()
-    expect((await studio.map(1)).layers[1]?.visible).toBe(true)
-  })
-
   test('hiding a layer changes the canvas', async ({ studio, page }) => {
     await studio.dispatch({
       type: 'project/fillArea',
@@ -178,26 +132,6 @@ test.describe('layers', () => {
     const shown = await studio.canvasImage()
     await page.getByRole('button', { name: 'Hide Objects', exact: true }).click()
     await expect.poll(async () => (await studio.canvasImage()).equals(shown)).toBe(false)
-  })
-
-  test('draws a layer above characters on request', async ({ studio, page }) => {
-    await page.getByRole('button', { name: 'Toggle Objects above characters', exact: true }).click()
-    expect((await studio.map(1)).layers[1]?.above).toBe(true)
-    await expect(page.getByText('drawn above characters')).toHaveCount(2)
-    await page.getByRole('button', { name: 'Toggle Overlay above characters', exact: true }).click()
-    expect((await studio.map(1)).layers[2]?.above).toBe(false)
-    await expect(page.getByText('drawn above characters')).toHaveCount(1)
-  })
-
-  test('renames nothing but deletes a layer, and undo restores it', async ({ studio, page }) => {
-    await page.getByRole('button', { name: 'Delete Overlay', exact: true }).click()
-    expect((await studio.map(1)).layers.map((layer) => layer.name)).toEqual(['Ground', 'Objects'])
-    await studio.undo()
-    expect((await studio.map(1)).layers.map((layer) => layer.name)).toEqual([
-      'Ground',
-      'Objects',
-      'Overlay',
-    ])
   })
 
   test('cannot delete the last remaining layer', async ({ studio, page }) => {

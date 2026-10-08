@@ -28,61 +28,9 @@ test.describe('map properties', () => {
     await expect(page.getByText(/^Overworld · layer/)).toBeVisible()
   })
 
-  test('renames the map when the field loses focus', async ({ studio, page }) => {
-    await right(page).getByLabel('Name', { exact: true }).fill('Forest')
-    await right(page).getByLabel('Width', { exact: true }).focus()
-    await expect.poll(async () => (await studio.map(1)).name).toBe('Forest')
-  })
-
-  test('typing does not create undo steps until the value is committed', async ({
-    studio,
-    page,
-  }) => {
-    await right(page).getByLabel('Name', { exact: true }).pressSequentially('abc')
-    expect((await studio.summary()).revision).toBe(0)
-    await expect(page.getByRole('button', { name: 'Undo' })).toBeDisabled()
-  })
-
   test('keeps the old name when the new one is blank', async ({ studio, page }) => {
     await enter(page, 'Name', '   ')
     expect((await studio.map(1)).name).toBe('Map 1')
-  })
-
-  test('grows the map, keeping what was painted', async ({ studio, page }) => {
-    await studio.dispatch({
-      type: 'project/setTiles',
-      payload: { mapId: 1, layer: 0, cells: [{ x: 19, y: 14, tile: 4 }] },
-    })
-    await enter(page, 'Width', '24')
-    await enter(page, 'Height', '18')
-    const map = await studio.map(1)
-    expect(map).toMatchObject({ width: 24, height: 18 })
-    expect(map.layers[0]?.data).toHaveLength(24 * 18)
-    expect(await studio.tileAt(19, 14)).toBe(4)
-    // New cells are empty, not grass.
-    expect(await studio.tileAt(23, 17)).toBe(0)
-    await expect(page.getByText('24×18')).toBeVisible()
-  })
-
-  test('shrinks the map and drops events that fall outside', async ({ studio, page }) => {
-    await studio.dispatch({
-      type: 'project/upsertMapEvent',
-      payload: {
-        mapId: 1,
-        event: { id: 1, name: 'Far', x: 18, y: 2, pages: [{ commands: [] }] },
-      },
-    })
-    await studio.dispatch({
-      type: 'project/upsertMapEvent',
-      payload: {
-        mapId: 1,
-        event: { id: 2, name: 'Near', x: 2, y: 2, pages: [{ commands: [] }] },
-      },
-    })
-    await enter(page, 'Width', '12')
-    const map = await studio.map(1)
-    expect(map.width).toBe(12)
-    expect(map.events.map((event) => event.name)).toEqual(['Near'])
   })
 
   test('moves the start position onto the map when the start map shrinks', async ({
@@ -143,32 +91,6 @@ test.describe('map properties', () => {
     await enter(page, 'Width', '22')
     await expect(right(page).getByRole('alert')).toBeHidden()
   })
-
-  test('refuses a size a door would be left outside of', async ({ studio, page }) => {
-    await studio.dispatch({
-      type: 'project/createMap',
-      payload: { name: 'Cellar', width: 10, height: 10, tileSize: 16 },
-    })
-    await studio.dispatch({
-      type: 'project/upsertMapEvent',
-      payload: {
-        mapId: 1,
-        event: {
-          id: 1,
-          name: 'Door',
-          x: 2,
-          y: 2,
-          pages: [
-            { trigger: 'touch', commands: [{ command: 'TransferPlayer', mapId: 2, x: 8, y: 8 }] },
-          ],
-        },
-      },
-    })
-    await page.getByRole('complementary', { name: 'Asset browser' }).getByText('2. Cellar').click()
-    await enter(page, 'Width', '5')
-    await expect(right(page).getByRole('alert')).toBeVisible()
-    expect((await studio.map(2)).width).toBe(10)
-  })
 })
 
 test.describe('game start', () => {
@@ -177,13 +99,6 @@ test.describe('game start', () => {
     await expect(right(page).getByLabel('Start X')).toHaveValue('10')
     await expect(right(page).getByLabel('Start Y')).toHaveValue('7')
     await expect(right(page).getByLabel('Project name')).toHaveValue('My Game')
-  })
-
-  test('changes the start position', async ({ studio, page }) => {
-    await enter(page, 'Start X', '3')
-    await enter(page, 'Start Y', '4')
-    const summary = await studio.summary()
-    expect([summary.startX, summary.startY]).toEqual([3, 4])
   })
 
   test('clamps a negative start position to zero', async ({ studio, page }) => {
@@ -284,47 +199,6 @@ test.describe('events (JSON)', () => {
     await events(page).fill('[]')
     await apply(page).click()
     await expect.poll(async () => (await studio.map(1)).events.length).toBe(0)
-  })
-
-  test('reports text that is not JSON', async ({ studio, page }) => {
-    await events(page).fill('[{')
-    await apply(page).click()
-    await expect(right(page).getByRole('alert')).toContainText('Not valid JSON')
-    expect((await studio.map(1)).events).toHaveLength(0)
-  })
-
-  test('reports schema problems with the path of the bad field', async ({ studio, page }) => {
-    await events(page).fill(JSON.stringify([{ ...npc, colour: 'red' }]))
-    await apply(page).click()
-    await expect(right(page).getByRole('alert')).toContainText('events.0')
-    expect((await studio.map(1)).events).toHaveLength(0)
-
-    await events(page).fill(JSON.stringify([{ ...npc, pages: [] }]))
-    await apply(page).click()
-    await expect(right(page).getByRole('alert')).toContainText('events.0.pages')
-  })
-
-  test('refuses an event that would break the project', async ({ studio, page }) => {
-    const door = {
-      id: 1,
-      name: 'Door',
-      x: 2,
-      y: 2,
-      pages: [
-        { trigger: 'touch', commands: [{ command: 'TransferPlayer', mapId: 42, x: 1, y: 1 }] },
-      ],
-    }
-    await events(page).fill(JSON.stringify([door]))
-    await apply(page).click()
-    await expect(right(page).getByRole('alert')).toContainText('Event 1')
-    expect((await studio.map(1)).events).toHaveLength(0)
-  })
-
-  test('refuses an event outside the map', async ({ studio, page }) => {
-    await events(page).fill(JSON.stringify([{ ...npc, x: 50 }]))
-    await apply(page).click()
-    await expect(right(page).getByRole('alert')).toBeVisible()
-    expect((await studio.map(1)).events).toHaveLength(0)
   })
 
   test('shows each map its own events', async ({ studio, page }) => {

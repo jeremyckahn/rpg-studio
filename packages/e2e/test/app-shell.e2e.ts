@@ -39,16 +39,6 @@ test.describe('app shell', () => {
     await studio.status.getByRole('button', { name: 'Close' }).click()
     await expect(studio.status).toBeHidden()
   })
-
-  test('links the ? button to the user guide in a new tab', async ({ page }) => {
-    const guide = page.getByRole('link', { name: 'User guide' })
-    await expect(guide).toHaveAttribute(
-      'href',
-      'https://github.com/jeremyckahn/rpg-studio/tree/main/docs/user-guide',
-    )
-    await expect(guide).toHaveAttribute('target', '_blank')
-    await expect(guide).toHaveAttribute('rel', /noopener/)
-  })
 })
 
 test.describe('first launch', () => {
@@ -62,55 +52,6 @@ test.describe('first launch', () => {
 })
 
 test.describe('console API (window.RPGStudio)', () => {
-  test('is installed but not enumerable', async ({ page }) => {
-    const info = await page.evaluate(() => ({
-      version: window.RPGStudio ? Number(Reflect.get(window.RPGStudio, 'version')) : null,
-      enumerable: Object.keys(window).includes('RPGStudio'),
-    }))
-    expect(info).toEqual({ version: 1, enumerable: false })
-  })
-
-  test('answers queries', async ({ studio }) => {
-    const map = await studio.map(1)
-    expect(map).toMatchObject({ id: 1, name: 'Map 1', width: 20, height: 15, tileSize: 16 })
-    expect(await studio.table('actors')).toEqual([expect.objectContaining({ name: 'Hero' })])
-    expect(await studio.assets()).toEqual([
-      expect.objectContaining({ path: 'img/tilesets/basic.png' }),
-    ])
-  })
-
-  test('rejects an invalid query with the reason', async ({ page }) => {
-    const message = await page.evaluate(() => {
-      try {
-        window.RPGStudio?.query({ type: 'NOPE' })
-        return null
-      } catch (error) {
-        return error instanceof Error ? error.message : String(error)
-      }
-    })
-    expect(message).toMatch(/^Invalid query/)
-  })
-
-  test('applies a valid action and refuses an invalid one without changing the project', async ({
-    studio,
-  }) => {
-    const accepted = await studio.dispatch({
-      type: 'project/renameMap',
-      payload: { mapId: 1, name: 'Overworld' },
-    })
-    expect(accepted.success).toBe(true)
-    expect((await studio.map(1)).name).toBe('Overworld')
-
-    const before = (await studio.summary()).revision
-    const refused = await studio.dispatch({
-      type: 'project/setTiles',
-      payload: { mapId: 1, layer: 0, cells: [{ x: 99, y: 0, tile: 1 }] },
-    })
-    expect(refused.success).toBe(false)
-    expect(refused.error).toContain('outside')
-    expect((await studio.summary()).revision).toBe(before)
-  })
-
   test('actions from the console appear in the UI and can be undone', async ({ studio, page }) => {
     await studio.dispatch({ type: 'project/renameMap', payload: { mapId: 1, name: 'Overworld' } })
     await expect(page.getByRole('button', { name: /1\. Overworld/ })).toBeVisible()

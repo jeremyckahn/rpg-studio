@@ -170,6 +170,19 @@ describe('paint controller', () => {
     expect(tiles()[1]).toBe(1)
   })
 
+  it('erases along a dragged line, leaving the rest of the layer alone', () => {
+    const { controller, tiles } = setup({ tool: 'eraser' })
+    controller.pointerDown({ x: 0, y: 1 })
+    controller.pointerMove({ x: 3, y: 1 })
+    controller.pointerUp()
+    expect([0, 1, 2, 3, 4, 5].map((x) => tiles()[6 + x])).toEqual([0, 0, 0, 0, 1, 1])
+    expect(
+      tiles()
+        .slice(0, 6)
+        .every((t) => t === 1),
+    ).toBe(true)
+  })
+
   it('paints on the selected layer', () => {
     const { controller, tiles } = setup({ layer: 1 })
     controller.pointerDown({ x: 3, y: 2 })
@@ -188,7 +201,7 @@ describe('paint controller', () => {
   })
 
   it('collision tool makes cells solid, and the first cell decides the mode of the stroke', () => {
-    const { handle, controller, collision } = setup({ tool: 'collision' })
+    const { handle, controller, collision, tiles } = setup({ tool: 'collision' })
     controller.pointerDown({ x: 0, y: 0 })
     controller.pointerMove({ x: 3, y: 0 })
     controller.pointerUp()
@@ -201,5 +214,8 @@ describe('paint controller', () => {
     handle.store.dispatch(undo())
     expect(collision().slice(0, 5)).toEqual([1, 1, 1, 1, 0])
     expect(CollisionFlags.SOLID).toBe(1)
+    // Collision lives in its own array: no tile layer was touched.
+    expect(tiles().every((t) => t === 1)).toBe(true)
+    expect(tiles(1).every((t) => t === 0)).toBe(true)
   })
 })

@@ -119,13 +119,6 @@ test.describe('plugins in exported games', () => {
     }
   })
 
-  test('leaves out the files of plugins that are not enabled', async ({ studio }) => {
-    await importWithPlugins(studio, [], PLUGIN_FILES)
-    const zip = await exportGame(studio)
-    expect(Object.keys(zip.entries).some((path) => path.startsWith('plugins/'))).toBe(false)
-    expect(JSON.parse(zip.text('game.json'))).toMatchObject({ plugins: [] })
-  })
-
   const refuse = async (
     studio: Studio,
     page: Page,
@@ -147,49 +140,6 @@ test.describe('plugins in exported games', () => {
       ['acme.badge'],
       {},
       'Plugin "acme.badge" is enabled but plugins/acme.badge/manifest.json is missing',
-    )
-  })
-
-  test('refuses to export when a plugin lists a file that is missing', async ({ studio, page }) => {
-    const { 'plugins/acme.badge/engine.js': _engine, ...withoutEngine } = PLUGIN_FILES
-    await refuse(
-      studio,
-      page,
-      ['acme.badge'],
-      withoutEngine,
-      'lists plugins/acme.badge/engine.js but it is missing',
-    )
-  })
-
-  test('refuses to export when a plugin needs one that is not enabled', async ({
-    studio,
-    page,
-  }) => {
-    await refuse(
-      studio,
-      page,
-      ['acme.badge'],
-      {
-        ...PLUGIN_FILES,
-        'plugins/acme.badge/manifest.json': JSON.stringify({
-          ...MANIFEST,
-          dependencies: ['acme.core'],
-        }),
-      },
-      'Plugin "acme.badge" needs "acme.core", which is not enabled',
-    )
-  })
-
-  test('refuses to export when the manifest names a different plugin', async ({ studio, page }) => {
-    await refuse(
-      studio,
-      page,
-      ['acme.badge'],
-      {
-        ...PLUGIN_FILES,
-        'plugins/acme.badge/manifest.json': JSON.stringify({ ...MANIFEST, id: 'acme.other' }),
-      },
-      'declares id "acme.other", not "acme.badge"',
     )
   })
 

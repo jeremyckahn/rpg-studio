@@ -178,6 +178,8 @@ describe('buildExportEntries', () => {
       })
       const { entries } = buildExportEntries({ project: projectWith(), assets, engine })
       expect(Object.keys(entries).some((path) => path.startsWith('plugins/'))).toBe(false)
+      const bundle = GameBundleSchema.parse(JSON.parse(decode(entries['game.json'])))
+      expect(bundle.plugins).toEqual([])
     })
 
     it('refuses to export when an enabled plugin is broken', () => {
@@ -194,6 +196,14 @@ describe('buildExportEntries', () => {
       })
       expect(() => buildExportEntries({ ...noEntry, engine })).toThrow(
         /shared\.js but it is missing/,
+      )
+
+      const noEngine = withPlugin({
+        'plugins/acme.quests/manifest.json': pluginManifest('acme.quests'),
+        'plugins/acme.quests/shared.js': 'export default {}',
+      })
+      expect(() => buildExportEntries({ ...noEngine, engine })).toThrow(
+        /engine\.js but it is missing/,
       )
 
       const badJson = withPlugin({ 'plugins/acme.quests/manifest.json': '{nope' })
@@ -279,13 +289,12 @@ describe('zip packaging', () => {
   })
 
   it('refuses archives with entries that escape the project folder', async () => {
-    const evil = await Promise.all(
-      ['../outside.txt', '/etc/passwd', 'a/../../b.txt', 'C:/x.txt'].map((path) =>
-        zipEntries({ [path]: encode('x') }),
-      ),
-    )
-    for (const archive of evil) {
-      await expect(unzipEntries(archive)).rejects.toThrow(ArchiveError)
+    for (const path of ['../outside.txt', '/etc/passwd', 'a/../../b.txt', 'C:/x.txt']) {
+      const archive = await zipEntries({ [path]: encode('x') })
+      const refusal = unzipEntries(archive)
+      await expect(refusal).rejects.toThrow(ArchiveError)
+      // The message names the offending path, since it is what the person sees.
+      await expect(refusal).rejects.toThrow(`The archive contains an unsafe path: ${path}`)
     }
   })
 
@@ -338,7 +347,7 @@ describe('engine files and helpers', () => {
   it('explains how to fix a missing engine build', async () => {
     await expect(
       loadEngineFiles('/', () => Promise.resolve(new Response('', { status: 404 }))),
-    ).rejects.toThrow(/pnpm build/)
+    ).rejects.toThrow(/Could not load the game engine \(engine\/player\.js: 404\).*pnpm build/)
   })
 
   it('makes safe download file names', () => {

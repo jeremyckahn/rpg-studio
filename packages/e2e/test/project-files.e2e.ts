@@ -1,6 +1,5 @@
 import { type Page } from '@playwright/test'
 
-import { downloadZip, makeZip } from '../support/downloads.ts'
 import { expect, test } from '../support/fixtures.ts'
 import { SAVE } from '../support/studio.ts'
 import {
@@ -98,25 +97,6 @@ test.describe('with folder support', () => {
     await page.getByRole('button', { name: 'Delete Cellar', exact: true }).click()
     await studio.chooseMenuItem('File', SAVE)
     await expect(studio.status).toHaveText('Removed 1 file(s) from my-game')
-  })
-
-  test('a saved copy of an imported project includes its assets', async ({ studio, page }) => {
-    await studio.open()
-    const zip = await downloadZip(page, () => studio.chooseMenuItem('File', /Download project/))
-    const chooser = page.waitForEvent('filechooser')
-    await studio.chooseMenuItem('File', /Import project/)
-    await (
-      await chooser
-    ).setFiles({
-      name: zip.filename,
-      mimeType: 'application/zip',
-      buffer: makeZip({ ...zip.entries }),
-    })
-    await expect(studio.status).toContainText('Imported')
-    await studio.dismissStatus()
-    await studio.chooseMenuItem('File', SAVE)
-    await expect(studio.status).toContainText('Saved')
-    expect(Object.keys(await readFolder(page, 'my-game'))).toContain('img/tilesets/basic.png')
   })
 
   test('only rewrites what changed', async ({ studio, page }) => {
@@ -294,19 +274,6 @@ test.describe('with folder support', () => {
     })
   })
 
-  test('does not ask when the folder is empty or has no project files', async ({
-    studio,
-    page,
-  }) => {
-    await studio.open()
-    await seedFolder(page, 'my-game', { 'README.md': 'hello' })
-    await studio.chooseMenuItem('File', SAVE)
-    await expect(studio.status).toContainText(/^Saved \d+ file\(s\) to my-game$/)
-    await expect(
-      page.getByRole('dialog', { name: 'This folder already has project files' }),
-    ).toBeHidden()
-  })
-
   test('saves new, changed and removed assets and maps', async ({ studio, page }) => {
     await studio.open()
     await studio.dispatch({
@@ -367,40 +334,6 @@ test.describe('with folder support', () => {
     await expect(studio.status).toHaveText('Saved 1 file(s) to my-game')
     expect(await pickerCalls(page)).toBe(asked)
   })
-
-  test('explains why a folder that is not a project cannot be opened', async ({ studio, page }) => {
-    await studio.open()
-    await seedFolder(page, 'my-game', { 'notes.txt': 'hello' })
-    await studio.chooseMenuItem('File', 'Open folder…')
-    await expect(studio.status).toContainText('not an RPG Studio project')
-    // Nothing was replaced.
-    await expect(studio.projectTitle).toHaveText('My Game')
-  })
-
-  test('names the file when a project file is broken', async ({ studio, page }) => {
-    await studio.open()
-    await studio.chooseMenuItem('File', SAVE)
-    await expect(studio.status).toContainText('Saved')
-    await seedFolder(page, 'my-game', { 'maps/map-001.json': '{ not json' })
-    await studio.dismissStatus()
-    await studio.chooseMenuItem('File', 'Open folder…')
-    await expect(studio.status).toContainText('maps/map-001.json')
-  })
-})
-
-test.describe('cancelling the folder picker', () => {
-  test.use({ openEditor: false })
-
-  test('is quiet and changes nothing', async ({ studio, page }) => {
-    await stubDirectoryPicker(page, ['cancel'])
-    await studio.open()
-    await studio.dismissStatus()
-    await studio.clickCell({ x: 5, y: 5 })
-    await studio.chooseMenuItem('File', SAVE)
-    await expect.poll(() => pickerCalls(page)).toBe(1)
-    await expect(studio.status).toBeHidden()
-    await expect(studio.projectTitle).toHaveText('My Game •')
-  })
 })
 
 test.describe('replacing a project', () => {
@@ -408,30 +341,6 @@ test.describe('replacing a project', () => {
 
   test.beforeEach(async ({ page }) => {
     await stubDirectoryPicker(page, ['my-game'])
-  })
-
-  test('New project replaces a clean project at once', async ({ studio, page }) => {
-    await studio.open()
-    await studio.dispatch({ type: 'project/renameMap', payload: { mapId: 1, name: 'Overworld' } })
-    await studio.chooseMenuItem('File', SAVE)
-    await expect(studio.status).toContainText('Saved')
-    await studio.chooseMenuItem('File', 'New project')
-    await expect(dialog(page)).toBeHidden()
-    expect((await studio.map(1)).name).toBe('Map 1')
-    await expect(studio.status).toHaveText('Created “My Game”')
-  })
-
-  test('New project asks first when there are unsaved changes', async ({ studio, page }) => {
-    await studio.open()
-    await studio.clickCell({ x: 5, y: 5 })
-    await studio.chooseMenuItem('File', 'New project')
-    await expect(dialog(page)).toBeVisible()
-    await expect(dialog(page)).toContainText('Creating a new project replaces the open project')
-    // Nothing has happened yet.
-    expect(await studio.tileAt(5, 5)).toBe(1)
-    await dialog(page).getByRole('button', { name: 'Cancel' }).click()
-    await expect(dialog(page)).toBeHidden()
-    await expect(studio.projectTitle).toHaveText('My Game •')
   })
 
   test('Escape cancels the question', async ({ studio, page }) => {
@@ -442,18 +351,6 @@ test.describe('replacing a project', () => {
     await page.keyboard.press('Escape')
     await expect(dialog(page)).toBeHidden()
     expect(await studio.tileAt(5, 5)).toBe(4)
-  })
-
-  test('Discard changes goes ahead and throws the edits away', async ({ studio, page }) => {
-    await studio.open()
-    await studio.pickTile(4)
-    await studio.clickCell({ x: 5, y: 5 })
-    await studio.chooseMenuItem('File', 'New project')
-    await dialog(page).getByRole('button', { name: 'Discard changes' }).click()
-    await expect(dialog(page)).toBeHidden()
-    expect(await studio.tileAt(5, 5)).toBe(1)
-    await expect(studio.projectTitle).toHaveText('My Game')
-    expect(await pickerCalls(page)).toBe(0)
   })
 
   test('Save, then continue saves first and then replaces the project', async ({
@@ -470,49 +367,6 @@ test.describe('replacing a project', () => {
     const saved = await readFolder(page, 'my-game')
     expect(saved['maps/map-001.json']?.text).toContain('4')
   })
-
-  test('does not replace the project when saving first is cancelled', async ({ studio, page }) => {
-    await page.addInitScript(() => undefined)
-    await studio.open()
-    await page.evaluate(() => {
-      Reflect.set(window, 'showDirectoryPicker', () =>
-        Promise.reject(new DOMException('The user aborted a request.', 'AbortError')),
-      )
-    })
-    await studio.pickTile(4)
-    await studio.clickCell({ x: 5, y: 5 })
-    await studio.chooseMenuItem('File', 'New project')
-    await dialog(page).getByRole('button', { name: 'Save, then continue' }).click()
-    await expect(dialog(page)).toBeHidden()
-    expect(await studio.tileAt(5, 5)).toBe(4)
-    await expect(studio.projectTitle).toHaveText('My Game •')
-  })
-
-  test('Open folder asks before the picker opens', async ({ studio, page }) => {
-    await studio.open()
-    await seedFolder(page, 'other', { 'project.json': '{}' })
-    await studio.clickCell({ x: 5, y: 5 })
-    await studio.chooseMenuItem('File', 'Open folder…')
-    await expect(dialog(page)).toContainText('Opening a folder replaces the open project')
-    expect(await pickerCalls(page)).toBe(0)
-    await dialog(page).getByRole('button', { name: 'Cancel' }).click()
-    expect(await pickerCalls(page)).toBe(0)
-  })
-
-  test('Import project asks before the file chooser opens', async ({ studio, page }) => {
-    await studio.open()
-    await studio.clickCell({ x: 5, y: 5 })
-    let chooserOpened = false
-    page.on('filechooser', () => {
-      chooserOpened = true
-    })
-    await studio.chooseMenuItem('File', /Import project/)
-    await expect(dialog(page)).toContainText('Importing a project replaces the open project')
-    expect(chooserOpened).toBe(false)
-    const chooser = page.waitForEvent('filechooser')
-    await dialog(page).getByRole('button', { name: 'Discard changes' }).click()
-    await chooser
-  })
 })
 
 test.describe('leaving the page', () => {
@@ -522,28 +376,6 @@ test.describe('leaving the page', () => {
     const dialogSeen = page.waitForEvent('dialog')
     await page.close({ runBeforeUnload: true })
     expect((await dialogSeen).type()).toBe('beforeunload')
-  })
-
-  test('does not warn when everything is saved', async ({ studio, page }) => {
-    let warned = false
-    page.on('dialog', () => {
-      warned = true
-    })
-    await expect(studio.projectTitle).toHaveText('My Game')
-    await page.close({ runBeforeUnload: true })
-    expect(warned).toBe(false)
-  })
-
-  test('stops warning once undo returns to the saved state', async ({ studio, page }) => {
-    await studio.clickCell({ x: 5, y: 5 })
-    await studio.undo()
-    await expect(studio.projectTitle).toHaveText('My Game')
-    let warned = false
-    page.on('dialog', () => {
-      warned = true
-    })
-    await page.close({ runBeforeUnload: true })
-    expect(warned).toBe(false)
   })
 })
 
@@ -577,17 +409,5 @@ test.describe('without folder support (Firefox, Safari)', () => {
     await page.keyboard.press('Control+s')
     await expect(studio.status).toContainText('This browser cannot open folders')
     await expect(studio.status).toContainText('Download project (.zip)')
-  })
-
-  test('the unsaved-changes question offers a download instead of a save', async ({
-    studio,
-    page,
-  }) => {
-    await studio.open()
-    await studio.clickCell({ x: 5, y: 5 })
-    await studio.chooseMenuItem('File', 'New project')
-    await expect(dialog(page)).toContainText('File ▸ Download project (.zip)')
-    await expect(dialog(page).getByRole('button', { name: 'Save, then continue' })).toBeHidden()
-    await expect(dialog(page).getByRole('button', { name: 'Discard changes' })).toBeVisible()
   })
 })

@@ -401,6 +401,7 @@ describe('MenuBar', () => {
     expect(link.getAttribute('href')).toBe(
       'https://github.com/jeremyckahn/rpg-studio/blob/main/docs/user-guide/ai-companion.md',
     )
+    expect(link.getAttribute('target')).toBe('_blank')
   })
 
   it('starts a new project from File > New project', async () => {
@@ -525,6 +526,11 @@ describe('MapToolPanel', () => {
     expect(layers()?.[1]?.visible).toBe(true)
     await userEvent.click(screen.getByRole('button', { name: 'Toggle Objects above characters' }))
     expect(layers()?.[1]?.above).toBe(true)
+    // The Overlay layer is drawn above characters from the start.
+    expect(screen.getAllByText('drawn above characters')).toHaveLength(2)
+    await userEvent.click(screen.getByRole('button', { name: 'Toggle Objects above characters' }))
+    expect(layers()?.[1]?.above).toBe(false)
+    expect(screen.getAllByText('drawn above characters')).toHaveLength(1)
     await userEvent.click(screen.getByText('Overlay'))
     expect(harness.handle.store.getState().editorUi.selectedLayer).toBe(2)
   })
@@ -536,6 +542,8 @@ describe('MapToolPanel', () => {
     expect(harness.handle.store.getState().project.data.maps[0]?.layers).toHaveLength(4)
     await userEvent.click(screen.getByRole('button', { name: 'Delete Layer 4' }))
     expect(harness.handle.store.getState().project.data.maps[0]?.layers).toHaveLength(3)
+    harness.handle.store.dispatch(undo())
+    expect(harness.handle.store.getState().project.data.maps[0]?.layers).toHaveLength(4)
   })
 })
 
@@ -593,7 +601,7 @@ describe('PropertiesPanel', () => {
 
     fireEvent.change(box, { target: { value: '[{"id":7,"x":99,"y":0,"pages":[{}]}]' } })
     await userEvent.click(apply)
-    expect(await screen.findByText(/outside/)).toBeTruthy()
+    expect(await screen.findByText(/Event 7: .*outside/)).toBeTruthy()
     expect(harness.handle.store.getState().project.data.maps[0]?.events.map((e) => e.id)).toEqual([
       1,
     ])

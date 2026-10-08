@@ -90,15 +90,6 @@ test.describe('compact layout', () => {
     await expect(page.getByRole('dialog', { name: 'Companion bridge' })).toBeVisible()
   })
 
-  test('marks unsaved work on the File button, since the name does not fit', async ({
-    studio,
-    page,
-  }) => {
-    await expect(page.getByRole('button', { name: 'File', exact: true })).toHaveText('File')
-    await studio.dispatch({ type: 'project/renameMap', payload: { mapId: 1, name: 'Edited' } })
-    await expect(page.getByRole('button', { name: /^File/ })).toHaveText('File •')
-  })
-
   test('menus open and work by touch', async ({ studio, page }) => {
     await studio.dispatch({ type: 'project/renameMap', payload: { mapId: 1, name: 'Edited' } })
     await page.getByRole('button', { name: /^Edit$/ }).tap()

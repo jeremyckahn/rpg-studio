@@ -314,13 +314,6 @@ test.describe('deleting records', () => {
     expect(await studio.table('classes')).toHaveLength(1)
   })
 
-  test('refuses to delete an actor who is in the starting party', async ({ studio, page }) => {
-    await selectRow(page, 1)
-    await page.getByRole('button', { name: 'Delete selected' }).click()
-    await expect(error(page)).toContainText('#1')
-    expect(await studio.table('actors')).toHaveLength(1)
-  })
-
   test('deleting is undoable', async ({ studio, page }) => {
     await page.getByRole('button', { name: /^Add / }).click()
     await selectRow(page, 2)

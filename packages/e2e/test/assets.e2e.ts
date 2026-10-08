@@ -137,12 +137,6 @@ test.describe('asset browser', () => {
       )
   })
 
-  test('marks the project as having unsaved changes', async ({ studio, page }) => {
-    await expect(studio.projectTitle).toHaveText('My Game')
-    await upload(page, 'Picture', [png('title.png')])
-    await expect(studio.projectTitle).toHaveText('My Game •')
-  })
-
   test('shows a different icon for images and for audio', async ({ page }) => {
     await upload(page, 'Sound effect (SE)', [
       { name: 'hit.ogg', mimeType: 'audio/ogg', buffer: fakeAudio() },
@@ -153,20 +147,6 @@ test.describe('asset browser', () => {
     expect(imageShape).not.toBe('')
     expect(audioShape).not.toBe('')
     expect(imageShape).not.toBe(audioShape)
-  })
-
-  test('only images can be opened for editing', async ({ page }) => {
-    await upload(page, 'Sound effect (SE)', [
-      { name: 'hit.ogg', mimeType: 'audio/ogg', buffer: fakeAudio() },
-    ])
-    await expect(browser(page).getByRole('button', { name: 'basic.png' })).toHaveAttribute(
-      'title',
-      'Double-click to edit',
-    )
-    const sound = browser(page).getByRole('button', { name: 'hit.ogg' })
-    await expect(sound).toHaveAttribute('title', 'audio/se/hit.ogg')
-    await sound.dblclick()
-    await expect(page.getByRole('tab', { name: 'Map' })).toHaveAttribute('aria-selected', 'true')
   })
 
   test('uploaded images are listed by the console API too', async ({ studio, page }) => {

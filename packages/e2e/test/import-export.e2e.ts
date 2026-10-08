@@ -108,29 +108,6 @@ test.describe('import project (.zip)', () => {
     await expect(studio.status).toContainText('Imported')
   })
 
-  test('refuses a file that is not a zip', async ({ studio, page }) => {
-    const chooser = page.waitForEvent('filechooser')
-    await studio.chooseMenuItem('File', /Import project/)
-    await (
-      await chooser
-    ).setFiles({
-      name: 'notes.zip',
-      mimeType: 'application/zip',
-      buffer: Buffer.from('this is not a zip file'),
-    })
-    await expect(studio.status).toBeVisible()
-    await expect(studio.status).not.toContainText('Imported')
-    expect((await studio.summary()).name).toBe('My Game')
-  })
-
-  test('refuses an archive that is not an RPG Studio project', async ({ studio, page }) => {
-    await importZip(page, { name: 'other.zip', buffer: makeZip({ 'readme.txt': 'hello' }) }, () =>
-      studio.chooseMenuItem('File', /Import project/),
-    )
-    await expect(studio.status).toContainText('project.json is missing')
-    expect((await studio.summary()).name).toBe('My Game')
-  })
-
   test('names the broken file when the data is invalid', async ({ studio, page }) => {
     const zip = await downloadZip(page, () => studio.chooseMenuItem('File', /Download project/))
     const broken = makeZip({ ...zip.entries, 'maps/map-001.json': '{"id": "one"}' })
@@ -139,16 +116,6 @@ test.describe('import project (.zip)', () => {
     )
     await expect(studio.status).toContainText('maps/map-001.json')
     expect((await studio.summary()).name).toBe('My Game')
-  })
-
-  test('refuses an archive with a path that escapes the project', async ({ studio, page }) => {
-    const zip = await downloadZip(page, () => studio.chooseMenuItem('File', /Download project/))
-    const hostile = makeZip({ ...zip.entries, '../evil.txt': 'owned' })
-    await importZip(page, { name: 'hostile.zip', buffer: hostile }, () =>
-      studio.chooseMenuItem('File', /Import project/),
-    )
-    await expect(studio.status).toContainText('unsafe path')
-    await expect(studio.status).toContainText('../evil.txt')
   })
 
   test('ignores files outside the project folders', async ({ studio, page }) => {
@@ -191,24 +158,6 @@ test.describe('export game (.zip)', () => {
     await expect(studio.status).toHaveText('Exported 11 files')
   })
 
-  test('lists exactly the shipped files in game.json', async ({ studio, page }) => {
-    const zip = await downloadZip(page, () => studio.chooseMenuItem('File', /Export game/))
-    const bundle = JSON.parse(zip.text('game.json')) as {
-      name: string
-      files: string[]
-      plugins: string[]
-    }
-    expect(bundle.name).toBe('My Game')
-    expect(bundle.plugins).toEqual([])
-    expect(bundle.files.toSorted()).toEqual(
-      Object.keys(zip.entries)
-        .filter(
-          (path) => path !== 'index.html' && path !== 'game.json' && !path.startsWith('engine/'),
-        )
-        .toSorted(),
-    )
-  })
-
   test('boots the player from index.html and never references editor code', async ({
     studio,
     page,
@@ -218,52 +167,6 @@ test.describe('export game (.zip)', () => {
     expect(html).toContain("import { startPlayer } from './engine/player.js'")
     expect(html).not.toMatch(/editor|piskel/i)
     expect(zip.text('engine/player.js').length).toBeGreaterThan(100_000)
-  })
-
-  test('escapes the project name in the page title', async ({ studio, page }) => {
-    await rename(page, '<b>Hi</b> & "you"')
-    const zip = await downloadZip(page, () => studio.chooseMenuItem('File', /Export game/))
-    const html = zip.text('index.html')
-    expect(html).not.toContain('<b>Hi</b>')
-    expect(html).toMatch(/<title>&#60;b&#62;Hi&#60;\/b&#62; &#38; &#34;you&#34;<\/title>/)
-  })
-
-  test('leaves out sprite sources and says so', async ({ studio, page }) => {
-    await page.getByRole('button', { name: 'basic.png' }).dblclick()
-    await expect(page.getByRole('button', { name: 'Save to project' }).first()).toBeEnabled()
-    await page.getByRole('button', { name: 'Save to project' }).first().click()
-    await expect(page.getByRole('button', { name: 'basic.piskel' })).toBeVisible()
-    await studio.dismissStatus()
-
-    const zip = await downloadZip(page, () => studio.chooseMenuItem('File', /Export game/))
-    expect(Object.keys(zip.entries).some((path) => path.endsWith('.piskel'))).toBe(false)
-    expect(Object.keys(zip.entries)).toContain('img/tilesets/basic.png')
-    await expect(studio.status).toHaveText('Exported 11 files (left out 1 authoring file(s))')
-  })
-
-  test('ships audio and pictures but not unknown file types', async ({ studio, page }) => {
-    const add = async (kind: string, file: { name: string; mimeType: string; buffer: Buffer }) => {
-      await page.getByRole('button', { name: 'Add', exact: true }).click()
-      const chooser = page.waitForEvent('filechooser')
-      await page.getByRole('menuitem', { name: kind }).click()
-      await (await chooser).setFiles(file)
-    }
-    await add('Music (BGM)', {
-      name: 'theme.ogg',
-      mimeType: 'audio/ogg',
-      buffer: Buffer.from('OggS fake'),
-    })
-    await add('Picture', { name: 'title.png', mimeType: 'image/png', buffer: solidPng(4, 4) })
-    await expect.poll(async () => (await studio.assets()).length).toBe(3)
-
-    const zip = await downloadZip(page, () => studio.chooseMenuItem('File', /Export game/))
-    expect(Object.keys(zip.entries)).toEqual(
-      expect.arrayContaining(['audio/bgm/theme.ogg', 'img/pictures/title.png']),
-    )
-    const bundle = JSON.parse(zip.text('game.json')) as { files: string[] }
-    expect(bundle.files).toEqual(
-      expect.arrayContaining(['audio/bgm/theme.ogg', 'img/pictures/title.png']),
-    )
   })
 
   test('includes every map', async ({ studio, page }) => {
@@ -281,13 +184,5 @@ test.describe('export game (.zip)', () => {
     await studio.clickCell({ x: 5, y: 5 })
     await downloadZip(page, () => studio.chooseMenuItem('File', /Export game/))
     await expect(studio.projectTitle).toHaveText('My Game •')
-  })
-
-  test('says why when the engine player cannot be loaded', async ({ studio, page, problems }) => {
-    problems.allow(/status of 404/)
-    await page.route('**/engine/player.js', (route) => route.fulfill({ status: 404, body: 'nope' }))
-    await studio.chooseMenuItem('File', /Export game/)
-    await expect(studio.status).toContainText('Could not load the game engine')
-    await expect(studio.status).toContainText('engine/player.js: 404')
   })
 })

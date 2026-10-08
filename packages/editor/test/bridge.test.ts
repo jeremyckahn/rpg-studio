@@ -302,6 +302,7 @@ describe('RPGStudio global API', () => {
       api.dispatch({ type: 'project/renameMap', payload: { mapId: 1, name: 'Renamed' } }).success,
     ).toBe(true)
     expect(api.dispatch({ type: 'eval' }).success).toBe(false)
+    expect(api.version).toBe(1)
     const target = {} as Window
     installRPGStudioGlobal(target, api)
     expect(target.RPGStudio).toBe(api)

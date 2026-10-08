@@ -8,6 +8,7 @@ import {
 import { unzipSync } from 'fflate'
 import { describe, expect, it, vi } from 'vitest'
 
+import { zipEntries } from '../src/export'
 import { createAssetStore } from '../src/project/assetStore'
 import { createMemoryFileSystem } from '../src/project/fileSystem'
 import { createProjectSession } from '../src/project/session'
@@ -93,7 +94,7 @@ describe('open and save', () => {
     expect(opened).toBe(false)
     expect(handle.store.getState().project.data.meta.name).toBe('Keep me')
     expect(status()).toMatchObject({ severity: 'error' })
-    expect(status()?.text).toMatch(/project\.json is missing/)
+    expect(status()?.text).toMatch(/not an RPG Studio project: project\.json is missing/)
   })
 
   it('counts asset-only changes as unsaved, until saved or the project is replaced', async () => {
@@ -332,6 +333,7 @@ describe('export', () => {
     session.newProject('Q')
     expect(await session.exportGame()).toBe(false)
     expect(downloads.values).toEqual([])
+    expect(status()?.text).toMatch(/Could not load the game engine \(engine\/player\.js: 404\)/)
     expect(status()?.text).toMatch(/pnpm build/)
   })
 
@@ -360,9 +362,23 @@ describe('project archives', () => {
     expect(target.assets.readText('img/characters/hero.piskel')).toBe('{"modelVersion":2}')
   })
 
-  it('reports an invalid archive', async () => {
-    const { session, status } = setup()
+  it('reports an invalid archive, leaving the current project alone', async () => {
+    const { handle, session, status } = setup()
+    session.newProject('Keep me')
+    const encode = (text: string) => new TextEncoder().encode(text)
+
     expect(await session.openArchive(Uint8Array.of(1, 2, 3))).toBe(false)
     expect(status()).toMatchObject({ severity: 'error' })
+
+    const notProject = await zipEntries({ 'readme.txt': encode('hello') })
+    expect(await session.openArchive(notProject)).toBe(false)
+    expect(status()).toMatchObject({ severity: 'error' })
+    expect(status()?.text).toMatch(/not an RPG Studio project: project\.json is missing/)
+
+    const hostile = await zipEntries({ '../evil.txt': encode('owned') })
+    expect(await session.openArchive(hostile)).toBe(false)
+    expect(status()?.text).toMatch(/unsafe path: \.\.\/evil\.txt/)
+
+    expect(handle.store.getState().project.data.meta.name).toBe('Keep me')
   })
 })

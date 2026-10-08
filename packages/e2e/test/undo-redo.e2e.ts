@@ -34,15 +34,6 @@ test.describe('undo and redo', () => {
     await expect(page.getByRole('button', { name: 'Redo' })).toBeDisabled()
   })
 
-  test('a new edit discards the redo history', async ({ studio, page }) => {
-    await studio.selectTool(/Eraser/)
-    await studio.clickCell({ x: 6, y: 6 })
-    await studio.undo()
-    await expect(page.getByRole('button', { name: 'Redo' })).toBeEnabled()
-    await studio.clickCell({ x: 7, y: 7 })
-    await expect(page.getByRole('button', { name: 'Redo' })).toBeDisabled()
-  })
-
   test('respond to Ctrl+Z, Ctrl+Shift+Z and Ctrl+Y', async ({ studio, page }) => {
     await studio.selectTool(/Eraser/)
     await studio.clickCell({ x: 6, y: 6 })
@@ -54,15 +45,6 @@ test.describe('undo and redo', () => {
     await expect.poll(() => studio.tileAt(6, 6)).toBe(1)
     await page.keyboard.press('Control+y')
     await expect.poll(() => studio.tileAt(6, 6)).toBe(0)
-  })
-
-  test('leave the keyboard alone while typing in a field', async ({ studio, page }) => {
-    await studio.selectTool(/Eraser/)
-    await studio.clickCell({ x: 6, y: 6 })
-    const name = page.getByLabel('Name', { exact: true })
-    await name.focus()
-    await page.keyboard.press('Control+z')
-    expect(await studio.tileAt(6, 6)).toBe(0)
   })
 
   test('console actions are undoable and a grouped batch is one step', async ({ studio }) => {

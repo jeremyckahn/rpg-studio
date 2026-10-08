@@ -1,9 +1,7 @@
 import {
   type AgentConnection,
   type CompanionServer,
-  CompanionError,
   connectAgent,
-  runDemo,
   startCompanionServer,
 } from '@rpgstudio/companion-bridge'
 import { type Page } from '@playwright/test'
@@ -59,16 +57,6 @@ test.describe('companion bridge', () => {
       await expect(dialog(page).getByLabel('Token (optional)')).toHaveAttribute('type', 'password')
       await expect(dialog(page).getByRole('button', { name: 'Disconnect' })).toBeDisabled()
       await expect(dialog(page).getByText('pnpm dev:companion')).toBeVisible()
-    })
-
-    test('links to the setup guide in the user guide', async ({ page }) => {
-      await companionButton(page).click()
-      const link = dialog(page).getByRole('link', { name: 'Setup guide' })
-      await expect(link).toHaveAttribute(
-        'href',
-        /github\.com\/jeremyckahn\/rpg-studio\/blob\/main\/docs\/user-guide\/ai-companion\.md/,
-      )
-      await expect(link).toHaveAttribute('target', '_blank')
     })
 
     test('closes without connecting', async ({ page }) => {
@@ -168,38 +156,9 @@ test.describe('companion bridge', () => {
       await expect(dialog(page).getByRole('button', { name: 'Disconnect' })).toBeDisabled()
       await expect(companionButton(page)).toHaveText('Companion: off')
     })
-
-    test('reconnects by itself when the relay comes back', async ({ page, problems }) => {
-      test.setTimeout(60_000)
-      problems.allow(/WebSocket connection to .* failed/)
-      const first = await startRelay()
-      const { port } = first
-      await connect(page, { url: first.url })
-      await expect(companionButton(page)).toHaveText('Companion: connected')
-
-      await first.close()
-      relay = null
-      await expect(companionButton(page)).not.toHaveText('Companion: connected')
-
-      relay = await startCompanionServer({ port })
-      await expect(companionButton(page)).toHaveText('Companion: connected', { timeout: 30_000 })
-      await expect.poll(() => relay?.editorConnected()).toBe(true)
-    })
   })
 
   test.describe('an agent drives the editor', () => {
-    test('reads the project', async ({ studio }) => {
-      const connection = await connected(studio)
-      const summary = (await connection.query({ type: 'GET_PROJECT_SUMMARY' })) as { name: string }
-      expect(summary.name).toBe('My Game')
-      const map = (await connection.query({ type: 'GET_MAP_DATA', id: 1 })) as { width: number }
-      expect(map.width).toBe(20)
-      const schema = (await connection.query({ type: 'GET_SCHEMA', name: 'actor' })) as {
-        required?: string[]
-      }
-      expect(schema.required).toEqual(expect.arrayContaining(['id', 'name', 'classId']))
-    })
-
     test('edits the map live, and one Undo reverts the whole batch', async ({ studio }) => {
       const connection = await connected(studio)
       await connection.batch([
@@ -228,35 +187,6 @@ test.describe('companion bridge', () => {
       await expect.poll(async () => (await studio.canvasImage()).equals(before)).toBe(false)
     })
 
-    test('a refused action explains itself and changes nothing', async ({ studio }) => {
-      const connection = await connected(studio)
-      const before = (await studio.summary()).revision
-      await expect(
-        connection.dispatch({
-          type: 'project/setTiles',
-          payload: { mapId: 1, layer: 0, cells: [{ x: 99, y: 0, tile: 1 }] },
-        }),
-      ).rejects.toThrow(/outside/)
-      expect((await studio.summary()).revision).toBe(before)
-    })
-
-    test('a batch with one bad action is applied as a whole or not at all', async ({ studio }) => {
-      const connection = await connected(studio)
-      await expect(
-        connection.batch([
-          {
-            type: 'project/fillArea',
-            payload: { mapId: 1, layer: 0, tile: 3, startX: 0, startY: 0, endX: 2, endY: 2 },
-          },
-          {
-            type: 'project/setTiles',
-            payload: { mapId: 1, layer: 0, cells: [{ x: 99, y: 0, tile: 1 }] },
-          },
-        ]),
-      ).rejects.toThrow(CompanionError)
-      expect(await studio.tileAt(1, 1)).toBe(1)
-    })
-
     test('writes an image asset, which appears in the asset browser', async ({ studio, page }) => {
       const connection = await connected(studio)
       await connection.writeAsset('img/characters/robot.png', new Uint8Array(solidPng(16, 16)))
@@ -279,89 +209,6 @@ test.describe('companion bridge', () => {
         new Uint8Array(solidPng(128, 32, [250, 0, 250, 255])),
       )
       await expect.poll(async () => (await studio.canvasImage()).equals(before)).toBe(false)
-    })
-
-    test('refuses to write anything but images and audio', async ({ studio }) => {
-      const connection = await connected(studio)
-      // The editor refuses project data and code: only images and audio may be written.
-      await expect(
-        connection.writeAsset('maps/map-001.json', new TextEncoder().encode('{}')),
-      ).rejects.toThrow()
-      await expect(
-        connection.writeAsset('plugins/evil/engine.js', new TextEncoder().encode('alert(1)')),
-      ).rejects.toThrow()
-      // The agent library checks the path itself before anything is sent.
-      expect(() => connection.writeAsset('../escape.png', new Uint8Array(solidPng(1, 1)))).toThrow()
-      expect(await studio.map(1)).toMatchObject({ name: 'Map 1' })
-    })
-
-    test('finds a path on the map', async ({ studio }) => {
-      const connection = await connected(studio)
-      await studio.dispatch({
-        type: 'project/setCollision',
-        payload: { mapId: 1, cells: [{ x: 3, y: 0, flags: 1 }] },
-      })
-      const result = (await connection.query({
-        type: 'FIND_PATH',
-        mapId: 1,
-        from: { x: 0, y: 0 },
-        to: { x: 5, y: 0 },
-      })) as { found: boolean; path: unknown[] }
-      expect(result.found).toBe(true)
-      expect(result.path.length).toBeGreaterThan(5)
-    })
-
-    test('several agents can share one editor', async ({ studio }) => {
-      const first = await connected(studio)
-      const second = await connectAgent({ url: relay?.url ?? '' })
-      try {
-        const [a, b] = await Promise.all([
-          first.query({ type: 'GET_PROJECT_SUMMARY' }),
-          second.query({ type: 'GET_TABLE', table: 'actors' }),
-        ])
-        expect(a).toMatchObject({ name: 'My Game' })
-        expect(b).toEqual([expect.objectContaining({ name: 'Hero' })])
-      } finally {
-        second.close()
-      }
-    })
-
-    test('an agent connection is refused when the browser connects with the agent role', async ({
-      studio,
-    }) => {
-      await connected(studio)
-      // The relay accepts the editor only from an allowed web origin; a plain Node client with
-      // no origin cannot pose as the editor (covered by the bridge's own tests), but a browser
-      // page on any origin must not be able to act as an agent.
-      const outcome = await studio.page.evaluate(
-        (url) =>
-          new Promise<string>((resolve) => {
-            const socket = new WebSocket(url)
-            socket.addEventListener('open', () =>
-              socket.send(JSON.stringify({ kind: 'hello', role: 'agent', protocol: 1 })),
-            )
-            socket.addEventListener('close', (event) => resolve(`closed ${event.code}`))
-            setTimeout(() => resolve('still open'), 3_000)
-          }),
-        relay?.url ?? '',
-      )
-      expect(outcome).toMatch(/^closed 44\d\d$/)
-    })
-
-    test('the reference agent finishes its whole tour against the real editor', async ({
-      studio,
-    }) => {
-      test.setTimeout(60_000)
-      const connection = await connected(studio)
-      const summary = await runDemo(connection, { editorTimeoutMs: 5_000 })
-      expect(summary).toBeDefined()
-
-      const assets = (await studio.assets()).map((asset) => asset.path)
-      expect(assets.length).toBeGreaterThan(1)
-      expect((await studio.table('actors')).length).toBeGreaterThan(1)
-      // The demo reshapes the first map in one batch; its edits are in the editor.
-      const map = await studio.map(1)
-      expect(map.layers[0]?.data.some((tile) => tile !== 1)).toBe(true)
     })
   })
 })

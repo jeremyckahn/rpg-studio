@@ -76,4 +76,4 @@ build order, while published consumers receive `dist/`.
 
 ## License
 
-[MIT](LICENSE)
+[CC BY-NC-SA 4.0](LICENSE)

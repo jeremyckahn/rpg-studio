@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "description": "Open-source, web-native, PWA-first alternative to RPG Maker, built for human and AI authors.",
-  "license": "MIT",
+  "license": "CC-BY-NC-SA-4.0",
   "type": "module",
   "packageManager": "pnpm@12.8.1",
   "engines": {

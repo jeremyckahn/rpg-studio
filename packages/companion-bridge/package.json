@@ -2,7 +2,7 @@
   "name": "@rpgstudio/companion-bridge",
   "version": "0.1.0",
   "description": "Local WebSocket companion server and reference AI agent runner.",
-  "license": "MIT",
+  "license": "CC-BY-NC-SA-4.0",
   "type": "module",
   "sideEffects": false,
   "files": [

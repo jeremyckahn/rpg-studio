@@ -2,7 +2,7 @@
   "name": "@rpgstudio/core",
   "version": "0.1.0",
   "description": "Schemas, plugin manager, event bus and grid math shared by the editor and engine.",
-  "license": "MIT",
+  "license": "CC-BY-NC-SA-4.0",
   "type": "module",
   "sideEffects": false,
   "files": [

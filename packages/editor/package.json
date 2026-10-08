@@ -2,7 +2,7 @@
   "name": "@rpgstudio/editor",
   "version": "0.1.0",
   "description": "React/MUI authoring workspace.",
-  "license": "MIT",
+  "license": "CC-BY-NC-SA-4.0",
   "type": "module",
   "sideEffects": false,
   "files": [

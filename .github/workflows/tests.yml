@@ -53,7 +53,7 @@ jobs:
       # Let every shard finish, so one failure does not hide the others.
       fail-fast: false
       matrix:
-        # The whole suite takes the best part of half an hour on one runner, so it is split in four.
+        # The whole suite takes about a quarter of an hour on one runner, so it is split in four.
         shard: [1, 2, 3, 4]
     steps:
       - uses: actions/checkout@v4
@@ -76,8 +76,13 @@ jobs:
       - name: Build the editor app
         run: pnpm build:app
 
+      # No --with-deps: ubuntu-latest already has every library Chromium loads, and the only packages
+      # that flag installed were extra fonts (CJK, Thai, X11 bitmap fonts) that no test looks at. Its
+      # apt-get is also the one step with an outlier: one shard waited 5.5 minutes on a stalled mirror
+      # download while the others took 20 seconds. If the image ever loses a library, Chromium fails to
+      # start with a message naming it; add the flag back then.
       - name: Install Chromium
-        run: pnpm --filter @rpgstudio/e2e exec playwright install --with-deps chromium
+        run: pnpm --filter @rpgstudio/e2e exec playwright install chromium
 
       - name: Run the end-to-end tests
         run: pnpm test:e2e --shard=${{ matrix.shard }}/4

@@ -250,6 +250,47 @@ describe('open and save', () => {
     expect(handle.store.getState().editorUi.folderName).toBe('old-game')
   })
 
+  it('asks again when saving to another folder that holds project files, and No keeps the open folder', async () => {
+    const first = createMemoryFileSystem({}, 'A')
+    const other = createMemoryFileSystem({ 'maps/map-009.json': '{}' }, 'B')
+    const folders = [first, other]
+    let picks = 0
+    const { session, handle } = setup({
+      picker: () => {
+        const next = folders[picks] ?? other
+        picks += 1
+        return Promise.resolve(next)
+      },
+    })
+    session.newProject('Fresh')
+    expect(await session.save()).toBe(true)
+    expect(handle.store.getState().editorUi.folderName).toBe('A')
+    const savedFirst = first.snapshot()
+    const untouched = other.snapshot()
+
+    const saving = session.saveAs()
+    await vi.waitFor(() => {
+      expect(handle.store.getState().editorUi.folderConflict).not.toBeNull()
+    })
+    expect(handle.store.getState().editorUi.folderConflict?.folderName).toBe('B')
+    session.answerFolderConflict(false)
+    expect(await saving).toBe(false)
+
+    // Nothing was written to B, and A is still the open folder.
+    expect(other.snapshot()).toEqual(untouched)
+    expect(handle.store.getState().editorUi.folderConflict).toBeNull()
+    expect(handle.store.getState().editorUi.folderName).toBe('A')
+
+    // Saving to the open folder is routine: no question, and it goes to A, not B.
+    handle.store.dispatch(projectActions.renameMap({ mapId: 1, name: 'Later' }))
+    expect(await session.save()).toBe(true)
+    expect(picks).toBe(2)
+    expect(handle.store.getState().editorUi.folderConflict).toBeNull()
+    expect(decode(first.snapshot()['maps/map-001.json'])).toContain('Later')
+    expect(decode(savedFirst['maps/map-001.json'])).not.toContain('Later')
+    expect(other.snapshot()).toEqual(untouched)
+  })
+
   it('does not ask for an empty folder, for unrelated files, or when saving to the open folder', async () => {
     const unrelated = createMemoryFileSystem({ 'README.md': 'hi', 'notes/todo.txt': 'x' }, 'notes')
     const { session, handle } = setup({ picker: () => Promise.resolve(unrelated) })
@@ -291,6 +332,20 @@ describe('open and save', () => {
     expect(await session.openFolder()).toBe(false)
     expect(status()).toBe(before)
     expect(selectIsDirty(handle.store.getState())).toBe(false)
+  })
+
+  it('points to the zip commands when the browser cannot open folders, instead of failing silently', async () => {
+    // A window without showDirectoryPicker is what Firefox and Safari look like.
+    vi.stubGlobal('window', {})
+    const { session, status, handle } = setup()
+    session.newProject('Fresh')
+    const saved = await session.save()
+    vi.unstubAllGlobals()
+    expect(saved).toBe(false)
+    expect(status()).toMatchObject({ severity: 'error' })
+    expect(status()?.text).toContain('This browser cannot open folders')
+    expect(status()?.text).toContain('Download project (.zip)')
+    expect(handle.store.getState().editorUi.folderName).toBeNull()
   })
 
   it('reports a write failure instead of throwing', async () => {

@@ -243,6 +243,19 @@ describe('unsaved changes', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Cancel' }))
     expect(newProject).not.toHaveBeenCalled()
     expect(harness.handle.store.getState().project.data.maps[0]?.name).toBe('Edited')
+    await waitFor(() => {
+      expect(screen.queryByText('Discard unsaved changes?')).toBeNull()
+    })
+
+    // Escape is the same answer as Cancel.
+    await openFileMenu(/New project/)
+    expect(await screen.findByText('Discard unsaved changes?')).toBeTruthy()
+    await userEvent.keyboard('{Escape}')
+    await waitFor(() => {
+      expect(screen.queryByText('Discard unsaved changes?')).toBeNull()
+    })
+    expect(newProject).not.toHaveBeenCalled()
+    expect(harness.handle.store.getState().project.data.maps[0]?.name).toBe('Edited')
   })
 
   it('discards the changes when told to', async () => {
@@ -434,6 +447,28 @@ describe('MenuBar', () => {
     await userEvent.click(await screen.findByRole('menuitem', { name: /Show collision/ }))
     expect(harness.handle.store.getState().editorUi.showCollision).toBe(true)
   })
+
+  it('zooms in and out from the View menu, one level at a time', async () => {
+    const harness = createHarness()
+    renderInApp(<MenuBar />, harness)
+    const zoomIndex = () => harness.handle.store.getState().editorUi.zoomIndex
+    const start = zoomIndex()
+    await userEvent.click(screen.getByRole('button', { name: 'View' }))
+    await userEvent.click(await screen.findByRole('menuitem', { name: 'Zoom in' }))
+    expect(zoomIndex()).toBe(start + 1)
+    await waitFor(() => {
+      expect(screen.queryByRole('menuitem', { name: 'Zoom in' })).toBeNull()
+    })
+    await userEvent.click(screen.getByRole('button', { name: 'View' }))
+    await userEvent.click(await screen.findByRole('menuitem', { name: 'Zoom out' }))
+    expect(zoomIndex()).toBe(start)
+    await waitFor(() => {
+      expect(screen.queryByRole('menuitem', { name: 'Zoom out' })).toBeNull()
+    })
+    await userEvent.click(screen.getByRole('button', { name: 'View' }))
+    await userEvent.click(await screen.findByRole('menuitem', { name: 'Zoom out' }))
+    expect(zoomIndex()).toBe(start - 1)
+  })
 })
 
 const createHeadlessView = () => createHarness()
@@ -516,6 +551,131 @@ describe('MapToolPanel', () => {
     expect(maps[2]).toMatchObject({ width: 20, height: 15, tileSize: 16 })
   })
 
+  it('creates a map with the dialog defaults, naming it after its place in the list', async () => {
+    const harness = createHarness()
+    renderInApp(<MapToolPanel />, harness)
+    await userEvent.click(screen.getByRole('button', { name: 'New map' }))
+    const dialog = await screen.findByRole('dialog', { name: 'New map' })
+    const nameField = within(dialog).getByLabelText<HTMLInputElement>('Name')
+    expect(nameField.value).toBe('')
+    expect(nameField.getAttribute('placeholder')).toBe('Map 3')
+    expect(within(dialog).getByLabelText<HTMLInputElement>('Width (tiles)').value).toBe('20')
+    expect(within(dialog).getByLabelText<HTMLInputElement>('Height (tiles)').value).toBe('15')
+    expect(within(dialog).getByRole('combobox', { name: 'Tile size' }).textContent).toBe('16 × 16')
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Create' }))
+
+    const maps = harness.handle.store.getState().project.data.maps
+    const created = maps[2]
+    expect(created).toMatchObject({ id: 3, name: 'Map 3', width: 20, height: 15, tileSize: 16 })
+    expect(created?.layers.map((layer) => layer.name)).toEqual(['Ground', 'Objects', 'Overlay'])
+    expect(created?.layers[0]?.data.every((tile) => tile === 1)).toBe(true)
+    await waitFor(() => {
+      expect(screen.queryByRole('dialog')).toBeNull()
+    })
+    expect(screen.getByText('3. Map 3')).toBeTruthy()
+    // Not the start map, so it can be deleted.
+    expect(screen.getByRole<HTMLButtonElement>('button', { name: 'Delete Map 3' }).disabled).toBe(
+      false,
+    )
+  })
+
+  it('creates a map with a custom name, size and tile size', async () => {
+    const harness = createHarness()
+    renderInApp(<MapToolPanel />, harness)
+    await userEvent.click(screen.getByRole('button', { name: 'New map' }))
+    const dialog = await screen.findByRole('dialog', { name: 'New map' })
+    await userEvent.type(within(dialog).getByLabelText('Name'), 'Dungeon')
+    await userEvent.clear(within(dialog).getByLabelText('Width (tiles)'))
+    await userEvent.type(within(dialog).getByLabelText('Width (tiles)'), '30')
+    await userEvent.clear(within(dialog).getByLabelText('Height (tiles)'))
+    await userEvent.type(within(dialog).getByLabelText('Height (tiles)'), '10')
+    await userEvent.click(within(dialog).getByRole('combobox', { name: 'Tile size' }))
+    await userEvent.click(await screen.findByRole('option', { name: '32 × 32' }))
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Create' }))
+
+    expect(harness.handle.store.getState().project.data.maps[2]).toMatchObject({
+      id: 3,
+      name: 'Dungeon',
+      width: 30,
+      height: 10,
+      tileSize: 32,
+    })
+    expect(await screen.findByText('3. Dungeon')).toBeTruthy()
+    expect(screen.getByText('30×10')).toBeTruthy()
+  })
+
+  it('offers every supported tile size in the New map dialog', async () => {
+    renderInApp(<MapToolPanel />)
+    await userEvent.click(screen.getByRole('button', { name: 'New map' }))
+    const dialog = await screen.findByRole('dialog', { name: 'New map' })
+    await userEvent.click(within(dialog).getByRole('combobox', { name: 'Tile size' }))
+    const options = await screen.findAllByRole('option')
+    expect(options.map((option) => option.textContent)).toEqual([
+      '16 × 16',
+      '24 × 24',
+      '32 × 32',
+      '48 × 48',
+    ])
+  })
+
+  it('limits a new map to 1 through 512 tiles in each direction', async () => {
+    const harness = createHarness()
+    renderInApp(<MapToolPanel />, harness)
+    await userEvent.click(screen.getByRole('button', { name: 'New map' }))
+    const dialog = await screen.findByRole('dialog', { name: 'New map' })
+    await userEvent.clear(within(dialog).getByLabelText('Width (tiles)'))
+    await userEvent.type(within(dialog).getByLabelText('Width (tiles)'), '9999')
+    await userEvent.clear(within(dialog).getByLabelText('Height (tiles)'))
+    await userEvent.type(within(dialog).getByLabelText('Height (tiles)'), '0')
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Create' }))
+    expect(harness.handle.store.getState().project.data.maps[2]).toMatchObject({
+      width: 512,
+      height: 1,
+    })
+  })
+
+  it('creates nothing when the New map dialog is cancelled', async () => {
+    const harness = createHarness()
+    renderInApp(<MapToolPanel />, harness)
+    await userEvent.click(screen.getByRole('button', { name: 'New map' }))
+    const dialog = await screen.findByRole('dialog', { name: 'New map' })
+    await userEvent.type(within(dialog).getByLabelText('Name'), 'Abandoned')
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Cancel' }))
+    await waitFor(() => {
+      expect(screen.queryByRole('dialog')).toBeNull()
+    })
+    expect(harness.handle.store.getState().project.data.maps).toHaveLength(2)
+    expect(harness.handle.store.getState().history.past).toHaveLength(0)
+  })
+
+  it('deletes a map that nothing refers to, and Undo brings it back', async () => {
+    const harness = createHarness()
+    const { store } = harness.handle
+    store.dispatch(projectActions.createMap({ name: 'Cellar', width: 8, height: 6, tileSize: 16 }))
+    renderInApp(<MapToolPanel />, harness)
+    expect(screen.getByText('3. Cellar')).toBeTruthy()
+    await userEvent.click(screen.getByRole('button', { name: 'Delete Cellar' }))
+    expect(screen.queryByText('3. Cellar')).toBeNull()
+    expect(store.getState().project.data.maps.map((map) => map.name)).toEqual(['Town', 'Cave'])
+    store.dispatch(undo())
+    expect(await screen.findByText('3. Cellar')).toBeTruthy()
+    expect(store.getState().project.data.maps.map((map) => map.name)).toEqual([
+      'Town',
+      'Cave',
+      'Cellar',
+    ])
+  })
+
+  it('lists the layers topmost first, with the Overlay drawn above characters', () => {
+    renderInApp(<MapToolPanel />)
+    expect(screen.getAllByText(/^(Ground|Objects|Overlay)$/).map((el) => el.textContent)).toEqual([
+      'Overlay',
+      'Objects',
+      'Ground',
+    ])
+    expect(screen.getAllByText('drawn above characters')).toHaveLength(1)
+  })
+
   it('toggles layer visibility and the above-characters flag, and selects layers', async () => {
     const harness = createHarness()
     renderInApp(<MapToolPanel />, harness)
@@ -545,6 +705,19 @@ describe('MapToolPanel', () => {
     harness.handle.store.dispatch(undo())
     expect(harness.handle.store.getState().project.data.maps[0]?.layers).toHaveLength(4)
   })
+
+  it('cannot delete the last remaining layer', async () => {
+    const harness = createHarness()
+    renderInApp(<MapToolPanel />, harness)
+    const layers = () => harness.handle.store.getState().project.data.maps[0]?.layers
+    const button = (layer: string) =>
+      screen.getByRole<HTMLButtonElement>('button', { name: `Delete ${layer}` })
+    expect(button('Ground').disabled).toBe(false)
+    await userEvent.click(button('Overlay'))
+    await userEvent.click(button('Objects'))
+    expect(layers()?.map((layer) => layer.name)).toEqual(['Ground'])
+    expect(button('Ground').disabled).toBe(true)
+  })
 })
 
 describe('PropertiesPanel', () => {
@@ -565,6 +738,16 @@ describe('PropertiesPanel', () => {
     expect(name(harness)).toBe('Town')
   })
 
+  it('keeps the old map name when the new one is blank', async () => {
+    const harness = createHarness()
+    renderInApp(<PropertiesPanel />, harness)
+    const field = screen.getByLabelText('Name', { selector: 'input' })
+    await userEvent.clear(field)
+    await userEvent.type(field, '   {Enter}')
+    expect(name(harness)).toBe('Town')
+    expect(harness.handle.store.getState().project.data.maps[0]?.name).toBe('Town')
+  })
+
   it('resizes the map, and explains why a resize that breaks a transfer is refused', async () => {
     const harness = createHarness()
     renderInApp(<PropertiesPanel />, harness)
@@ -583,15 +766,120 @@ describe('PropertiesPanel', () => {
     await userEvent.type(cave, '1{Enter}') // the Town door sends the player to (2, 2)
     expect(await screen.findByText(/outside map 2/)).toBeTruthy()
     expect(harness.handle.store.getState().project.data.maps[1]?.width).toBe(4)
+
+    // The warning belongs to the map it was raised on and does not follow you to another.
+    harness.handle.store.dispatch({ type: 'editorUi/mapSelected', payload: 1 })
+    await waitFor(() => {
+      expect(screen.getByLabelText<HTMLInputElement>('Name', { selector: 'input' }).value).toBe(
+        'Town',
+      )
+    })
+    expect(screen.queryByRole('alert')).toBeNull()
+  })
+
+  describe('an impossible size', () => {
+    const stored = (harness: ReturnType<typeof createHarness>) =>
+      harness.handle.store.getState().project.data.maps[0]
+    const enter = async (label: string, value: string) => {
+      const field = screen.getByLabelText(label)
+      await userEvent.clear(field)
+      await userEvent.type(field, `${value}{Enter}`)
+    }
+
+    it('is refused with an explanation, leaving the map and the history alone', async () => {
+      const harness = createHarness()
+      renderInApp(<PropertiesPanel />, harness)
+      await enter('Width', '600')
+      expect(await screen.findByRole('alert')).toBeTruthy()
+      expect(stored(harness)?.width).toBe(6)
+      await enter('Width', '0')
+      expect(await screen.findByRole('alert')).toBeTruthy()
+      expect(stored(harness)?.width).toBe(6)
+      expect(harness.handle.store.getState().history.past).toHaveLength(0)
+    })
+
+    it('puts the stored size back in the field', async () => {
+      renderInApp(<PropertiesPanel />)
+      await enter('Width', '600')
+      expect(await screen.findByRole('alert')).toBeTruthy()
+      expect(screen.getByLabelText<HTMLInputElement>('Width').value).toBe('6')
+      // The field starts over each time, so a second refusal restores it too.
+      await enter('Width', '0')
+      await waitFor(() => {
+        expect(screen.getByLabelText<HTMLInputElement>('Width').value).toBe('6')
+      })
+    })
+
+    it('does not discard what was typed in the other size field', async () => {
+      const harness = createHarness()
+      renderInApp(<PropertiesPanel />, harness)
+      // fireEvent: a real click would blur the field and commit the draft before the refusal.
+      fireEvent.change(screen.getByLabelText('Height'), { target: { value: '5' } })
+      await enter('Width', '600')
+      expect(await screen.findByRole('alert')).toBeTruthy()
+      expect(screen.getByLabelText<HTMLInputElement>('Width').value).toBe('6')
+      expect(screen.getByLabelText<HTMLInputElement>('Height').value).toBe('5')
+      expect(stored(harness)?.height).toBe(4)
+    })
+
+    it('stops being warned about once a valid size is entered', async () => {
+      const harness = createHarness()
+      renderInApp(<PropertiesPanel />, harness)
+      await enter('Width', '600')
+      expect(await screen.findByRole('alert')).toBeTruthy()
+      await enter('Width', '22')
+      await waitFor(() => {
+        expect(screen.queryByRole('alert')).toBeNull()
+      })
+      expect(stored(harness)?.width).toBe(22)
+    })
+  })
+
+  it('shows each map its own events', async () => {
+    const harness = createHarness()
+    renderInApp(<PropertiesPanel />, harness)
+    const box = () => screen.getByLabelText<HTMLTextAreaElement>('Map events JSON')
+    const apply = () => screen.getByRole<HTMLButtonElement>('button', { name: 'Apply events' })
+    const select = async (mapId: number) => {
+      harness.handle.store.dispatch({ type: 'editorUi/mapSelected', payload: mapId })
+      await waitFor(() => {
+        expect(screen.getByLabelText<HTMLInputElement>('Name', { selector: 'input' }).value).toBe(
+          mapId === 1 ? 'Town' : 'Cave',
+        )
+      })
+    }
+
+    expect(JSON.parse(box().value)).toMatchObject([{ id: 1, name: 'Door' }])
+    await select(2)
+    expect(box().value).toBe('[]') // the Cave has no events: an empty list, nothing to apply
+    expect(apply().disabled).toBe(true)
+
+    fireEvent.change(box(), {
+      target: { value: '[{"id":9,"name":"Elder","x":1,"y":1,"pages":[{}]}]' },
+    })
+    await userEvent.click(apply())
+    await waitFor(() => {
+      expect(JSON.parse(box().value)).toMatchObject([{ id: 9, name: 'Elder' }])
+    })
+    await select(1)
+    expect(JSON.parse(box().value)).toMatchObject([{ id: 1, name: 'Door' }])
+    await select(2)
+    expect(JSON.parse(box().value)).toMatchObject([{ id: 9, name: 'Elder' }])
   })
 
   it('applies edited events, validating them first', async () => {
     const harness = createHarness()
     renderInApp(<PropertiesPanel />, harness)
     const box = screen.getByLabelText('Map events JSON')
-    const apply = screen.getByRole('button', { name: 'Apply events' })
+    const apply = screen.getByRole<HTMLButtonElement>('button', { name: 'Apply events' })
+    // It starts as the map's stored events, shown in canonical form, with nothing to apply.
+    expect((box as HTMLTextAreaElement).value).toBe(
+      JSON.stringify(harness.handle.store.getState().project.data.maps[0]?.events, null, 2),
+    )
+    expect(apply.disabled).toBe(true)
 
     fireEvent.change(box, { target: { value: '[{' } })
+    expect(apply.disabled).toBe(false)
     await userEvent.click(apply)
     expect(await screen.findByText(/Not valid JSON/)).toBeTruthy()
 
@@ -627,5 +915,110 @@ describe('PropertiesPanel', () => {
     await userEvent.clear(x)
     await userEvent.type(x, '3{Enter}')
     expect(harness.handle.store.getState().project.data.meta.startX).toBe(3)
+  })
+
+  describe('game start', () => {
+    const meta = (harness: ReturnType<typeof createHarness>) =>
+      harness.handle.store.getState().project.data.meta
+    const enter = async (label: string, value: string) => {
+      const field = screen.getByLabelText(label)
+      await userEvent.clear(field)
+      await userEvent.type(field, `${value}{Enter}`)
+    }
+
+    it('shows the start map, position and project name', () => {
+      renderInApp(<PropertiesPanel />)
+      expect(screen.getByRole('combobox', { name: 'Start map' }).textContent).toBe('1. Town')
+      expect(screen.getByLabelText<HTMLInputElement>('Start X').value).toBe('1')
+      expect(screen.getByLabelText<HTMLInputElement>('Start Y').value).toBe('1')
+      expect(screen.getByLabelText<HTMLInputElement>('Project name').value).toBe('Sample')
+    })
+
+    it('clamps a negative start position to zero', async () => {
+      const harness = createHarness()
+      renderInApp(<PropertiesPanel />, harness)
+      await enter('Start X', '-5')
+      expect(meta(harness).startX).toBe(0)
+      expect(screen.queryByRole('alert')).toBeNull()
+    })
+
+    it('refuses a start position off the map, says why and restores the field', async () => {
+      const harness = createHarness()
+      renderInApp(<PropertiesPanel />, harness)
+      await enter('Start X', '99')
+      expect(await screen.findByText(/outside map 1/)).toBeTruthy()
+      expect(meta(harness).startX).toBe(1)
+      expect(screen.getByLabelText<HTMLInputElement>('Start X').value).toBe('1')
+      expect(harness.handle.store.getState().history.past).toHaveLength(0)
+
+      // A valid position afterwards clears the warning.
+      await enter('Start X', '4')
+      await waitFor(() => {
+        expect(screen.queryByRole('alert')).toBeNull()
+      })
+      expect(meta(harness).startX).toBe(4)
+      expect(harness.handle.store.getState().history.past).toHaveLength(1)
+    })
+
+    it('moves the start to another map and resets the position', async () => {
+      const harness = createHarness()
+      renderInApp(
+        <>
+          <MapToolPanel />
+          <PropertiesPanel />
+        </>,
+        harness,
+      )
+      const deleteButton = (map: string) =>
+        screen.getByRole<HTMLButtonElement>('button', { name: `Delete ${map}` })
+      expect(deleteButton('Town').disabled).toBe(true)
+
+      await userEvent.click(screen.getByRole('combobox', { name: 'Start map' }))
+      await userEvent.click(await screen.findByRole('option', { name: '2. Cave' }))
+      expect(meta(harness)).toMatchObject({ startMapId: 2, startX: 0, startY: 0 })
+      // The new start map is protected from deletion; the old one no longer is.
+      await waitFor(() => {
+        expect(deleteButton('Cave').disabled).toBe(true)
+      })
+      expect(deleteButton('Town').disabled).toBe(false)
+    })
+
+    it('renames the project, which updates the title bar', async () => {
+      const harness = createHarness()
+      renderInApp(
+        <>
+          <MenuBar />
+          <PropertiesPanel />
+        </>,
+        harness,
+      )
+      const title = () => screen.getByLabelText('Project name', { selector: 'p' })
+      expect(title().textContent).toBe('Sample')
+      const field = screen.getByRole('textbox', { name: 'Project name' })
+      await userEvent.clear(field)
+      await userEvent.type(field, 'Quest of Tests{Enter}')
+      expect(meta(harness).name).toBe('Quest of Tests')
+      await waitFor(() => {
+        expect(title().textContent).toContain('Quest of Tests')
+      })
+    })
+
+    it('keeps the project name when the new one is blank', async () => {
+      const harness = createHarness()
+      renderInApp(
+        <>
+          <MenuBar />
+          <PropertiesPanel />
+        </>,
+        harness,
+      )
+      const field = screen.getByRole('textbox', { name: 'Project name' })
+      await userEvent.clear(field)
+      await userEvent.type(field, '  {Enter}')
+      expect(meta(harness).name).toBe('Sample')
+      expect(screen.getByLabelText('Project name', { selector: 'p' }).textContent).toContain(
+        'Sample',
+      )
+    })
   })
 })

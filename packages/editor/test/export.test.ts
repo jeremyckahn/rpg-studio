@@ -210,6 +210,32 @@ describe('buildExportEntries', () => {
       expect(() => buildExportEntries({ ...badJson, engine })).toThrow(ExportError)
     })
 
+    it('reports every broken plugin at once, not just the first', () => {
+      // acme.ghost has no manifest at all; acme.quests needs a plugin that is not enabled.
+      const { project, assets } = withPlugin(
+        {
+          'plugins/acme.quests/manifest.json': pluginManifest('acme.quests', {
+            dependencies: ['acme.core'],
+          }),
+          'plugins/acme.quests/shared.js': '',
+          'plugins/acme.quests/engine.js': '',
+        },
+        ['acme.ghost', 'acme.quests'],
+      )
+      const error = (() => {
+        try {
+          buildExportEntries({ project, assets, engine })
+          return undefined
+        } catch (e) {
+          return e as ExportError
+        }
+      })()
+      expect(error).toBeInstanceOf(ExportError)
+      expect(error?.problems).toHaveLength(2)
+      expect(error?.problems.join('\n')).toMatch(/acme\.ghost.*manifest\.json is missing/)
+      expect(error?.problems.join('\n')).toMatch(/needs "acme\.core"/)
+    })
+
     it('requires a plugin’s dependencies to be enabled too', () => {
       const { project, assets } = withPlugin({
         'plugins/acme.quests/manifest.json': pluginManifest('acme.quests', {
@@ -329,6 +355,20 @@ describe('project archives', () => {
     const result = await importProjectArchive(broken)
     expect(result.success).toBe(false)
     expect(!result.success && result.error[0]).toMatch(/^project\.json:/)
+
+    // A broken data file is named too, not just a broken project.json.
+    const brokenMap = await zipEntries({
+      ...Object.fromEntries(
+        Object.entries(projectToFiles(createStarterProject('Quest'))).map(([path, text]) => [
+          path,
+          encode(text),
+        ]),
+      ),
+      'maps/map-001.json': encode('{"id":"one"}'),
+    })
+    const mapResult = await importProjectArchive(brokenMap)
+    expect(mapResult.success).toBe(false)
+    expect(!mapResult.success && mapResult.error[0]).toMatch(/maps\/map-001\.json/)
   })
 })
 

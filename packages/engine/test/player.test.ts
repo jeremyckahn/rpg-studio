@@ -5,10 +5,10 @@ import {
   createStarterProject,
   projectToFiles,
 } from '@rpgstudio/core'
-import { describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import { type GameEventMap } from '../src'
-import { createKeyboardInput, createMessageBox, loadGameBundle } from '../src/player'
+import { createKeyboardInput, createMessageBox, loadGameBundle, startPlayer } from '../src/player'
 
 const press = (target: EventTarget, type: 'keydown' | 'keyup', code: string, repeat = false) => {
   target.dispatchEvent(new KeyboardEvent(type, { code, repeat, cancelable: true }))
@@ -164,5 +164,48 @@ describe('game bundle loader', () => {
     expect(loaded.plugins).toHaveLength(1)
     expect(loaded.plugins[0]?.shared).toEqual({ n: 1 })
     expect(requested.some((path) => path.endsWith('editor.js'))).toBe(false)
+  })
+})
+
+describe('player start-up errors', () => {
+  const files = projectToFiles(createStarterProject('Quest'))
+  const bundle = JSON.stringify({
+    format: 'rpgstudio-game',
+    formatVersion: 1,
+    name: 'Quest',
+    files: Object.keys(files),
+    plugins: [],
+  })
+
+  /** Serves `served` from a fake network; anything else is a 404. */
+  const serve = (served: Record<string, string>): void => {
+    vi.stubGlobal('fetch', (url: string) => {
+      const path = new URL(url).pathname.replace(/^\//, '')
+      const text = served[path]
+      return Promise.resolve(
+        text === undefined ? new Response('', { status: 404 }) : new Response(text),
+      )
+    })
+  }
+
+  afterEach(() => {
+    vi.unstubAllGlobals()
+  })
+
+  it('shows a readable error instead of a blank page when the game data is broken', async () => {
+    serve({ [GAME_BUNDLE_FILE]: bundle, ...files, 'maps/map-001.json': '{"id":1}' })
+    const root = document.createElement('div')
+    await expect(startPlayer(root)).rejects.toThrow(/The game data is invalid/)
+    const shown = root.querySelector('pre')
+    expect(shown?.textContent).toContain('The game data is invalid')
+    expect(shown?.textContent).toContain('maps/map-001.json')
+    expect(root.querySelector('canvas')).toBeNull()
+  })
+
+  it('reports a missing game.json by name and status', async () => {
+    serve({})
+    const root = document.createElement('div')
+    await expect(startPlayer(root)).rejects.toThrow(/Could not load game\.json \(404\)/)
+    expect(root.querySelector('pre')?.textContent).toBe('Could not load game.json (404)')
   })
 })

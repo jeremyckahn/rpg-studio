@@ -749,7 +749,7 @@ describe('PropertiesPanel', () => {
     // Nothing changed, so there is nothing to undo, and the field shows the stored name again.
     expect(harness.handle.store.getState().history.past).toHaveLength(0)
     // The field remounts, so look it up again rather than reading the old element.
-    expect((screen.getByLabelText('Name', { selector: 'input' }) as HTMLInputElement).value).toBe(
+    expect(screen.getByLabelText<HTMLInputElement>('Name', { selector: 'input' }).value).toBe(
       'Town',
     )
   })
@@ -1026,9 +1026,9 @@ describe('PropertiesPanel', () => {
         'Sample',
       )
       expect(harness.handle.store.getState().history.past).toHaveLength(0)
-      expect(
-        (screen.getByRole('textbox', { name: 'Project name' }) as HTMLInputElement).value,
-      ).toBe('Sample')
+      expect(screen.getByRole<HTMLInputElement>('textbox', { name: 'Project name' }).value).toBe(
+        'Sample',
+      )
     })
   })
 })

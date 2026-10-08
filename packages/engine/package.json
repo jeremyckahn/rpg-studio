@@ -2,7 +2,7 @@
   "name": "@rpgstudio/engine",
   "version": "0.1.0",
   "description": "Headless-capable ECS game runtime with a PixiJS renderer.",
-  "license": "MIT",
+  "license": "CC-BY-NC-SA-4.0",
   "type": "module",
   "sideEffects": false,
   "files": [

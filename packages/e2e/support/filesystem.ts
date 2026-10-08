@@ -58,11 +58,16 @@ export const readFolder = (page: Page, name: string): Promise<Record<string, Fol
           // A write in flight keeps a temporary `.crswap` file that vanishes when it completes;
           // listing it, or reading a file that is replaced as we look, is not an error.
           if (entry.name.endsWith('.crswap')) continue
-          const file = await entry.getFile().catch(() => null)
-          if (!file) continue
-          const described: FolderFile = entry.name.endsWith('.json')
-            ? { size: file.size, text: await file.text() }
-            : { size: file.size }
+          const described = await entry
+            .getFile()
+            .then(async (file): Promise<FolderFile> =>
+              entry.name.endsWith('.json')
+                ? { size: file.size, text: await file.text() }
+                : { size: file.size },
+            )
+            .catch(() => null)
+          // The file may be replaced between getFile() and the read (NotReadableError).
+          if (!described) continue
           found = [...found, [`${prefix}${entry.name}`, described]]
         }
       }

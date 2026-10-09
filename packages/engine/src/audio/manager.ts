@@ -24,6 +24,10 @@ export interface SoundBackend {
   play: (request: PlayRequest) => PlayingSound
   /** Resumes a suspended audio context. Must be called from a user gesture. */
   unlock: () => Promise<void>
+  /** Freezes every playing sound where it is, e.g. while the game is paused. */
+  pause: () => void
+  /** Continues what `pause` froze. */
+  resume: () => void
 }
 
 export interface AudioManagerOptions {
@@ -39,6 +43,9 @@ export interface AudioManager extends AudioPort {
   setTierVolume: (tier: AudioTier, volume: number) => void
   unlock: () => Promise<void>
   stopAll: () => void
+  /** Freezes all sound in place (a paused game is silent) without forgetting what was playing. */
+  pauseAll: () => void
+  resumeAll: () => void
 }
 
 const STREAMED: Readonly<Record<AudioTier, boolean>> = {
@@ -159,6 +166,12 @@ export const createAudioManager = ({ backend, resolvePath }: AudioManagerOptions
       refreshVolumes()
     },
     unlock: () => backend.unlock(),
+    pauseAll: () => {
+      backend.pause()
+    },
+    resumeAll: () => {
+      backend.resume()
+    },
     stopAll: () => {
       ;(['bgm', 'bgs', 'me', 'se'] as const).forEach(stop)
     },

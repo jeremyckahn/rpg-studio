@@ -45,6 +45,8 @@ const createFakeBackend = () => {
       return fake
     },
     unlock: vi.fn(() => Promise.resolve()),
+    pause: vi.fn(),
+    resume: vi.fn(),
   }
   return { backend, sounds }
 }
@@ -166,6 +168,19 @@ describe('audio manager tiers', () => {
     manager.play('se', cue('coin'))
     manager.stopAll()
     expect(sounds.every((s) => s.stopped())).toBe(true)
+  })
+
+  it('freezes and continues all sound through the backend without stopping anything', () => {
+    const { manager, backend, sounds } = setup()
+    manager.play('bgm', cue('town'))
+    manager.pauseAll()
+    expect(backend.pause).toHaveBeenCalledOnce()
+    expect(sounds[0]?.stopped()).toBe(false)
+    manager.resumeAll()
+    expect(backend.resume).toHaveBeenCalledOnce()
+    // The track is still the current one, so a repeated cue is still ignored.
+    manager.play('bgm', cue('town'))
+    expect(sounds).toHaveLength(1)
   })
 
   it('delegates unlocking to the backend', async () => {

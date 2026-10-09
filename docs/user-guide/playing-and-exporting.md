@@ -54,6 +54,8 @@ Anything that serves static files works, since the game uses relative paths and 
 | Move                               | Arrow keys or **W A S D**     | On-screen D-pad (slide your thumb to change direction) |
 | Confirm / talk / advance a message | **Enter**, **Space** or **Z** | **A** button                                           |
 
+Key presses made together with **Ctrl**, **Cmd** or **Alt** are ignored by the game, so browser shortcuts such as Ctrl+Z and Cmd+R keep working.
+
 The on-screen controls appear automatically on touch devices and sit **below the game in portrait** so they never hide the picture, or float over the corners in landscape. Keyboard and touch can be used together. Short taps are never lost. A quick tap still moves one tile.
 
 ## What the game does today

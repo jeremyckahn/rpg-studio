@@ -32,7 +32,8 @@ src/headless/harness.ts    createHeadlessGame (simulateTicks, step, hold, walkTo
 src/plugins/host.ts        createEnginePluginManager (ecs + audio capabilities)
 src/renderer/              pixelArt, viewport, characters, tilemapPlan, tilemap, textures, sprites, gameRenderer
 src/audio/                 manager (4 tiers), unlock, pixiSoundBackend
-src/player/                main (startPlayer), bundle (loadGameBundle), input, touchControls, messageBox
+src/player/                session (createPlayerSession: pause, resume, reload), main (startPlayer), bundle (loadGameBundle,
+                           loadEnginePlugins), input, touchControls, messageBox
 vite.config.ts             library build (index, renderer, audio, player entries)
 vite.player.config.ts      standalone player bundle → dist-player/player.js
 test/                      fixtures.ts (mapFromAscii, buildProject…), one file per area, playerBundle.test.ts
@@ -47,12 +48,17 @@ test/                      fixtures.ts (mapFromAscii, buildProject…), one file
 - The renderer draws tiles below characters, y-sorted sprites, then `above` layers; scale is an integer in physical pixels.
 - `createAssetTextureProvider.invalidate()` calls `Assets.cache.reset()`; the editor depends on this for hot reload.
 - The audio port ignores cues whose file does not exist (a missing sound must not crash a game).
+- `startPlayer` and the editor's live preview both boot through `createPlayerSession`; anything that must hold for both
+  (input, audio unlock, pause, reload) belongs in the session, not in `startPlayer`. A session takes its project, textures,
+  sound backend and key target as parameters and never reads `fetch` or the DOM globals except for defaults.
+- A paused session has stopped the PixiJS ticker, so nothing redraws it: use the session's `redraw` path (it waits for
+  `GameRenderer.settled()`) after anything that changes the picture.
 
 ## Testing
 
 `pnpm --filter @rpgstudio/engine test`. Prefer headless tests with `buildProject`/`mapFromAscii`/`createHeadlessGame`
 and assert on `game.snapshot()`. Files that touch `@pixi/sound` or the DOM start with `// @vitest-environment jsdom`; the
-sound library is mocked. `playerBundle.test.ts` runs a real Vite build (a few hundred ms) and must keep passing when run from
+sound library is mocked (and `session.test.ts` fakes the whole renderer, because there is no WebGL in jsdom). `playerBundle.test.ts` runs a real Vite build (a few hundred ms) and must keep passing when run from
 the repo root.
 
 ## Extending

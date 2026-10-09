@@ -24,6 +24,34 @@ export interface LoadedBundle {
 }
 
 /**
+ * Loads the engine-side half of each enabled plugin through `fetchText`, which is given
+ * project-relative paths (`plugins/<id>/manifest.json`). Only the `shared` and `engine`
+ * entries are ever requested, so editor UI code cannot reach a running game, whether the
+ * text comes from the network (an exported game) or the editor's asset store (the preview).
+ */
+export const loadEnginePlugins = (
+  ids: readonly string[],
+  fetchText: TextFetcher,
+): Promise<readonly PluginRegistration<EngineCapabilities>[]> =>
+  Promise.all(
+    ids.map(async (id) => {
+      const manifestPath = `plugins/${id}/manifest.json`
+      const manifestText = await fetchText(manifestPath)
+      const { entries } = parsePluginManifest(manifestText)
+      const wanted = [entries.shared, entries.engine].filter(
+        (path): path is string => path !== undefined,
+      )
+      const fetched = await Promise.all(
+        wanted.map(async (path) => [path, await fetchText(`plugins/${id}/${path}`)] as const),
+      )
+      return loadPluginPackage<EngineCapabilities>(
+        { 'manifest.json': manifestText, ...Object.fromEntries(fetched) },
+        'engine',
+      )
+    }),
+  )
+
+/**
  * Loads an exported game: `game.json` first, then exactly the project data and
  * engine-side plugin files it lists. Everything is validated with Zod before
  * the engine sees it.
@@ -43,24 +71,7 @@ export const loadGameBundle = async (fetchText: TextFetcher): Promise<LoadedBund
     throw new Error(`The game data is invalid:\n${project.error.join('\n')}`)
   }
 
-  const plugins = await Promise.all(
-    bundle.plugins.map(async (id) => {
-      const manifestPath = `plugins/${id}/manifest.json`
-      const manifestText = await fetchText(manifestPath)
-      const { entries } = parsePluginManifest(manifestText)
-      // Fetch only the shared and engine heads; editor code is never requested.
-      const wanted = [entries.shared, entries.engine].filter(
-        (path): path is string => path !== undefined,
-      )
-      const fetched = await Promise.all(
-        wanted.map(async (path) => [path, await fetchText(`plugins/${id}/${path}`)] as const),
-      )
-      return loadPluginPackage<EngineCapabilities>(
-        { 'manifest.json': manifestText, ...Object.fromEntries(fetched) },
-        'engine',
-      )
-    }),
-  )
+  const plugins = await loadEnginePlugins(bundle.plugins, fetchText)
 
   return { bundle, project: project.data, plugins }
 }

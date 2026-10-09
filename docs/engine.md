@@ -165,7 +165,9 @@ will _occupy after the step in flight_, which is what prevents overshoot.
 - **`createGameRenderer({ canvas, game, textures, viewTiles?, resizeTo? })`** builds the
   scene (tiles below, y-sorted character sprites, tiles above), lays out with an integer
   scale in physical pixels, follows the player, and exposes `render()`, `resize()`,
-  `reload()` (rebuild tiles after textures were invalidated) and `destroy()`.
+  `reload()` (rebuild tiles after textures were invalidated), `setGame(next)` (draw a rebuilt
+  game on the same canvas; the old picture stays until the new tiles are ready), `settled()`
+  (resolves when the tiles and sprite sheets requested so far have loaded) and `destroy()`.
 
 The renderer reads `game.state` and the world; it must never write to them.
 
@@ -181,7 +183,8 @@ The renderer reads `game.state` and the world; it must never write to them.
 
 A cue's `volume` (0–100) and `pitch` (50–150 → playback speed ×0.5–1.5) are scaled by per-tier
 and master volume (`setTierVolume`, `setMasterVolume`). A cue whose file does not exist is
-ignored (a missing sound must never crash a game). `createAudioPathResolver(files)` maps
+ignored (a missing sound must never crash a game). `pauseAll()` / `resumeAll()` freeze and continue every sound in place (`sound.pauseAll()` in `@pixi/sound`), so a
+paused game is silent but its music is still "the current track" and is not restarted on resume. `createAudioPathResolver(files)` maps
 `name` → `audio/<tier>/<name>.{ogg,m4a,mp3,wav}` using the bundle's file list.
 `installAudioUnlock(target, unlock)` calls `unlock` **synchronously inside the first user
 gesture** (`pointerdown`, `touchend`, `keydown`, `click`) because browsers only honour
@@ -194,13 +197,35 @@ only; real playback has not been verified in a browser.**
 
 ## 7. The player (`player/`)
 
-`startPlayer(root, { baseUrl? })`: fetch `game.json` → `loadGameBundle` (project data via
-`filesToProject`; plugin `manifest.json` plus only the `shared` and `engine` entries) →
-audio manager + unlock → `createGame` → engine plugin manager → texture provider → renderer →
+`startPlayer(root, { baseUrl? })` is a thin loader: fetch `game.json` → `loadGameBundle` (project data via
+`filesToProject`; plugin `manifest.json` plus only the `shared` and `engine` entries, through
+`loadEnginePlugins(ids, fetchText)`, which works with any text source) → hand everything to
+`createPlayerSession`. Failures are shown in the page.
+
+`createPlayerSession({ root, project, plugins?, listFiles, textures, soundBackend, keyTarget?, unlockTarget?, touchControls?, seed?, startPaused? })`
+is what actually runs a game, and the editor's live preview uses it too ([ADR-027](decisions.md#adr-027-the-live-preview-runs-in-process-from-the-same-player-session-as-an-export)).
+It builds, in order: audio manager + unlock → `createGame` → engine plugin manager → renderer →
 message box (a DOM overlay; text is set via `textContent`, never HTML) → keyboard input (plus touch controls) →
-`app.ticker` loop through `createFixedStepClock`. Failures are shown in the page. Controls:
-arrows/WASD move; Enter/Space/Z confirm; a key tap shorter than one frame is latched so it
-still moves the player a tile.
+`app.ticker` loop through `createFixedStepClock`. It throws if it cannot start. Everything environmental is a
+parameter (`fetch` and `window` appear only as defaults), so it runs an exported game and an in-memory project alike.
+It returns a `PlayerSession`:
+
+| Member            | Purpose                                                                                                                                                                                                                                                                                                                                                                              |
+| ----------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `game`            | The running `Game`. A different object after every `reload`.                                                                                                                                                                                                                                                                                                                         |
+| `paused`          | Whether `pause()` is in effect.                                                                                                                                                                                                                                                                                                                                                      |
+| `pause()`         | Stops the PixiJS ticker (so nothing ticks or draws) and freezes sound; game state is untouched. Idempotent. The last frame stays on screen.                                                                                                                                                                                                                                          |
+| `resume()`        | Drains key presses made meanwhile (a tap or the Enter that resumed is not a move or a confirm; a key still held keeps walking), resets the clock, resumes sound, restarts the ticker.                                                                                                                                                                                                |
+| `reload(options)` | Builds a new game from `{ project, plugins?, save? }`, swaps it into the same canvas, rebinds the message box, tears the old plugins down, and does not restart music. Queued, one at a time. A `save` that the new project refuses still replaces the game (from the start) and returns a failure saying why; a project that cannot be built fails and leaves the old game running. |
+| `stop()`          | Removes every listener and destroys the renderer.                                                                                                                                                                                                                                                                                                                                    |
+
+While paused, a resize of the stage (`ResizeObserver`) or the orientation redraws a complete frame by hand, since the
+ticker that would do it is stopped; the redraw waits for `GameRenderer.settled()` so a tile that was still loading is
+not left blank.
+
+Controls: arrows/WASD move; Enter/Space/Z confirm; a key tap shorter than one frame is latched so it
+still moves the player a tile. A key pressed with Ctrl, Cmd or Alt held is never taken (`Ctrl+Z` is not a confirm), so
+a host page's shortcuts keep working.
 
 **Touch controls** (`player/touchControls.ts`): `startPlayer(root, { touchControls: 'auto' | 'on' | 'off' })`;
 `auto` (default) shows them when `(pointer: coarse)` matches. A virtual D-pad is one surface, so a thumb can slide

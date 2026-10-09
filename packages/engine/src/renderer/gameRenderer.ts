@@ -27,6 +27,17 @@ export interface GameRenderer {
   resize: () => void
   /** Rebuilds the tile layers, e.g. after `TextureProvider.invalidate()` hot-reloaded a tileset. */
   reload: () => void
+  /**
+   * Draws a different game on the same canvas, e.g. after the project was edited. The old
+   * picture stays up until the new map's tiles are ready, so a live reload does not flicker.
+   */
+  setGame: (next: Game) => void
+  /**
+   * Resolves once the map's tiles and the sprite sheets requested so far are loaded. Call
+   * `render()`, await this, then `render()` again to be sure a frame is complete, which a
+   * paused game needs because nothing else will draw it later.
+   */
+  settled: () => Promise<void>
   destroy: () => void
 }
 
@@ -38,7 +49,9 @@ const DEFAULT_VIEW_TILES = { width: 20, height: 15 } as const
  * scaled by a whole number and centred in the canvas.
  */
 export const createGameRenderer = async (options: GameRendererOptions): Promise<GameRenderer> => {
-  const { canvas, game, textures, viewTiles = DEFAULT_VIEW_TILES } = options
+  const { canvas, textures, viewTiles = DEFAULT_VIEW_TILES } = options
+  // Replaceable: `setGame` points the renderer at a rebuilt game without a new canvas.
+  let game = options.game
   configurePixelArtDefaults()
 
   const app = new Application()
@@ -52,17 +65,18 @@ export const createGameRenderer = async (options: GameRendererOptions): Promise<
 
   const view = new Container()
   const world = new Container()
-  const characters = createCharacterLayer(game, textures)
+  let characters = createCharacterLayer(game, textures)
   view.addChild(world)
   app.stage.addChild(view)
 
   let mapId: number | null = null
   let layers: TilemapLayers | null = null
   let loadToken = 0
+  let loading: Promise<void> = Promise.resolve()
 
   const showMap = (map: Tilemap): void => {
     const token = (loadToken += 1)
-    void textures.load(map.tileset).then((tileset) => {
+    loading = textures.load(map.tileset).then((tileset) => {
       if (token !== loadToken) return // a newer map was requested meanwhile
       const next = createTilemapLayers(map, tileset)
       world.removeChildren()
@@ -112,6 +126,19 @@ export const createGameRenderer = async (options: GameRendererOptions): Promise<
     resize: layout,
     reload: () => {
       mapId = null
+    },
+    settled: async () => {
+      await Promise.allSettled([loading, characters.settled()])
+    },
+    setGame: (next) => {
+      loadToken += 1 // a map still loading for the old game must not be drawn
+      game = next
+      // Sprites are keyed by entity, and the new game has new entities.
+      if (layers) world.removeChild(characters.container)
+      characters.destroy()
+      characters = createCharacterLayer(game, textures)
+      if (layers) world.addChildAt(characters.container, 1)
+      mapId = null // rebuild the tiles even when the map id is unchanged
     },
     destroy: () => {
       loadToken += 1

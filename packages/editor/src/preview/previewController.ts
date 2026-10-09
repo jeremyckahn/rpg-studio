@@ -93,6 +93,11 @@ export interface PreviewController {
   /** Starts the game again from the beginning, optionally from a new start (null clears it). */
   restart: (start?: PreviewStart | null) => Promise<void>
   setKeepPlace: (keep: boolean) => void
+  /**
+   * Reads the game into `info` now. The readout is otherwise refreshed on a timer, so anything that
+   * must be exact (the `GET_PREVIEW_STATE` query) calls this first.
+   */
+  refresh: () => void
 }
 
 const messageOf = (error: unknown): string =>
@@ -432,6 +437,7 @@ export const createPreviewController = (options: PreviewControllerOptions): Prev
     setKeepPlace: (keep) => {
       publish({ keepPlace: keep })
     },
+    refresh: refreshInfo,
   }
 
   function send(event: RunEvent): void {

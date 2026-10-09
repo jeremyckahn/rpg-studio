@@ -41,6 +41,8 @@ export const createPreviewHub = (): PreviewHub => {
  */
 export const describePreview = (controller: PreviewController | null): JsonValue => {
   if (!controller) return { open: false }
+  // An agent asks because it just acted; the timer-driven readout could be a quarter second old.
+  controller.refresh()
   const state = controller.getState()
   const status =
     state.phase === 'failed'

@@ -6,6 +6,7 @@ import { type PlayerSession, type PlayerSessionOptions } from '@rpgstudio/engine
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { type PreviewHost, createPreviewController } from '../src/preview/previewController'
+import { describePreview } from '../src/preview/previewHub'
 
 const project = createStarterProject('Quest')
 
@@ -498,6 +499,36 @@ describe('preview controller', () => {
       await rig.controller.restart()
       expect(rig.controller.getState().crashed).toBe(false)
       expect(rig.controller.getState().running).toBe(true)
+    })
+  })
+
+  describe('reading the game now', () => {
+    it('refresh() reads the game at once instead of waiting for the next poll', async () => {
+      const rig = await started()
+      await play(rig)
+      const game = rig.session().game as unknown as ReturnType<typeof fakeGame>
+      game.state.gold = 99
+      // The poll runs every 250 ms; before it does, the readout still shows the old value.
+      expect(rig.controller.getState().info?.gold).toBe(5)
+      rig.controller.refresh()
+      expect(rig.controller.getState().info?.gold).toBe(99)
+    })
+
+    it('does nothing before there is a game', () => {
+      const rig = setup()
+      expect(() => {
+        rig.controller.refresh()
+      }).not.toThrow()
+      expect(rig.controller.getState().info).toBeNull()
+    })
+
+    it('describePreview, which answers GET_PREVIEW_STATE, reads fresh data rather than the last poll', async () => {
+      const rig = await started()
+      await play(rig)
+      const game = rig.session().game as unknown as ReturnType<typeof fakeGame>
+      game.state.gold = 42
+      const report = describePreview(rig.controller) as { game: { gold: number } }
+      expect(report.game.gold).toBe(42)
     })
   })
 

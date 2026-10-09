@@ -130,8 +130,55 @@ All build outputs are git-ignored (`dist/`, `dist-*/`).
 - Inspect a deployment with the Vercel CLI (`npx vercel inspect <deployment-url> --logs`) after `npx vercel login`.
 - `.vercel/` (the local project link) and `.env*` are git-ignored.
 - `engines.node` is `>=22`, which Vercel warns will auto-upgrade with new Node majors; pin to `22.x` if that matters.
-- **There is no GitHub Actions workflow.** Vercel's build is the only automated check, and it does not run tests or lint.
-  Run the verification gate locally (see [AGENTS.md](../AGENTS.md#the-verification-gate)); adding CI is a reasonable next step.
+- **The only GitHub Actions workflow runs the tests** (`.github/workflows/tests.yml`, see §6a): the unit tests and the
+  end-to-end suite. Vercel's build does not run tests or lint, and nothing runs lint or typecheck in CI: run the rest of the
+  verification gate locally (see [AGENTS.md](../AGENTS.md#the-verification-gate)).
+
+### 6a. Continuous integration: unit and end-to-end tests
+
+`.github/workflows/tests.yml` runs on every `pull_request` (from this repository or a fork), on every `push` to `main`, in the merge queue (`merge_group`) and on demand (`workflow_dispatch`), on
+`ubuntu-latest` with Node 22 and the pnpm version pinned by `packageManager`. A newer run for the same ref cancels the older
+one. The `unit` job installs and runs `pnpm test` (Vitest for every package, the docs checker and the user guide checker). The end-to-end suite is split into four parallel shards (`E2E_SHARD=N/4`), balanced by the measured time of each spec file (`packages/e2e/support/timings.json`, see [packages/e2e/AGENTS.md](../packages/e2e/AGENTS.md#keeping-the-shards-balanced)), because on one runner it takes about a quarter of an
+hour. Each shard: `pnpm install --frozen-lockfile`, `pnpm build`, `pnpm build:app`, install Chromium
+(`playwright install chromium`, without `--with-deps`: the runner image has the libraries, and that flag only added fonts
+through an `apt-get` that once stalled for five minutes), `pnpm test:e2e` with `E2E_SHARD=N/4`. Every test is recorded on video. Each shard uploads two artifacts, also when the run fails: `playwright-report-N` (the HTML
+report, which plays each test's video, plus traces and screenshots of failures) and `playwright-videos-N` (one `.webm` per
+test, named `<spec>/<describe>--<test>.<hash>.webm` (the hash keeps long or look-alike titles apart) by `packages/e2e/support/videoReporter.ts`, kept 7 days). It is one artifact per
+shard rather than per video because an artifact is one upload step and a workflow step cannot loop. On CI,
+Playwright never retries a failing test, on CI or locally (a flake is a failing test, so one cannot pass on a second try), keeps
+a trace of every failure, and uses two workers per shard.
+
+A pull request is tested exactly once, by its `pull_request` run, on the pull request merged into its base branch; pushes run
+the workflow only on `main`. That keeps one check name whatever produced it. (The first design ran pushes on every branch and
+skipped the `pull_request` run for own-repository pull requests; the skipped run reported the required check as passing while
+the real one was still running, so a pull request could be merged early.) The cost is that a branch with no pull request is not
+tested: open a draft pull request to get a run. GitHub may ask for approval before running the workflow for a first-time
+contributor's pull request. A merge queue (below) runs the `merge_group` event.
+
+### 6b. Requiring the checks and the merge queue
+
+The workflow cannot enforce anything by itself; that is repository settings (Settings ▸ Rules ▸ Rulesets ▸ New branch ruleset,
+target branch `main`):
+
+1. **Require status checks to pass**, with the single check **All tests passed** (the `tests-passed` job: it succeeds only when
+   the unit tests and every end-to-end shard did, so adding or re-sharding jobs never changes what you require). A required check
+   is matched by its job name, which is the same for pull requests, pushes to `main` and the merge queue; the `(pull_request)` /
+   `(push)` suffix GitHub shows in the list is not part of it. Never let a job with this name be skipped for some runs: a skipped
+   check counts as passing.
+2. **Require a pull request before merging**, and optionally **Require branches to be up to date before merging** (see below).
+3. **Require merge queue** (if available), with the check above as the condition. Suggested: merge method as you prefer,
+   maximum group size 1-3, "Only merge non-failing pull requests", status check timeout of 60 minutes (a run takes about 8).
+
+**A merge queue tests the pull request merged into the latest `main`** (a `merge_group` run) and only then merges, so two pull
+requests that pass alone cannot break each other. The workflow already listens for `merge_group` for this reason: without that
+trigger the required check would never report and queued pull requests would wait until the timeout.
+
+**Merge queues are only offered for repositories owned by an organization** (public ones included); a repository under a personal
+account, which is where this one lives today, does not show the option. Moving the repository to an organization (Settings ▸ Danger
+zone ▸ Transfer; free for public repositories) enables it, and nothing in the workflow has to change. Until then, get most of the
+protection from steps 1-2 with **Require branches to be up to date before merging** (GitHub then blocks a merge until the branch
+contains the latest `main` and the checks have run on that), plus **Allow auto-merge** on the repository so a pull request merges
+itself the moment the checks pass.
 
 ## 7. PWA
 

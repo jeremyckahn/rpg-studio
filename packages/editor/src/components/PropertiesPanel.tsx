@@ -23,6 +23,8 @@ interface CommitFieldProps {
   value: string | number
   onCommit: (value: string) => void
   type?: 'text' | 'number'
+  /** Change this to throw away what was typed and show the stored value again (after a refusal). */
+  resetToken?: number
 }
 
 const CommitFieldInner = ({ label, value, onCommit, type = 'text' }: CommitFieldProps) => {
@@ -52,7 +54,7 @@ const CommitFieldInner = ({ label, value, onCommit, type = 'text' }: CommitField
  * Keyed by its value, so it starts over from the stored value when that changes.
  */
 const CommitField = (props: CommitFieldProps) => (
-  <CommitFieldInner key={String(props.value)} {...props} />
+  <CommitFieldInner key={`${String(props.value)}:${String(props.resetToken ?? 0)}`} {...props} />
 )
 
 const EventsEditor = ({ initial }: { initial: string }) => {
@@ -162,8 +164,29 @@ export const PropertiesPanel = () => {
   const map = useAppSelector(selectCurrentMap)
   const meta = useAppSelector((state) => state.project.data.meta)
   const maps = useAppSelector((state) => state.project.data.maps)
-  const [resizeError, setResizeError] = useState<string | null>(null)
+  // The refusal is remembered with its map so it is not shown under another map's fields.
+  const [resizeRefusal, setResizeRefusal] = useState<{ mapId: number; message: string } | null>(
+    null,
+  )
+  // One counter per field: a refusal remounts only the field it refused, not a sibling's draft.
+  const [resizeResets, setResizeResets] = useState({ width: 0, height: 0 })
+  // A blank or unchanged name changes nothing, so the field is put back to the stored name.
+  const [nameResets, setNameResets] = useState({ map: 0, project: 0 })
+  const [startError, setStartError] = useState<string | null>(null)
+  const [startResets, setStartResets] = useState({ startX: 0, startY: 0 })
   const project = useAppSelector((state) => state.project.data)
+
+  /** Renames only to a different, non-blank name; otherwise shows the stored name again. */
+  const commitName = (
+    field: 'map' | 'project',
+    stored: string,
+    typed: string,
+    rename: (name: string) => void,
+  ): void => {
+    const name = typed.trim()
+    if (name && name !== stored) rename(name)
+    else setNameResets((counts) => ({ ...counts, [field]: counts[field] + 1 }))
+  }
 
   return (
     <Box sx={{ overflow: 'auto', height: '100%', py: 1 }}>
@@ -172,8 +195,11 @@ export const PropertiesPanel = () => {
           <CommitField
             label="Name"
             value={map.name}
-            onCommit={(name) =>
-              dispatch(projectActions.renameMap({ mapId: map.id, name: name.trim() || map.name }))
+            resetToken={nameResets.map}
+            onCommit={(typed) =>
+              commitName('map', map.name, typed, (name) =>
+                dispatch(projectActions.renameMap({ mapId: map.id, name })),
+              )
             }
           />
           <Stack direction="row" spacing={1}>
@@ -183,6 +209,7 @@ export const PropertiesPanel = () => {
                 label={dimension === 'width' ? 'Width' : 'Height'}
                 type="number"
                 value={map[dimension]}
+                resetToken={resizeResets[dimension]}
                 onCommit={(value) => {
                   const next = {
                     width: map.width,
@@ -195,16 +222,20 @@ export const PropertiesPanel = () => {
                   } as const
                   const result = applyProjectAction(project, action)
                   if (!result.success) {
-                    setResizeError(result.error)
+                    // Put the stored size back, as the Start fields do, instead of leaving the refused number.
+                    setResizeRefusal({ mapId: map.id, message: result.error })
+                    setResizeResets((counts) => ({ ...counts, [dimension]: counts[dimension] + 1 }))
                     return
                   }
-                  setResizeError(null)
+                  setResizeRefusal(null)
                   dispatch(projectActions.resizeMap(action.payload))
                 }}
               />
             ))}
           </Stack>
-          {resizeError ? <Alert severity="warning">{resizeError}</Alert> : null}
+          {resizeRefusal?.mapId === map.id ? (
+            <Alert severity="warning">{resizeRefusal.message}</Alert>
+          ) : null}
           <Typography variant="caption" color="text.secondary">
             Tileset: {map.tileset} · {map.tileSize}px tiles
           </Typography>
@@ -217,13 +248,14 @@ export const PropertiesPanel = () => {
           size="small"
           label="Start map"
           value={meta.startMapId}
-          onChange={(event) =>
+          onChange={(event) => {
+            setStartError(null)
             dispatch(
               projectActions.updateMeta({
                 changes: { startMapId: Number(event.target.value), startX: 0, startY: 0 },
               }),
             )
-          }
+          }}
         >
           {maps.map((candidate) => (
             <MenuItem key={candidate.id} value={candidate.id}>
@@ -232,36 +264,40 @@ export const PropertiesPanel = () => {
           ))}
         </TextField>
         <Stack direction="row" spacing={1}>
-          <CommitField
-            label="Start X"
-            type="number"
-            value={meta.startX}
-            onCommit={(value) =>
-              dispatch(
-                projectActions.updateMeta({
-                  changes: { startX: Math.max(0, Math.round(Number(value))) },
-                }),
-              )
-            }
-          />
-          <CommitField
-            label="Start Y"
-            type="number"
-            value={meta.startY}
-            onCommit={(value) =>
-              dispatch(
-                projectActions.updateMeta({
-                  changes: { startY: Math.max(0, Math.round(Number(value))) },
-                }),
-              )
-            }
-          />
+          {(['startX', 'startY'] as const).map((field) => (
+            <CommitField
+              key={field}
+              label={field === 'startX' ? 'Start X' : 'Start Y'}
+              type="number"
+              value={meta[field]}
+              resetToken={startResets[field]}
+              onCommit={(value) => {
+                const action = {
+                  type: 'project/updateMeta',
+                  payload: { changes: { [field]: Math.max(0, Math.round(Number(value))) } },
+                } as const
+                // Say why a position is refused (off the map, say) and put the old number back.
+                const result = applyProjectAction(project, action)
+                if (!result.success) {
+                  setStartError(result.error)
+                  setStartResets((counts) => ({ ...counts, [field]: counts[field] + 1 }))
+                  return
+                }
+                setStartError(null)
+                dispatch(projectActions.updateMeta(action.payload))
+              }}
+            />
+          ))}
         </Stack>
+        {startError ? <Alert severity="warning">{startError}</Alert> : null}
         <CommitField
           label="Project name"
           value={meta.name}
-          onCommit={(name) =>
-            dispatch(projectActions.updateMeta({ changes: { name: name.trim() || meta.name } }))
+          resetToken={nameResets.project}
+          onCommit={(typed) =>
+            commitName('project', meta.name, typed, (name) =>
+              dispatch(projectActions.updateMeta({ changes: { name } })),
+            )
           }
         />
       </Section>

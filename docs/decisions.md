@@ -426,3 +426,28 @@ whose projects live in memory until saved.
 **Consequences.** Piskel (the sprite editor iframe) and the data grid are not yet touch-optimised.
 Portrait games use the same 20x15-tile view as landscape; a narrower `viewTiles` is a possible
 later choice. With several editor tabs open, only the tab that clicks Reload is reloaded.
+
+## ADR-026: End-to-end tests with Playwright against the production build, required for every non-trivial feature
+
+**Decision.**
+
+1. `packages/e2e` runs Playwright (Chromium) against `vite preview` of the **production build** of the editor, and against games
+   exported from it, with WebGL through SwiftShader. A GitHub Actions workflow runs the suite on every pull request (once,
+   on the pull request merged into its base) and on every push to `main`.
+2. Tests act through the UI and read the result back through `window.RPGStudio.query`, the read path an AI agent already has.
+3. Anything outside the page is real where it can be: the companion tests start the real relay and agent library, the game tests
+   serve the real export over HTTP, the folder tests give the editor real directory handles from the browser's private file
+   system and stub only the picker.
+4. A test is required, in the same piece of work, for every non-trivial feature and every browser-visible bug fix. A bug found by
+   writing a test is recorded as `test.fixme` with its cause, never as a weakened assertion.
+
+**Why.** Unit and jsdom tests could not see a canvas that stops redrawing, a data grid that ignores select-all, a save that skips
+a file, a service worker that breaks offline use or a game that loads editor code; the writing of this suite found several. The
+production build is what users run: minification, the service worker and the engine-player plugin only exist there. Reading the
+project back, rather than comparing pixels, keeps tests stable across GPUs and fast to write. A rule that lives in `AGENTS.md`
+is the only thing that keeps coverage from decaying as features are added.
+
+**Consequences.** The suite needs the build first and does not notice a stale one. It runs desktop Chromium plus its phone
+emulation only; Firefox and Safari are reached through the no-folder-picker path. It takes around ten minutes, so it is not part of
+`pnpm test`. Software GL means no stored screenshots. The service worker's update prompt cannot be provoked without two
+deployed versions and is covered by component tests only.

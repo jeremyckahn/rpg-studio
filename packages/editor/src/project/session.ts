@@ -2,11 +2,12 @@ import {
   DEFAULT_TILESET_PATH,
   createDefaultTilesetPng,
   createStarterProject,
+  projectToFiles,
 } from '@rpgstudio/core'
 
 import { type EditorStoreHandle } from '../store/index.ts'
 import { assetsSlice } from '../store/slices/assets.ts'
-import { editorUiSlice, type StatusMessage } from '../store/slices/editorUi.ts'
+import { type FolderConflict, type StatusMessage, editorUiSlice } from '../store/slices/editorUi.ts'
 import { projectActions } from '../store/slices/project.ts'
 import {
   type FetchBinary,
@@ -20,7 +21,13 @@ import {
 } from '../export/index.ts'
 import { type AssetStore } from './assetStore.ts'
 import { type ProjectFileSystem, createDirectoryHandleFileSystem } from './fileSystem.ts'
-import { type SaveCache, loadProject, saveProject } from './persistence.ts'
+import {
+  type SaveCache,
+  isAssetFile,
+  isProjectDataFile,
+  loadProject,
+  saveProject,
+} from './persistence.ts'
 
 export interface ProjectSessionDeps {
   readonly handle: EditorStoreHandle
@@ -45,6 +52,11 @@ export interface ProjectSession {
   /** Saves to the open folder, asking for one first if there is none. */
   save: () => Promise<boolean>
   saveAs: () => Promise<boolean>
+  /**
+   * Answers the question a save raised through `editorUi.folderConflict`: write into the folder
+   * anyway (true) or leave it untouched (false). Ignored when no question is waiting.
+   */
+  answerFolderConflict: (proceed: boolean) => void
   exportGame: () => Promise<boolean>
   downloadProjectArchive: () => Promise<boolean>
 }
@@ -58,6 +70,22 @@ const defaultPickDirectory = async (): Promise<ProjectFileSystem> => {
 
 const isAbort = (error: unknown): boolean =>
   error instanceof DOMException && error.name === 'AbortError'
+
+/** What a save did, in words: files written, files removed, or that nothing needed doing. */
+const saveMessage = (
+  {
+    written,
+    deleted,
+  }: { readonly written: readonly string[]; readonly deleted: readonly string[] },
+  folder: string,
+): string => {
+  if (written.length === 0 && deleted.length === 0) return 'Already saved'
+  if (written.length === 0) return `Removed ${deleted.length} file(s) from ${folder}`
+  return (
+    `Saved ${written.length} file(s) to ${folder}` +
+    (deleted.length > 0 ? `, removed ${deleted.length}` : '')
+  )
+}
 
 /**
  * The editor's file operations: new, open, save and export. It owns the
@@ -77,6 +105,7 @@ export const createProjectSession = ({
   const { store } = handle
   let fs: ProjectFileSystem | null = null
   let cache: SaveCache = new Map()
+  let pendingConflict: ((proceed: boolean) => void) | null = null
 
   // Keep the Redux mirror of the asset list in step with the asset store.
   assets.subscribe((event) => {
@@ -143,9 +172,58 @@ export const createProjectSession = ({
       return true
     })
 
+  /** Project files already in a folder this project has not been saved to, and what would stay. */
+  const folderConflict = async (
+    target: ProjectFileSystem,
+    state: ReturnType<typeof store.getState>,
+  ): Promise<FolderConflict | null> => {
+    const existing = (await target.list()).filter(
+      (path) => isProjectDataFile(path) || isAssetFile(path),
+    )
+    if (existing.length === 0) return null
+    const written = new Set([
+      ...Object.keys(projectToFiles(state.project.data)),
+      ...assets.list().filter(isAssetFile),
+    ])
+    const leftover = existing.filter((path) => !written.has(path))
+    return {
+      folderName: target.name,
+      existing: existing.length,
+      leftover: leftover.slice(0, 5),
+      leftoverCount: leftover.length,
+    }
+  }
+
+  /** Waits for the dialog: loading a project later picks up everything, so this is worth asking. */
+  const askAboutFolder = (conflict: FolderConflict): Promise<boolean> =>
+    new Promise((resolve) => {
+      // A second question replaces the first, which is answered "no".
+      pendingConflict?.(false)
+      pendingConflict = resolve
+      store.dispatch(editorUiSlice.actions.folderConflictAsked(conflict))
+    })
+
+  const answerFolderConflict: ProjectSession['answerFolderConflict'] = (proceed) => {
+    const answer = pendingConflict
+    pendingConflict = null
+    store.dispatch(editorUiSlice.actions.folderConflictAnswered())
+    answer?.(proceed)
+  }
+
   const saveTo = async (target: ProjectFileSystem): Promise<boolean> => {
     const state = store.getState()
-    const report = await saveProject(target, state.project.data, assets, cache)
+    // Saving into a folder that already has project files overwrites those with the same name and
+    // leaves the rest, which would reappear as maps and assets the next time it is opened.
+    if (target !== fs) {
+      const conflict = await folderConflict(target, state)
+      if (conflict && !(await askAboutFolder(conflict))) return false
+    }
+    // Only the folder the project was last saved to or opened from is known to match `cache` and
+    // the asset store's idea of what is unsaved. Anywhere else (a new or imported project, or
+    // "Save to another folder") the whole project has to be written.
+    const report = await saveProject(target, state.project.data, assets, cache, {
+      everything: target !== fs,
+    })
     assets.markSaved()
     store.dispatch(assetsSlice.actions.assetsSaved())
     fs = target
@@ -156,12 +234,7 @@ export const createProjectSession = ({
         folderName: target.name,
       }),
     )
-    say(
-      'success',
-      report.written.length === 0
-        ? 'Already saved'
-        : `Saved ${report.written.length} file(s) to ${target.name}`,
-    )
+    say('success', saveMessage(report, target.name))
     return true
   }
 
@@ -204,6 +277,7 @@ export const createProjectSession = ({
     openArchive,
     save,
     saveAs,
+    answerFolderConflict,
     exportGame,
     downloadProjectArchive,
   }

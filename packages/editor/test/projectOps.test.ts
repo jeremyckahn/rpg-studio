@@ -277,6 +277,23 @@ describe('map management', () => {
     ).toMatch(/outside map 2/)
   })
 
+  it('refuses a size the map format cannot hold, leaving the project as it was', () => {
+    // The 512-cell limit and the one-cell minimum come from the project schema, not from the op.
+    const tooBig = {
+      type: 'project/resizeMap',
+      payload: { mapId: 1, width: 600, height: 4 },
+    } as const
+    expect(reject(project, tooBig)).toMatch(/width/)
+    const tooSmall = {
+      type: 'project/resizeMap',
+      payload: { mapId: 1, width: 4, height: 0 },
+    } as const
+    expect(reject(project, tooSmall)).toMatch(/height/)
+    const empty = { type: 'project/resizeMap', payload: { mapId: 1, width: 0, height: 4 } } as const
+    expect(reject(project, empty)).toMatch(/width/)
+    expect(mapOf(project, 1)).toMatchObject({ width: 6, height: 4 })
+  })
+
   it('refuses to delete the start map or a map something transfers to', () => {
     expect(reject(project, { type: 'project/deleteMap', payload: { mapId: 1 } })).toMatch(
       /starts on/,

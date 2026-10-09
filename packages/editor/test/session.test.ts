@@ -6,8 +6,9 @@ import {
   projectToFiles,
 } from '@rpgstudio/core'
 import { unzipSync } from 'fflate'
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 
+import { zipEntries } from '../src/export'
 import { createAssetStore } from '../src/project/assetStore'
 import { createMemoryFileSystem } from '../src/project/fileSystem'
 import { createProjectSession } from '../src/project/session'
@@ -93,7 +94,7 @@ describe('open and save', () => {
     expect(opened).toBe(false)
     expect(handle.store.getState().project.data.meta.name).toBe('Keep me')
     expect(status()).toMatchObject({ severity: 'error' })
-    expect(status()?.text).toMatch(/project\.json is missing/)
+    expect(status()?.text).toMatch(/not an RPG Studio project: project\.json is missing/)
   })
 
   it('counts asset-only changes as unsaved, until saved or the project is replaced', async () => {
@@ -152,6 +153,175 @@ describe('open and save', () => {
     expect(picks).toBe(1)
   })
 
+  it('writes the starter tileset on the first save of a new project', async () => {
+    const target = createMemoryFileSystem({}, 'chosen')
+    const { session } = setup({ picker: () => Promise.resolve(target) })
+    session.newProject('Fresh')
+    await session.save()
+    expect(Object.keys(target.snapshot())).toContain(DEFAULT_TILESET_PATH)
+    // The folder is a complete project that opens again with its tileset.
+    const reopened = setup()
+    expect(await reopened.session.openFileSystem(target)).toBe(true)
+    expect(reopened.assets.list()).toContain(DEFAULT_TILESET_PATH)
+  })
+
+  it('writes the whole project when saving an imported archive to a folder', async () => {
+    const source = setup()
+    source.session.newProject('Round trip')
+    await source.session.downloadProjectArchive()
+    const archive = source.downloads.values.at(-1)?.bytes
+    if (!archive) throw new Error('no archive was downloaded')
+
+    const target = createMemoryFileSystem({}, 'chosen')
+    const { session } = setup({ picker: () => Promise.resolve(target) })
+    expect(await session.openArchive(archive)).toBe(true)
+    await session.save()
+    expect(Object.keys(target.snapshot())).toEqual(
+      expect.arrayContaining([PROJECT_FILE, 'maps/map-001.json', DEFAULT_TILESET_PATH]),
+    )
+  })
+
+  it('saves a complete copy when saving to another folder, even with nothing changed', async () => {
+    const first = createMemoryFileSystem({}, 'first')
+    const second = createMemoryFileSystem({}, 'second')
+    const folders = [first, second]
+    let picks = 0
+    const { session, handle } = setup({
+      picker: () => {
+        const next = folders[picks] ?? second
+        picks += 1
+        return Promise.resolve(next)
+      },
+    })
+    session.newProject('Fresh')
+    await session.save()
+    await session.saveAs()
+    expect(Object.keys(second.snapshot()).toSorted()).toEqual(
+      Object.keys(first.snapshot()).toSorted(),
+    )
+    expect(handle.store.getState().editorUi.folderName).toBe('second')
+
+    // From then on the second folder is the one that is kept in step.
+    handle.store.dispatch(projectActions.renameMap({ mapId: 1, name: 'Later' }))
+    await session.save()
+    expect(decode(second.snapshot()['maps/map-001.json'])).toContain('Later')
+    expect(decode(first.snapshot()['maps/map-001.json'])).not.toContain('Later')
+  })
+
+  it('asks before saving into a folder that already holds project files, and Cancel leaves it alone', async () => {
+    const existing = createMemoryFileSystem(
+      {
+        ...projectToFiles(sampleProject()),
+        'maps/map-009.json': '{}',
+        [DEFAULT_TILESET_PATH]: 'x',
+      },
+      'old-game',
+    )
+    const before = existing.snapshot()
+    const { session, handle } = setup({ picker: () => Promise.resolve(existing) })
+    session.newProject('Fresh')
+    const saving = session.save()
+    await vi.waitFor(() => {
+      expect(handle.store.getState().editorUi.folderConflict).not.toBeNull()
+    })
+    const conflict = handle.store.getState().editorUi.folderConflict
+    expect(conflict?.folderName).toBe('old-game')
+    expect(conflict?.leftover).toContain('maps/map-009.json')
+
+    session.answerFolderConflict(false)
+    expect(await saving).toBe(false)
+    expect(handle.store.getState().editorUi.folderConflict).toBeNull()
+    expect(existing.snapshot()).toEqual(before)
+    expect(handle.store.getState().editorUi.folderName).toBeNull()
+    expect(selectIsDirty(handle.store.getState())).toBe(false)
+  })
+
+  it('saves into a folder with project files once the user says to', async () => {
+    const existing = createMemoryFileSystem({ 'maps/map-009.json': '{}' }, 'old-game')
+    const { session, handle } = setup({ picker: () => Promise.resolve(existing) })
+    session.newProject('Fresh')
+    const saving = session.save()
+    await vi.waitFor(() => {
+      expect(handle.store.getState().editorUi.folderConflict).not.toBeNull()
+    })
+    session.answerFolderConflict(true)
+    expect(await saving).toBe(true)
+    expect(Object.keys(existing.snapshot())).toContain(PROJECT_FILE)
+    expect(handle.store.getState().editorUi.folderName).toBe('old-game')
+  })
+
+  it('asks again when saving to another folder that holds project files, and No keeps the open folder', async () => {
+    const first = createMemoryFileSystem({}, 'A')
+    const other = createMemoryFileSystem({ 'maps/map-009.json': '{}' }, 'B')
+    const folders = [first, other]
+    let picks = 0
+    const { session, handle } = setup({
+      picker: () => {
+        const next = folders[picks] ?? other
+        picks += 1
+        return Promise.resolve(next)
+      },
+    })
+    session.newProject('Fresh')
+    expect(await session.save()).toBe(true)
+    expect(handle.store.getState().editorUi.folderName).toBe('A')
+    const savedFirst = first.snapshot()
+    const untouched = other.snapshot()
+
+    const saving = session.saveAs()
+    await vi.waitFor(() => {
+      expect(handle.store.getState().editorUi.folderConflict).not.toBeNull()
+    })
+    expect(handle.store.getState().editorUi.folderConflict?.folderName).toBe('B')
+    session.answerFolderConflict(false)
+    expect(await saving).toBe(false)
+
+    // Nothing was written to B, and A is still the open folder.
+    expect(other.snapshot()).toEqual(untouched)
+    expect(handle.store.getState().editorUi.folderConflict).toBeNull()
+    expect(handle.store.getState().editorUi.folderName).toBe('A')
+
+    // Saving to the open folder is routine: no question, and it goes to A, not B.
+    handle.store.dispatch(projectActions.renameMap({ mapId: 1, name: 'Later' }))
+    expect(await session.save()).toBe(true)
+    expect(picks).toBe(2)
+    expect(handle.store.getState().editorUi.folderConflict).toBeNull()
+    expect(decode(first.snapshot()['maps/map-001.json'])).toContain('Later')
+    expect(decode(savedFirst['maps/map-001.json'])).not.toContain('Later')
+    expect(other.snapshot()).toEqual(untouched)
+  })
+
+  it('does not ask for an empty folder, for unrelated files, or when saving to the open folder', async () => {
+    const unrelated = createMemoryFileSystem({ 'README.md': 'hi', 'notes/todo.txt': 'x' }, 'notes')
+    const { session, handle } = setup({ picker: () => Promise.resolve(unrelated) })
+    session.newProject('Fresh')
+    expect(await session.save()).toBe(true)
+    expect(handle.store.getState().editorUi.folderConflict).toBeNull()
+
+    // The folder now holds the project, but it is the open folder, so saving again is routine.
+    handle.store.dispatch(projectActions.renameMap({ mapId: 1, name: 'Later' }))
+    expect(await session.save()).toBe(true)
+    expect(handle.store.getState().editorUi.folderConflict).toBeNull()
+  })
+
+  it('says what a save did: files written, files removed, or nothing to do', async () => {
+    const fs = projectFolder()
+    const { handle, assets, session, status } = setup()
+    await session.openFileSystem(fs)
+    await session.save()
+    expect(status()?.text).toBe('Already saved')
+
+    handle.store.dispatch(projectActions.renameMap({ mapId: 1, name: 'Edited' }))
+    await session.save()
+    expect(status()?.text).toBe('Saved 1 file(s) to my-game')
+
+    assets.write('img/pictures/title.png', Uint8Array.of(1))
+    await session.save()
+    assets.remove('img/pictures/title.png')
+    await session.save()
+    expect(status()?.text).toBe('Removed 1 file(s) from my-game')
+  })
+
   it('treats cancelling the folder picker as a quiet no-op, not an error', async () => {
     const { session, status, handle } = setup({
       picker: () => Promise.reject(new DOMException('cancelled', 'AbortError')),
@@ -162,6 +332,20 @@ describe('open and save', () => {
     expect(await session.openFolder()).toBe(false)
     expect(status()).toBe(before)
     expect(selectIsDirty(handle.store.getState())).toBe(false)
+  })
+
+  it('points to the zip commands when the browser cannot open folders, instead of failing silently', async () => {
+    // A window without showDirectoryPicker is what Firefox and Safari look like.
+    vi.stubGlobal('window', {})
+    const { session, status, handle } = setup()
+    session.newProject('Fresh')
+    const saved = await session.save()
+    vi.unstubAllGlobals()
+    expect(saved).toBe(false)
+    expect(status()).toMatchObject({ severity: 'error' })
+    expect(status()?.text).toContain('This browser cannot open folders')
+    expect(status()?.text).toContain('Download project (.zip)')
+    expect(handle.store.getState().editorUi.folderName).toBeNull()
   })
 
   it('reports a write failure instead of throwing', async () => {
@@ -204,6 +388,7 @@ describe('export', () => {
     session.newProject('Q')
     expect(await session.exportGame()).toBe(false)
     expect(downloads.values).toEqual([])
+    expect(status()?.text).toMatch(/Could not load the game engine \(engine\/player\.js: 404\)/)
     expect(status()?.text).toMatch(/pnpm build/)
   })
 
@@ -232,9 +417,23 @@ describe('project archives', () => {
     expect(target.assets.readText('img/characters/hero.piskel')).toBe('{"modelVersion":2}')
   })
 
-  it('reports an invalid archive', async () => {
-    const { session, status } = setup()
+  it('reports an invalid archive, leaving the current project alone', async () => {
+    const { handle, session, status } = setup()
+    session.newProject('Keep me')
+    const encode = (text: string) => new TextEncoder().encode(text)
+
     expect(await session.openArchive(Uint8Array.of(1, 2, 3))).toBe(false)
     expect(status()).toMatchObject({ severity: 'error' })
+
+    const notProject = await zipEntries({ 'readme.txt': encode('hello') })
+    expect(await session.openArchive(notProject)).toBe(false)
+    expect(status()).toMatchObject({ severity: 'error' })
+    expect(status()?.text).toMatch(/not an RPG Studio project: project\.json is missing/)
+
+    const hostile = await zipEntries({ '../evil.txt': encode('owned') })
+    expect(await session.openArchive(hostile)).toBe(false)
+    expect(status()?.text).toMatch(/unsafe path: \.\.\/evil\.txt/)
+
+    expect(handle.store.getState().project.data.meta.name).toBe('Keep me')
   })
 })

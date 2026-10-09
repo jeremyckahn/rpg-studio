@@ -43,6 +43,8 @@ interface LayerView {
   readonly tilemap: CompositeTilemap
   readonly tileset: Texture | undefined
   readonly width: number
+  /** What the tiles were drawn with: layers are rebuilt when dimming starts or stops. */
+  readonly alpha: number
 }
 
 const GRID_COLOR = 0xffffff
@@ -224,25 +226,29 @@ export const createMapScene = async (container: HTMLElement): Promise<MapScene> 
     const columns = tileset ? tilesetColumnCount(tileset.width, map.tileSize) : 1
     const next = map.layers.map((layer, index): LayerView => {
       const existing = views[index]
+      // Dimming is baked into the tiles (the tilemap shader ignores the layer's own alpha), so a
+      // layer is redrawn when it starts or stops being dimmed, as well as when its data changes.
+      const alpha = state.dimInactiveLayers && index !== state.selectedLayer ? DIMMED_ALPHA : 1
       const reusable =
         existing &&
         existing.layer === layer &&
         existing.tileset === tileset &&
-        existing.width === map.width
+        existing.width === map.width &&
+        existing.alpha === alpha
       if (reusable) return existing
       existing?.tilemap.destroy()
       const tilemap = new CompositeTilemap()
-      if (tileset) drawTiles(tilemap, tileset, planLayerDraws(map, layer, columns), map.tileSize)
-      return { layer, tilemap, tileset, width: map.width }
+      if (tileset) {
+        drawTiles(tilemap, tileset, planLayerDraws(map, layer, columns), map.tileSize, alpha)
+      }
+      return { layer, tilemap, tileset, width: map.width, alpha }
     })
     views.slice(map.layers.length).forEach((view) => {
       view.tilemap.destroy()
     })
     layersContainer.removeChildren()
-    next.forEach((view, index) => {
+    next.forEach((view) => {
       view.tilemap.visible = view.layer.visible
-      view.tilemap.alpha =
-        state.dimInactiveLayers && index !== state.selectedLayer ? DIMMED_ALPHA : 1
       layersContainer.addChild(view.tilemap)
     })
     views = next

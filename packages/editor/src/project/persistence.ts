@@ -67,22 +67,35 @@ export interface SaveReport {
   readonly cache: SaveCache
 }
 
+export interface SaveOptions {
+  /**
+   * Write every file, ignoring `cache` and what the asset store thinks is unsaved. For a target
+   * the project is not in sync with: a brand-new or imported project saved for the first time, or
+   * a different folder than the one last saved to. The usual incremental rules would write nothing
+   * there, since they only know what changed since the last save somewhere else.
+   */
+  readonly everything?: boolean
+}
+
 /**
  * Writes the project to disk, touching only files that changed: project JSON
  * whose text differs from what is already there, assets written since the last
- * save, and files for maps or assets that were removed.
+ * save, and files for maps or assets that were removed. With `everything`, writes
+ * all of it instead (see `SaveOptions`).
  */
 export const saveProject = async (
   fs: ProjectFileSystem,
   project: Project,
   assets: AssetStore,
   cache: SaveCache,
+  { everything = false }: SaveOptions = {},
 ): Promise<SaveReport> => {
   const files = projectToFiles(project)
-  const changedData = Object.entries(files).filter(([path, text]) => cache.get(path) !== text)
-  const staleData = [...cache.keys()].filter((path) => !(path in files))
-  const writes = assets.unsavedWrites()
-  const removals = assets.unsavedRemovals()
+  const known = everything ? new Map<string, string>() : cache
+  const changedData = Object.entries(files).filter(([path, text]) => known.get(path) !== text)
+  const staleData = [...known.keys()].filter((path) => !(path in files))
+  const writes = everything ? assets.list().filter(isAssetFile) : assets.unsavedWrites()
+  const removals = everything ? [] : assets.unsavedRemovals()
 
   await Promise.all([
     ...changedData.map(([path, text]) => fs.writeFile(path, text)),

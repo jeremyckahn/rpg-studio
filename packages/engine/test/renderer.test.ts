@@ -196,6 +196,24 @@ describe('tilemap batching', () => {
     expect(tile).toHaveBeenCalledTimes(2)
   })
 
+  it('applies an alpha to every tile, since the tilemap shader ignores the layer alpha', () => {
+    const tile = vi.fn()
+    const sink: TileSink = { tile, clear: vi.fn() }
+    drawTiles(
+      sink,
+      Texture.WHITE,
+      [
+        { x: 0, y: 0, u: 0, v: 0 },
+        { x: 16, y: 0, u: 16, v: 0 },
+      ],
+      16,
+      0.4,
+    )
+    expect(tile.mock.calls.map(([, , , options]) => (options as { alpha?: number }).alpha)).toEqual(
+      [0.4, 0.4],
+    )
+  })
+
   it('batches a whole multi-layer map into one tilemap per draw group', () => {
     const map = mapWith([
       { name: 'ground', visible: true, above: false, data: [1, 1, 1, 1, 1, 1] },

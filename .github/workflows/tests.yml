@@ -1,0 +1,129 @@
+name: Tests
+
+# Every pull request, from this repository or a fork, runs the unit tests and the full browser suite
+# once, on the pull request merged into its base. Pushes run them only on main, so a pull request is
+# never tested twice and every check has one name, whichever event produced it. A branch with no pull
+# request open is not tested; open a draft one to get a run.
+on:
+  push:
+    branches: [main]
+  pull_request:
+  # A merge queue tests the pull request merged into the latest base branch before merging it, and
+  # waits for the checks of this event. Without this trigger a queued pull request would wait forever.
+  merge_group:
+  workflow_dispatch:
+
+# A newer run for the same pull request makes the older one pointless. Runs on main and in the
+# merge queue are never cancelled: each commit that lands should get its own result.
+concurrency:
+  group: tests-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+permissions:
+  contents: read
+
+jobs:
+  unit:
+    name: Unit tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      # The version comes from "packageManager" in package.json.
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      # Vitest for every package, plus the checks that keep the documentation true.
+      - name: Run the unit tests
+        run: pnpm test
+
+  e2e:
+    name: Playwright (Chromium, shard ${{ matrix.shard }}/4)
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    strategy:
+      # Let every shard finish, so one failure does not hide the others.
+      fail-fast: false
+      matrix:
+        # The whole suite takes about a quarter of an hour on one runner, so it is split in four.
+        # Each shard runs the spec files that packages/e2e/support/timings.json assigns it, so the
+        # four take about as long; Playwright's own --shard splits by test count and does not.
+        shard: [1, 2, 3, 4]
+    steps:
+      - uses: actions/checkout@v4
+
+      # The version comes from "packageManager" in package.json.
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      # The tests run against the production build, which needs the engine player built first.
+      - name: Build the libraries and the engine player
+        run: pnpm build
+
+      - name: Build the editor app
+        run: pnpm build:app
+
+      # No --with-deps: ubuntu-latest already has every library Chromium loads, and the only packages
+      # that flag installed were extra fonts (CJK, Thai, X11 bitmap fonts) that no test looks at. Its
+      # apt-get is also the one step with an outlier: one shard waited 5.5 minutes on a stalled mirror
+      # download while the others took 20 seconds. If the image ever loses a library, Chromium fails to
+      # start with a message naming it; add the flag back then.
+      - name: Install Chromium
+        run: pnpm --filter @rpgstudio/e2e exec playwright install chromium
+
+      - name: Run the end-to-end tests
+        run: pnpm test:e2e
+        env:
+          E2E_SHARD: ${{ matrix.shard }}/4
+
+      # The HTML report (it plays each test's video in the browser), plus traces and screenshots of
+      # failures. The raw videos are in the next artifact, so they are left out here.
+      - name: Upload the Playwright report
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report-${{ matrix.shard }}
+          path: |
+            packages/e2e/playwright-report/
+            packages/e2e/test-results/
+            !packages/e2e/test-results/**/*.webm
+          if-no-files-found: ignore
+          retention-days: 14
+
+      # One video per test, named after it (playwright-videos/<spec>/<test>.<hash>.webm), for this shard.
+      # An artifact is one upload step, and a step cannot loop, so it is one artifact per shard
+      # rather than one per video.
+      - name: Upload the test videos
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-videos-${{ matrix.shard }}
+          path: packages/e2e/playwright-videos/
+          if-no-files-found: ignore
+          retention-days: 7
+
+  # One check with a stable name to require in branch protection, whatever the number of shards.
+  tests-passed:
+    name: All tests passed
+    # Runs even when a job failed or was cancelled, so the check always reports and blocks the merge.
+    if: ${{ always() }}
+    needs: [unit, e2e]
+    runs-on: ubuntu-latest
+    steps:
+      - name: The unit tests and every shard must have passed
+        run: test "${{ needs.unit.result }}" = "success" && test "${{ needs.e2e.result }}" = "success"

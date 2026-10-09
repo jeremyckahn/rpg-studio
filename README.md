@@ -25,12 +25,13 @@ authoring by both human creators and external AI agents.
 
 ## Packages
 
-| Package                                                    | Purpose                                                                        |
-| ---------------------------------------------------------- | ------------------------------------------------------------------------------ |
-| [`@rpgstudio/core`](packages/core)                         | Zod schemas, plugin manager, typed event bus, grid math, A\*, RNG              |
-| [`@rpgstudio/engine`](packages/engine)                     | ECS runtime, headless simulation harness, PixiJS renderer, audio               |
-| [`@rpgstudio/editor`](packages/editor)                     | React/MUI authoring shell, Redux store, map canvas, Piskel bridge, export, PWA |
-| [`@rpgstudio/companion-bridge`](packages/companion-bridge) | Local WebSocket companion server and reference AI agent runner                 |
+| Package                                                    | Purpose                                                                          |
+| ---------------------------------------------------------- | -------------------------------------------------------------------------------- |
+| [`@rpgstudio/core`](packages/core)                         | Zod schemas, plugin manager, typed event bus, grid math, A\*, RNG                |
+| [`@rpgstudio/engine`](packages/engine)                     | ECS runtime, headless simulation harness, PixiJS renderer, audio                 |
+| [`@rpgstudio/editor`](packages/editor)                     | React/MUI authoring shell, Redux store, map canvas, Piskel bridge, export, PWA   |
+| [`@rpgstudio/companion-bridge`](packages/companion-bridge) | Local WebSocket companion server and reference AI agent runner                   |
+| [`@rpgstudio/e2e`](packages/e2e)                           | Playwright end-to-end tests of the built editor, an exported game and the bridge |
 
 ## Documentation
 
@@ -58,13 +59,14 @@ its security model, and `pnpm dev:companion` to try it.
 
 ## Scripts
 
-| Command          | What it does                                                  |
-| ---------------- | ------------------------------------------------------------- |
-| `pnpm lint`      | ESLint across the workspace, failing on any warning           |
-| `pnpm typecheck` | `tsc --noEmit` in every package                               |
-| `pnpm test`      | Vitest across every package                                   |
-| `pnpm build`     | Builds every package (libraries, engine player, declarations) |
-| `pnpm build:app` | Builds the editor PWA into `packages/editor/dist-app`         |
+| Command          | What it does                                                       |
+| ---------------- | ------------------------------------------------------------------ |
+| `pnpm lint`      | ESLint across the workspace, failing on any warning                |
+| `pnpm typecheck` | `tsc --noEmit` in every package                                    |
+| `pnpm test`      | Vitest across every package                                        |
+| `pnpm test:e2e`  | Playwright end-to-end tests (after `pnpm build && pnpm build:app`) |
+| `pnpm build`     | Builds every package (libraries, engine player, declarations)      |
+| `pnpm build:app` | Builds the editor PWA into `packages/editor/dist-app`              |
 
 `vercel.json` deploys `packages/editor/dist-app` using `pnpm build && pnpm build:app`.
 

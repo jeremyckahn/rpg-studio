@@ -17,6 +17,7 @@ import { type PanelDefinition } from '../plugins/panelRegistry.ts'
 import { redo, selectIsDirty, undo } from '../store/index.ts'
 import { editorUiSlice } from '../store/slices/editorUi.ts'
 import { AssetBrowser } from './AssetBrowser.tsx'
+import { FolderConflictDialog } from './FolderConflictDialog.tsx'
 import { MenuBar } from './MenuBar.tsx'
 import { useLayoutMode } from './useLayoutMode.ts'
 import { useAppDispatch, useAppSelector, useServices } from './services.tsx'
@@ -344,6 +345,7 @@ export const MasterLayout = () => {
       }}
     >
       <MenuBar />
+      <FolderConflictDialog />
       {compact ? (
         <CompactBody
           portrait={portrait}

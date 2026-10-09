@@ -19,7 +19,16 @@ import {
 
 const root = resolve(import.meta.dirname, '..')
 
-const SKIPPED_DIRECTORIES = new Set(['node_modules', '.git', '.vercel', '.claude', 'coverage'])
+const SKIPPED_DIRECTORIES = new Set([
+  'node_modules',
+  '.git',
+  '.vercel',
+  '.claude',
+  'coverage',
+  // Playwright's output holds generated Markdown (error-context.md) and minified report assets.
+  'test-results',
+  'playwright-report',
+])
 /** Markdown that is third-party or generated, not ours to police. */
 const SKIPPED_FILES = new Set(['packages/editor/public/piskel/NOTICE.md'])
 

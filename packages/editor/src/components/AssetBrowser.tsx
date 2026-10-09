@@ -49,7 +49,7 @@ const iconFor = (path: string) => {
 const OPENABLE = new Set(['png', 'piskel'])
 
 /** Safe file name for something the user uploaded. */
-const fileNameFor = (name: string): string =>
+export const fileNameFor = (name: string): string =>
   // Only the file's own name counts; any folder part a browser reports is dropped.
   (name.split(/[\\/]/).at(-1) ?? '').replace(/[^A-Za-z0-9._-]+/g, '_').replace(/^\.+/, '')
 

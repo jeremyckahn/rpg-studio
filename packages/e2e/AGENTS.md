@@ -121,6 +121,8 @@ pnpm test                                # tooling/e2e-sharding.test.ts checks t
 
 Commit `support/timings.json`. The numbers do not have to be exact, only in proportion: a run on a laptop is fine, but it is
 better to take them from CI, where the sum of a spec's test durations in the log of the shard that ran it gives the same figure.
+A short spec's time moves a lot between runs (import-export took 153 s in one run and 82 s in the next, on the same code), while
+the long ones hold steady, so average two runs rather than trusting one.
 A new spec with no entry is placed as an average one until the next refresh, and `pnpm test` reminds you to refresh. If one
 spec file alone is longer than a quarter of the suite, split it into two files instead; balancing cannot divide a file.
 

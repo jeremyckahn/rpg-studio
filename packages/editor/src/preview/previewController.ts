@@ -152,8 +152,14 @@ export const createPreviewController = (options: PreviewControllerOptions): Prev
 
   const refreshInfo = (): void => {
     if (!session) return
-    const info = readInfo(session.game)
-    if (!sameInfo(state.info, info)) publish({ info })
+    // A game that is crashed or mid-teardown may not be readable; keep the last good reading
+    // rather than failing the poll or a `GET_PREVIEW_STATE` query.
+    try {
+      const info = readInfo(session.game)
+      if (!sameInfo(state.info, info)) publish({ info })
+    } catch {
+      // The previous `info` stays.
+    }
   }
 
   /** Keeps the last point a cutscene-free game could be saved at, for reloads that land mid-event. */

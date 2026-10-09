@@ -514,6 +514,47 @@ describe('preview controller', () => {
       expect(rig.controller.getState().info?.gold).toBe(99)
     })
 
+    it('keeps the last reading when the game cannot be read, instead of throwing', async () => {
+      const rig = await started()
+      await play(rig)
+      const game = rig.session().game as unknown as ReturnType<typeof fakeGame>
+      game.snapshot = () => {
+        throw new Error('torn down')
+      }
+      expect(() => {
+        rig.controller.refresh()
+      }).not.toThrow()
+      expect(rig.controller.getState().info).toMatchObject({ tick: 7, gold: 5 })
+      expect(describePreview(rig.controller)).toMatchObject({ open: true, game: { tick: 7 } })
+    })
+
+    it('does not notify subscribers when the reading has not changed', async () => {
+      const rig = await started()
+      await play(rig)
+      const seen = vi.fn()
+      rig.controller.subscribe(seen)
+      rig.controller.refresh()
+      rig.controller.refresh()
+      expect(seen).not.toHaveBeenCalled()
+    })
+
+    it('reads a paused game too, and does nothing after detach', async () => {
+      const rig = await started()
+      await play(rig)
+      rig.controller.send('userPaused')
+      await flush()
+      const game = rig.session().game as unknown as ReturnType<typeof fakeGame>
+      game.state.gold = 7
+      rig.controller.refresh()
+      expect(rig.controller.getState().info?.gold).toBe(7)
+      rig.controller.detach()
+      game.state.gold = 8
+      expect(() => {
+        rig.controller.refresh()
+      }).not.toThrow()
+      expect(rig.controller.getState().info).toBeNull()
+    })
+
     it('does nothing before there is a game', () => {
       const rig = setup()
       expect(() => {

@@ -233,7 +233,8 @@ Behaviours worth knowing before changing it:
   shows `PreviewInfo` and nothing else; it is read-only. It is outside the Play tab's frame, so clicking it pauses the game
   like any click outside the game.
 - **`GET_PREVIEW_STATE`** is answered from the hub (`describePreview`), so it works from `window.RPGStudio.query` and over the
-  companion bridge, and says `{ open: false }` when the tab is closed.
+  companion bridge, and says `{ open: false }` when the tab is closed. It calls `controller.refresh()` first, so `game` is
+  the game as it is now rather than as of the last 250 ms poll (the Debug panel and status line still show the polled readout).
 
 ### Database editor
 

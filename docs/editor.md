@@ -222,6 +222,16 @@ Behaviours worth knowing before changing it:
   from the other. `Assets.cache` is process-wide but only ever cleared, never destroyed.
 - **Imports.** `previewHub.ts` imports the controller type with a whole-statement `import type` on purpose: the companion handler
   imports the hub, and an inline `{ type }` import would drag PixiJS into the Node-only bridge tests.
+- **"Play from here" is a map tool** (`MapTool` `'play'`), not a Play-tab feature: `createPaintController.pointerDown` dispatches
+  `editorUi.previewStartChosen`, which stores the tile in `previewStart`, selects the Play panel and restores `toolBeforePlay`.
+  `previewStart` lives in `editorUi` only (never in the project, never dirty, cleared by `projectOpened`) and is applied by
+  `applyStart` to a copy of the project when a game is built. The controller reads it once at attach; the tab is not mounted
+  while the Map tab is, so it cannot change underneath a running game. Focus is taken a tick after mount for this reason: the
+  press on the map canvas that chose the tile is still being handled, and the browser's own focus handling for it would
+  otherwise pause the new game at once.
+- **The Debug panel** (`PreviewDebugPanel`, right dock, `when` the Play panel) reads the controller through the hub, so it
+  shows `PreviewInfo` and nothing else; it is read-only. It is outside the Play tab's frame, so clicking it pauses the game
+  like any click outside the game.
 - **`GET_PREVIEW_STATE`** is answered from the hub (`describePreview`), so it works from `window.RPGStudio.query` and over the
   companion bridge, and says `{ open: false }` when the tab is closed.
 

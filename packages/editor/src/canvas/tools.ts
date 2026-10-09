@@ -1,7 +1,7 @@
 import { CollisionFlags, type Point, type Tilemap, inBounds } from '@rpgstudio/core'
 
 import { type AppDispatch } from '../store/index.ts'
-import { type MapTool } from '../store/slices/editorUi.ts'
+import { type MapTool, editorUiSlice } from '../store/slices/editorUi.ts'
 import { projectActions } from '../store/slices/project.ts'
 import { lineCells } from './geometry.ts'
 
@@ -89,6 +89,11 @@ export const createPaintController = (
     pointerDown: (cell) => {
       const { map, layer, tool, tile } = getContext()
       if (!inBounds(map, cell)) return
+      if (tool === 'play') {
+        // Not an edit: nothing to undo, and no stroke to continue.
+        dispatch(editorUiSlice.actions.previewStartChosen({ mapId: map.id, x: cell.x, y: cell.y }))
+        return
+      }
       counter += 1
       const group = `${prefix}-${counter}`
 

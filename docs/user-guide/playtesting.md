@@ -29,6 +29,26 @@ The game pauses **by itself** when:
 
 **Restart** begins again from the project's start position. Leaving the Play tab closes the game; the next visit starts a fresh one.
 
+## Play from a tile
+
+Testing the end of a long game should not mean walking there first. In the **Map** tab choose the **Play from here** tool (the play-button icon in the toolbar) and click or tap a tile. The **Play** tab opens with the player standing on that tile of that map.
+
+- Nothing in your project changes. The start position in **Game start** and your saved file stay as they are, and this does not count as unsaved work.
+- The toolbar above the game says **Starting at** the tile. **Restart** and, with **Keep my place** off, every reload begin there. The ✕ on that label clears it and starts from the project's own start.
+- Your previous tool comes back as soon as you have chosen a tile.
+- The choice is forgotten when you open or create another project. If you later resize the map so the tile no longer exists, the label disappears and the project's start is used.
+
+## The Debug panel
+
+On the Play tab the right-hand column shows what the game is doing, read-only:
+
+- whether it is running or paused, and its tick counter;
+- the map, the player's tile and facing direction, the message on screen and whether an event is running;
+- the party (level, HP, MP), the gold and the items held;
+- every **switch** and **variable** that has a name in `project.json` ([Events](events.md#switches-and-variables)) or has been set so far, with the name if it has one and its value (switches ON or OFF).
+
+On a phone it is the **Debug** section of the bottom sheet. Clicking inside the panel counts as leaving the game, so the game pauses; the panel keeps showing the values at the moment it paused, and resuming brings them back to life.
+
 ## It updates as you edit
 
 Change the project while the Play tab is open (use another browser tab or window, an AI agent, or the Undo shortcut: the Play tab itself has no editing tools) and, after a quiet moment, the game is rebuilt from the new project. A brush stroke reloads once, not once per tile.
@@ -64,4 +84,4 @@ The Play tab works on a phone: the D-pad and **A** button appear below the game 
 
 ## For AI agents
 
-An agent can ask what the Play tab is doing with the `GET_PREVIEW_STATE` query: whether it is open, whether it is running or why it is paused, and the game's map, position, switches, variables and message. See [AI Companion](ai-companion.md#the-browser-console).
+An agent can ask what the Play tab is doing with the `GET_PREVIEW_STATE` query: whether it is open, whether it is running or why it is paused, how many times it has reloaded (so the agent can tell its edit landed), and the game's map, position, switches, variables, gold and message. See [AI Companion](ai-companion.md#the-browser-console).

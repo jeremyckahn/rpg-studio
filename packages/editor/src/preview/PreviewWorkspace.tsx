@@ -91,9 +91,15 @@ export const createPreviewPanel = (
       if (!element) return undefined
       controller.attach(element)
       preview.set(controller)
-      // Opening the tab is a request to play: focusing the game is what starts it.
-      element.focus({ preventScroll: true })
+      // Opening the tab is a request to play, and focusing the game is what starts it. This waits
+      // for the click that opened the tab to finish: "Play from here" mounts the tab in the middle
+      // of a pointer press on the map, and the browser's own focus handling for that press would
+      // otherwise take the focus straight back.
+      const focusSoon = window.setTimeout(() => {
+        element.focus({ preventScroll: true })
+      }, 0)
       return () => {
+        window.clearTimeout(focusSoon)
         preview.set(null)
         controller.detach()
         host.dispose()

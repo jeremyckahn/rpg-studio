@@ -3,8 +3,15 @@ import { type DatabaseTableName } from '@rpgstudio/core'
 
 import { type PreviewStart } from '../../preview/previewStart.ts'
 
-/** `pan` drags the view instead of editing; it is the touch (and trackpad) alternative to Space + drag. */
-export type MapTool = 'pencil' | 'fill' | 'eraser' | 'collision' | 'pan'
+/**
+ * `pan` drags the view instead of editing; it is the touch (and trackpad) alternative to Space + drag.
+ * `play` edits nothing either: a click on a tile opens the Play tab with the game starting there, and
+ * the tool you were using comes back.
+ */
+export type MapTool = 'pencil' | 'fill' | 'eraser' | 'collision' | 'pan' | 'play'
+
+/** The workspace panel id of the Play tab (`rpgstudio.preview`); `corePlugins` registers it under this id. */
+export const PREVIEW_PANEL_ID = 'rpgstudio.preview'
 
 export const ZOOM_LEVELS = [1, 2, 3, 4, 6, 8] as const
 export const DEFAULT_ZOOM_INDEX = 2
@@ -33,6 +40,8 @@ export interface EditorUiState {
   readonly selectedMapId: number | null
   readonly selectedLayer: number
   readonly tool: MapTool
+  /** The tool to return to when "Play from here" has been used. */
+  readonly toolBeforePlay: MapTool
   /** Tile id painted by the pencil and fill (1 is the first tileset cell). */
   readonly selectedTile: number
   readonly zoomIndex: number
@@ -67,6 +76,7 @@ const initialState: EditorUiState = {
   selectedMapId: null,
   selectedLayer: 0,
   tool: 'pencil',
+  toolBeforePlay: 'pencil',
   selectedTile: 1,
   zoomIndex: DEFAULT_ZOOM_INDEX,
   showGrid: true,
@@ -106,6 +116,16 @@ export const editorUiSlice = createSlice({
     toolSelected: (state, action: PayloadAction<MapTool>): EditorUiState => ({
       ...state,
       tool: action.payload,
+      // Remember what to go back to, but never remember "play" itself.
+      toolBeforePlay:
+        action.payload === 'play' && state.tool !== 'play' ? state.tool : state.toolBeforePlay,
+    }),
+    /** "Play from here": remember the tile, open the Play tab and put the previous tool back. */
+    previewStartChosen: (state, action: PayloadAction<PreviewStart>): EditorUiState => ({
+      ...state,
+      previewStart: action.payload,
+      workspacePanel: PREVIEW_PANEL_ID,
+      tool: state.tool === 'play' ? state.toolBeforePlay : state.tool,
     }),
     tileSelected: (state, action: PayloadAction<number>): EditorUiState => ({
       ...state,

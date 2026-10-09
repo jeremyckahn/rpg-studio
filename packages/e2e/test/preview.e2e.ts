@@ -405,6 +405,160 @@ test.describe('Play tab', () => {
     })
   })
 
+  test.describe('Play from here', () => {
+    test('starts the game on the clicked tile and brings back the tool you were using', async ({
+      studio,
+      page,
+    }) => {
+      await studio.selectTool(/Collision/)
+      await studio.selectTool(/Play from here/)
+      await studio.clickCell({ x: 4, y: 3 })
+
+      await expect(page.getByRole('tab', { name: 'Play' })).toHaveAttribute('aria-selected', 'true')
+      await expect.poll(async () => (await studio.preview()).status).toBe('running')
+      expect((await studio.preview()).game?.player).toMatchObject({ x: 4, y: 3 })
+      expect((await studio.preview()).start).toEqual({ mapId: 1, x: 4, y: 3 })
+      await expect(page.getByText('Starting at Map 1 (4, 3)')).toBeVisible()
+
+      await page.getByRole('tab', { name: 'Map' }).click()
+      await expect(page.getByRole('button', { name: /^Collision/ })).toHaveAttribute(
+        'aria-pressed',
+        'true',
+      )
+      await expect(page.getByRole('button', { name: /^Play from here/ })).toHaveAttribute(
+        'aria-pressed',
+        'false',
+      )
+    })
+
+    test('changes nothing in the project, and does not count as unsaved work', async ({
+      studio,
+    }) => {
+      const before = await studio.summary()
+      await studio.selectTool(/Play from here/)
+      await studio.clickCell({ x: 4, y: 3 })
+      await expect.poll(async () => (await studio.preview()).status).toBe('running')
+      const after = await studio.summary()
+      expect(after.revision).toBe(before.revision)
+      expect(after).toMatchObject({ startX: before.startX, startY: before.startY })
+      await expect(studio.projectTitle).toHaveText('My Game')
+    })
+
+    test('is still where a later reload starts from, when the place is not kept', async ({
+      studio,
+      page,
+    }) => {
+      await studio.selectTool(/Play from here/)
+      await studio.clickCell({ x: 4, y: 3 })
+      await expect.poll(async () => (await studio.preview()).status).toBe('running')
+      await page.getByRole('switch', { name: 'Keep my place when the project changes' }).click()
+      await studio.waitForGame((game) => game.tick > 5)
+
+      await wall(studio, 0, 0)
+      await reloaded(studio, 1)
+      await studio.waitForGame((game) => game.player.x === 4 && game.player.y === 3)
+    })
+
+    test('the chip clears it and starts again from the project’s own start', async ({
+      studio,
+      page,
+    }) => {
+      await studio.selectTool(/Play from here/)
+      await studio.clickCell({ x: 4, y: 3 })
+      await expect(page.getByText('Starting at Map 1 (4, 3)')).toBeVisible()
+      await page.getByRole('img', { name: 'Use the project start' }).click()
+      await expect(page.getByText(/Starting at/)).toBeHidden()
+      await studio.waitForGame((game) => game.player.x === 10 && game.player.y === 7)
+      expect((await studio.preview()).start).toBeNull()
+      // The next visit begins at the project start too.
+      await page.getByRole('tab', { name: 'Map' }).click()
+      await studio.openPlay()
+      expect((await studio.preview()).game?.player).toMatchObject({ x: 10, y: 7 })
+    })
+
+    test('plays from a tile on another map', async ({ studio, page }) => {
+      await buildDemoGame(studio)
+      await page.getByRole('button', { name: 'Cellar 10×8' }).click()
+      await studio.selectTool(/Play from here/)
+      await studio.clickCell({ x: 2, y: 2 }, { mapId: 2 })
+      await expect.poll(async () => (await studio.preview()).status).toBe('running')
+      expect((await studio.preview()).game).toMatchObject({ mapId: 2, player: { x: 2, y: 2 } })
+    })
+
+    test('a start that the project can no longer hold is dropped quietly', async ({
+      studio,
+      page,
+    }) => {
+      await studio.selectTool(/Play from here/)
+      await studio.clickCell({ x: 18, y: 12 })
+      await expect(page.getByText('Starting at Map 1 (18, 12)')).toBeVisible()
+      await page.getByRole('tab', { name: 'Map' }).click()
+      await studio.dispatch({
+        type: 'project/resizeMap',
+        payload: { mapId: 1, width: 12, height: 12 },
+      })
+      await studio.openPlay()
+      await expect(page.getByText(/Starting at/)).toBeHidden()
+      expect((await studio.preview()).game?.player).toMatchObject({ x: 10, y: 7 })
+    })
+  })
+
+  test.describe('Debug panel', () => {
+    test('shows the game’s state beside it, and only on the Play tab', async ({ studio, page }) => {
+      const debug = page
+        .getByRole('complementary', { name: 'right panels' })
+        .getByTestId('preview-debug')
+      await expect(debug).toBeHidden()
+      await studio.openPlay()
+      await expect(debug).toBeVisible()
+      await expect(debug).toContainText('Map 1 (#1)')
+      await expect(debug).toContainText('10, 7')
+      await expect(debug).toContainText('Hero')
+      await page.getByRole('tab', { name: 'Map' }).click()
+      await expect(debug).toBeHidden()
+    })
+
+    test('follows the player, and lists switches and variables by name', async ({
+      studio,
+      page,
+    }) => {
+      await buildDemoGame(studio)
+      await studio.dispatch({
+        type: 'project/updateMeta',
+        payload: {
+          changes: { switchNames: { '2': 'Greeted' }, variableNames: { '1': 'Elder visits' } },
+        },
+      })
+      await studio.openPlay()
+      const debug = page.getByTestId('preview-debug')
+      await expect(studio.gameMessage).toHaveText('Welcome to the village.')
+      await page.keyboard.press('Enter')
+      await expect(debug).toContainText('Greeted')
+      await expect(debug).toContainText('ON')
+      await page.keyboard.press('Enter') // talk to the Elder, who counts visits
+      await expect(studio.gameMessage).toHaveText('First visit.')
+      await expect(debug).toContainText('Elder visits')
+      await expect(debug).toContainText('Message')
+      await expect(debug).toContainText('First visit.')
+      await page.keyboard.press('Enter')
+      await expect(studio.gameMessage).toBeHidden()
+      await holdUntil(page, 'ArrowRight', async () => (await playerX(studio)) >= 11)
+      await studio.waitForGame((game) => !game.player.moving)
+      const { x, y } = (await studio.preview()).game?.player ?? { x: -1, y: -1 }
+      await expect(debug).toContainText(`${x}, ${y}`)
+    })
+
+    test('clicking in it pauses the game like clicking anywhere outside it, and says Paused', async ({
+      studio,
+      page,
+    }) => {
+      await studio.openPlay()
+      await page.getByTestId('preview-debug').click()
+      await expect.poll(async () => (await studio.preview()).status).toBe('paused')
+      await expect(page.getByTestId('preview-debug')).toContainText('Paused')
+    })
+  })
+
   test.describe('restart', () => {
     test('puts the player back at the start', async ({ studio, page }) => {
       await studio.openPlay()
@@ -460,6 +614,26 @@ test.describe('Play tab', () => {
       } finally {
         await page.mouse.up()
       }
+    })
+
+    test('shows the Debug panel in the bottom sheet', async ({ studio, page }) => {
+      await page.getByRole('tab', { name: 'Play' }).tap()
+      await expect.poll(async () => (await studio.preview()).status).toBe('running')
+      await page.getByRole('button', { name: 'Debug' }).tap()
+      await expect(
+        page.getByRole('complementary', { name: 'Debug sheet' }).getByTestId('preview-debug'),
+      ).toContainText('Map 1 (#1)')
+    })
+
+    test('starts the game on a tapped tile with the Play from here tool', async ({
+      studio,
+      page,
+    }) => {
+      await page.getByRole('button', { name: /^Play from here/ }).tap()
+      const at = await studio.cellPoint({ x: 9, y: 6 }, { zoom: 3 })
+      await page.touchscreen.tap(at.x, at.y)
+      await expect.poll(async () => (await studio.preview()).status).toBe('running')
+      expect((await studio.preview()).game?.player).toMatchObject({ x: 9, y: 6 })
     })
 
     test('pauses from the toolbar and resumes by tapping the game', async ({ studio, page }) => {

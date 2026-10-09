@@ -26,6 +26,7 @@ RPG Studio is young. This page lists what is **not built yet** or works differen
 
 - The game is closed when you leave the tab; there is no resume across visits. Use **Pause** to keep a game while you stay on the tab.
 - No volume or mute control yet.
+- The Debug panel is read-only: you cannot flip a switch or change a variable while playing.
 - A plugin's game-side code runs in the editor's page, so a plugin that never finishes would freeze the editor ([details](playtesting.md#how-it-differs-from-an-exported-game)).
 - It checks that the game plays, not that the export works: still export and play before you publish.
 

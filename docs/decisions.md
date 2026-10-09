@@ -29,7 +29,9 @@ Contents: [001 Monorepo and the `source` condition](#adr-001-monorepo-and-the-so
 [022 Vercel and pnpm](#adr-022-vercel-self-cleaning-install-and-pnpm-build-script-policy) ·
 [023 Player bundle](#adr-023-the-player-is-one-self-contained-file) ·
 [024 Docs checks](#adr-024-documentation-is-checked-by-tests) ·
-[025 Mobile](#adr-025-mobile-support-one-layout-switch-gestures-as-a-pure-reducer-and-prompted-updates)
+[025 Mobile](#adr-025-mobile-support-one-layout-switch-gestures-as-a-pure-reducer-and-prompted-updates) ·
+[026 End-to-end tests](#adr-026-end-to-end-tests-with-playwright-against-the-production-build-required-for-every-non-trivial-feature) ·
+[027 Live preview](#adr-027-the-live-preview-runs-in-process-from-the-same-player-session-as-an-export)
 
 ---
 
@@ -451,3 +453,55 @@ is the only thing that keeps coverage from decaying as features are added.
 emulation only; Firefox and Safari are reached through the no-folder-picker path. It takes around ten minutes, so it is not part of
 `pnpm test`. Software GL means no stored screenshots. The service worker's update prompt cannot be provoked without two
 deployed versions and is covered by component tests only.
+
+## ADR-027: The live preview runs in-process, from the same player session as an export
+
+**Decision.**
+
+1. The editor gets a **Play** workspace tab that runs the game inside the editor's own page. It is fed by the live
+   Redux project and the in-memory `AssetStore`, not by `fetch` and not by an exported bundle in an iframe.
+2. The player is split into `createPlayerSession(options)` and a thin `startPlayer` that only supplies `fetch`-based
+   loaders. The exported game and the editor preview both go through `createPlayerSession`, so there is one way to
+   boot a game. The session takes everything environmental as a parameter: the validated project, the plugin
+   registrations, a `loadBlob` and `urlFor` for textures and audio, the element that receives keys, and optionally a
+   shared `TextureProvider`.
+3. A session can **pause and resume** (ticker, fixed-step clock and audio) and can **replace its game** (`reload`) without
+   destroying the canvas: the renderer can be pointed at a new `Game`.
+4. **Live reload keeps state by default.** After a debounced edit the preview builds a new game from the new project and
+   restores a checkpoint (`serialize()` / `restore()`: map, position, switches, variables). If the checkpoint no longer
+   fits the project, the preview restarts from the start tile and says why. A toolbar toggle switches to restart-on-change.
+   Edits made while paused are queued and applied once on resume.
+5. The preview pauses itself when the stage loses focus or the browser tab is hidden. It captures keys only while the
+   stage has focus. Leaving the tab destroys the session; there is no separate Stop state.
+6. Keyboard input ignores key presses made with Ctrl, Cmd or Alt held, so editor shortcuts (and the browser's own) are
+   never taken for a move or a confirm.
+7. Game state does not go into Redux, as with binary assets (ADR-013). The editor stores only preview settings
+   (`previewStart`, `previewLive`); the status line polls `Game.snapshot()`.
+
+**Why.** The editor already imports the renderer, owns a texture provider whose `invalidate()` hot-reloads sprites, and holds
+the project the engine needs. Running there makes an edit visible in a fraction of a second and lets a reload keep the
+player's place, which is the point of a live preview. Sharing `createPlayerSession` with the export means the preview cannot
+drift from what players get: a fix to input, audio unlock, or touch controls lands in both. Keys are scoped to the stage and
+modifier chords are ignored because a window-wide listener would swallow arrow keys and Ctrl+Z while the author is typing in
+a panel. Pausing stops the ticker rather than ignoring input so an idle preview costs almost nothing.
+
+**Consequences.**
+
+- Engine-side plugin code runs on the editor's main thread, with the capability sandbox but without process isolation. A plugin
+  that never returns freezes the editor until the page is closed; unsaved work is protected by the existing beforeunload prompt
+  but not by a crash. Plugins already run editor-side code the same way.
+- `@pixi/sound` and `Assets.cache` are process-wide, so the preview and the map canvas share them. Only one workspace panel is
+  mounted at a time, so there is one WebGL context at a time.
+- The in-process preview does not prove the exported bundle works (minification, relative URLs, `file://`). The existing
+  exported-game end-to-end tests keep covering that.
+- Audio played from blob URLs has not been verified in a real browser, as is true of audio generally (see `engine.md`).
+
+**Rejected.**
+
+- _An iframe running the exported player._ Perfect fidelity and isolation, but it needs a service worker or virtual host to
+  serve in-memory files, rebuilds the full export for every edit, and makes keeping the player's position across a reload
+  hard, because game state would have to cross a message boundary. It remains possible later as an optional "run the exported
+  build" mode.
+- _Restarting the game on every change._ Simple, but it loses the player's place on every brush stroke.
+- _A separate Stop state._ Leaving the tab already frees the WebGL context and memory; a second way to do the same adds a state
+  and a button for no gain.

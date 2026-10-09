@@ -197,6 +197,10 @@ guide rule above applies too.
 - **Commits:** Conventional Commits (`feat(scope):`, `fix:`, `test:`, `docs:`, `build:`,
   `refactor:`), small and atomic, each leaving the tree passing. Check `git status` before
   committing so nothing is left unstaged.
+- **Rebase, don't merge.** To bring a branch up to date with `main`, rebase it (`git rebase origin/main`) rather than
+  merging `main` in, so the history stays linear. Rebasing rewrites the branch, so push it with
+  `git push --force-with-lease` (never plain `--force`), and only rebase a branch you own: on someone else's branch, merge
+  or ask. Re-run the checks after a rebase, before the push.
 - **Pull request descriptions stay current.** When you push to a branch that has an open pull
   request, check whether the description is still true (what it adds, the test counts, the
   fixes, what is left undone) and update it in the same piece of work. Describe what the

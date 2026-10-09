@@ -58,6 +58,7 @@ test/sprite-editor.e2e.ts     the embedded Piskel editor
 test/project-files.e2e.ts     folders (save, open), replacing a project, leaving the page
 test/import-export.e2e.ts     project zip download and import, game export
 test/exported-game.e2e.ts     playing an exported game on desktop and on a phone
+test/preview.e2e.ts           the Play tab: playing, pausing and its automatic pauses, live reload, phone layout
 test/plugins.e2e.ts           plugins in exported games
 test/companion.e2e.ts         the companion bridge with a real relay and agent
 test/mobile.e2e.ts            the compact layout and touch gestures

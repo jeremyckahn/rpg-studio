@@ -1,6 +1,8 @@
 import { type PayloadAction, createSlice } from '@reduxjs/toolkit'
 import { type DatabaseTableName } from '@rpgstudio/core'
 
+import { type PreviewStart } from '../../preview/previewStart.ts'
+
 /** `pan` drags the view instead of editing; it is the touch (and trackpad) alternative to Space + drag. */
 export type MapTool = 'pencil' | 'fill' | 'eraser' | 'collision' | 'pan'
 
@@ -40,6 +42,10 @@ export interface EditorUiState {
   readonly databaseTable: DatabaseTableName
   /** Asset the sprite editor should show (a `.png` or `.piskel` path). */
   readonly openAssetPath: string | null
+  /** Where "Play from here" begins; null means the project's own start. Never saved. */
+  readonly previewStart: PreviewStart | null
+  /** Whether an edit made while playing keeps the player's place (on) or starts the game again (off). */
+  readonly previewKeepPlace: boolean
   /** Project revision at the last save; a different current revision means unsaved work. */
   readonly savedRevision: number
   /** Name of the folder on disk the project was opened from, if any. */
@@ -68,6 +74,8 @@ const initialState: EditorUiState = {
   dimInactiveLayers: true,
   databaseTable: 'actors',
   openAssetPath: null,
+  previewStart: null,
+  previewKeepPlace: true,
   savedRevision: 0,
   folderName: null,
   status: null,
@@ -130,6 +138,14 @@ export const editorUiSlice = createSlice({
       openAssetPath: action.payload,
       workspacePanel: 'rpgstudio.pixel-editor',
     }),
+    previewStartSet: (state, action: PayloadAction<PreviewStart | null>): EditorUiState => ({
+      ...state,
+      previewStart: action.payload,
+    }),
+    previewKeepPlaceSet: (state, action: PayloadAction<boolean>): EditorUiState => ({
+      ...state,
+      previewKeepPlace: action.payload,
+    }),
     projectSaved: (
       state,
       action: PayloadAction<{ revision: number; folderName?: string | null }>,
@@ -148,6 +164,7 @@ export const editorUiSlice = createSlice({
       selectedMapId: null,
       selectedLayer: 0,
       openAssetPath: null,
+      previewStart: null,
       savedRevision: 0,
       folderName: action.payload.folderName,
     }),

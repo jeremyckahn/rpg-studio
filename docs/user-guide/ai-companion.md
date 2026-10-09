@@ -100,6 +100,7 @@ With or without the bridge, the editor exposes a small API in the browser's deve
 ```js
 RPGStudio.query({ type: 'GET_PROJECT_SUMMARY' })
 RPGStudio.query({ type: 'GET_MAP_DATA', id: 1 })
+RPGStudio.query({ type: 'GET_PREVIEW_STATE' }) // what the Play tab is doing
 ```
 
 Edits made this way go through the same validation and undo as everything else.

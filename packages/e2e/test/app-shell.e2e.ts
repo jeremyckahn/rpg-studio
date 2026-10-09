@@ -2,9 +2,10 @@ import { expect, test } from '../support/fixtures.ts'
 import { recordAlerts, shownAlerts } from '../support/studio.ts'
 
 test.describe('app shell', () => {
-  test('boots into a starter project with the three workspaces', async ({ studio, page }) => {
+  test('boots into a starter project with its workspaces', async ({ studio, page }) => {
     await expect(page).toHaveTitle('RPG Studio')
     await expect(page.getByRole('tab', { name: 'Map' })).toHaveAttribute('aria-selected', 'true')
+    await expect(page.getByRole('tab', { name: 'Play' })).toBeVisible()
     await expect(page.getByRole('tab', { name: 'Database' })).toBeVisible()
     await expect(page.getByRole('tab', { name: 'Sprite Editor' })).toBeVisible()
     await expect(studio.projectTitle).toHaveText('My Game')

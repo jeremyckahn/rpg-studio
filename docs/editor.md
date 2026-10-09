@@ -17,6 +17,7 @@ src/components/         layout (desktop docks and compact sheet), menu bar, asse
 src/canvas/             map scene (Pixi), geometry, paint tools, touch gestures
 src/piskel/             Piskel bridge, protocol, texture invalidation, panel
 src/export/             packager, zip helpers, project archive, engine file loader
+src/preview/            the Play tab: controller, pure helpers, editor wiring, panel
 src/bridge/             companion client, request handler, queries, window.RPGStudio
 src/pwa/register.ts     service worker registration and the update flow (production only)
 scripts/                piskel vendoring + adapter, icon generator, engine-player Vite plugin
@@ -171,6 +172,7 @@ The first-party panels (`plugins/corePlugins.ts`):
 | Plugin id                | Registers                                                                                                                                |
 | ------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------- |
 | `rpgstudio.map-editor`   | workspace `Map` (toolbar + `MapCanvas`), left `Tools` (maps, layers, tileset palette), right `Properties` (map, game start, events JSON) |
+| `rpgstudio.preview`      | workspace `Play` (`order: 15`, capabilities `ui` and `files:read`): the game, running in the editor (see "Play tab" below)               |
 | `rpgstudio.database`     | workspace `Database` (`DatabaseEditor`)                                                                                                  |
 | `rpgstudio.pixel-editor` | workspace `Sprite Editor` (`createPiskelEditorPanel({ read: ctx.readFiles, write: ctx.writeFiles })`)                                    |
 
@@ -184,6 +186,44 @@ Patterns to follow:
 - Components read state with `useAppSelector` and dispatch `projectActions`; they never edit
   projects themselves. Pre-check with `applyProjectAction` when you need to show _why_ an edit
   was refused before dispatching (see `DatabaseEditor`, `PropertiesPanel`).
+
+### Play tab (live preview)
+
+[ADR-027](decisions.md#adr-027-the-live-preview-runs-in-process-from-the-same-player-session-as-an-export). The engine runs
+in the editor's own page, through the same `createPlayerSession` an exported game uses ([engine.md §7](engine.md#7-the-player-player)).
+`src/preview/`:
+
+| File                   | Role                                                                                                                                                                                                       |
+| ---------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `previewController.ts` | The whole behaviour, with no React and no WebGL (the session is injectable): run state, creating the session, live reload, polling the readout, `restart`, `attach`/`detach`. Tested with a fake session.  |
+| `previewControls.ts`   | Pure reducer for _why the game is standing still_: `user`, `away` (focus left) and `hidden` are independent flags, so a returning tab never resumes a game the user paused.                                |
+| `previewReload.ts`     | `chooseCheckpoint`: the live game's save, or the last one taken between events when a cutscene cannot be saved, or nothing when "Keep my place" is off.                                                    |
+| `previewStart.ts`      | The in-memory "Play from here" override, applied by replacing `meta.start*` on a copy of the project; a start that no longer fits is ignored.                                                              |
+| `previewAssets.ts`     | Blob URLs for audio, reused while a file is unchanged and revoked when it changes.                                                                                                                         |
+| `previewInfo.ts`       | The plain-JSON readout (`PreviewInfo`) used by the status line, the Debug panel and `GET_PREVIEW_STATE`.                                                                                                   |
+| `previewHost.ts`       | Connects the controller to the store and the `files:read` capability: a **version token** that changes with the project or any asset, a texture provider of its own, plugin loading (memoised by content). |
+| `previewHub.ts`        | Where the open controller is published, for everything that is not the Play tab (`GET_PREVIEW_STATE`, the Debug panel).                                                                                    |
+| `PreviewWorkspace.tsx` | The panel: toolbar, overlay, notices, status line. It only renders controller state and forwards input.                                                                                                    |
+
+Behaviours worth knowing before changing it:
+
+- **Opening the tab focuses the game, and focus is what runs it.** The stage is the session's `root` _and_ its key target
+  (`tabIndex=0`), so keys reach the game only while it has focus and the editor's shortcuts are untouched. Focus moving to the
+  toolbar does not pause; moving anywhere else does. The session owns the stage's children, so React renders it with none.
+- **The version token, not the revision.** `PreviewHost.version()` bumps on any change of the project object or of the assets
+  slice's `paths`/`versions`, so undo, asset writes and opening a project all count, and a `projectSaved` that changes neither does not.
+  The controller compares it with the version it last applied; equal means nothing to do.
+- **Reloads are debounced (300 ms) and never happen while paused.** A change while standing still sets `pendingChange`; on resume
+  the controller reloads _before_ calling `session.resume()`, so the first tick is on the new project. A timer that fires after a
+  pause re-checks.
+- **Assets reload the whole game.** Any asset change invalidates the preview's texture provider first (inside `watch`, before the
+  controller hears about it) and then reloads; `renderer.setGame` rebuilds the tiles.
+- **The preview has its own `TextureProvider`**, not the map canvas's, so destroying one PixiJS application cannot take textures
+  from the other. `Assets.cache` is process-wide but only ever cleared, never destroyed.
+- **Imports.** `previewHub.ts` imports the controller type with a whole-statement `import type` on purpose: the companion handler
+  imports the hub, and an inline `{ type }` import would drag PixiJS into the Node-only bridge tests.
+- **`GET_PREVIEW_STATE`** is answered from the hub (`describePreview`), so it works from `window.RPGStudio.query` and over the
+  companion bridge, and says `{ open: false }` when the tab is closed.
 
 ### Database editor
 

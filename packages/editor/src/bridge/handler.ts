@@ -13,6 +13,7 @@ import {
 import { type AssetStore } from '../project/assetStore.ts'
 import { applyProjectAction } from '../store/index.ts'
 import { type EditorStoreHandle } from '../store/index.ts'
+import { type PreviewHub, describePreview } from '../preview/previewHub.ts'
 import { runQuery } from './queries.ts'
 
 /** Largest asset an agent may write, after decoding. */
@@ -24,6 +25,7 @@ const WRITABLE = /^(?:img|audio)\/.+\.(?:png|jpe?g|gif|webp|ogg|mp3|m4a|wav|pisk
 export interface CompanionHandlerDeps {
   readonly handle: EditorStoreHandle
   readonly assets: AssetStore
+  readonly preview?: PreviewHub
 }
 
 export type CompanionHandler = (request: AgentRequest) => Result<JsonValue>
@@ -49,6 +51,7 @@ const describe = (action: unknown, index: number): string => {
 export const createCompanionHandler = ({
   handle,
   assets,
+  preview,
 }: CompanionHandlerDeps): CompanionHandler => {
   const { store } = handle
   const currentProject = (): Project => store.getState().project.data
@@ -91,7 +94,12 @@ export const createCompanionHandler = ({
       case 'query': {
         const state = store.getState()
         return runQuery(
-          { project: state.project.data, revision: state.project.revision, assets },
+          {
+            project: state.project.data,
+            revision: state.project.revision,
+            assets,
+            ...(preview ? { preview: () => describePreview(preview.current()) } : {}),
+          },
           request.query,
         )
       }

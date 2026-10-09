@@ -476,7 +476,7 @@ deployed versions and is covered by component tests only.
 6. Keyboard input ignores key presses made with Ctrl, Cmd or Alt held, so editor shortcuts (and the browser's own) are
    never taken for a move or a confirm.
 7. Game state does not go into Redux, as with binary assets (ADR-013). The editor stores only preview settings
-   (`previewStart`, `previewLive`); the status line polls `Game.snapshot()`.
+   (`previewStart`, `previewKeepPlace`); the status line polls `Game.snapshot()`.
 
 **Why.** The editor already imports the renderer, owns a texture provider whose `invalidate()` hot-reloads sprites, and holds
 the project the engine needs. Running there makes an edit visible in a fraction of a second and lets a reload keep the

@@ -8,7 +8,7 @@ RPG Studio has two layouts. On a **desktop or large tablet** (wider than 900 px)
 ┌──────────────────────────────────────────────────────────────────┐
 │ RPG Studio  File Edit View │ ↶ ↷        Companion: off  My Game • │  menu bar
 ├────────────┬─────────────────────────────────────┬───────────────┤
-│ Assets     │ [Map] [Database] [Sprite Editor]    │ Properties    │
+│ Assets     │ [Map] [Play] [Database] [Sprite..]  │ Properties    │
 │ (files)    │ ┌─ toolbar ───────────────────────┐ │ Map           │
 │            │ │ tools · overlays · zoom         │ │ Game start    │
 │ Tools      │ ├─────────────────────────────────┤ │ Events (JSON) │
@@ -20,7 +20,7 @@ RPG Studio has two layouts. On a **desktop or large tablet** (wider than 900 px)
 ```
 
 - **Left column:** the **Assets** browser on top, then (on the Map tab) the **Tools** panel with maps, layers and the tileset palette.
-- **Centre:** tabs for the three workspaces, **Map**, **Database** and **Sprite Editor**.
+- **Centre:** tabs for the four workspaces, **Map**, **Play** (your game, running in the editor; see [Playing Your Game in the Editor](playtesting.md)), **Database** and **Sprite Editor**.
 - **Right column:** the **Properties** panel (Map tab only).
 
 ## The menu bar

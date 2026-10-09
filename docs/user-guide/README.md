@@ -21,6 +21,7 @@ RPG Studio is also built to be driven by AI agents: a local "companion bridge" l
 | [Sprite Editor](sprite-editor.md)                 | Drawing and editing pixel art inside the app            |
 | [Database](database.md)                           | Actors, classes, items, skills and enemies              |
 | [Events](events.md)                               | Making maps interactive: NPCs, doors, chests, cutscenes |
+| [Playing Your Game in the Editor](playtesting.md) | The Play tab: test as you build, pause, live updates    |
 | [Playing and Exporting](playing-and-exporting.md) | Controls, exporting a game, publishing it               |
 
 ## Reference and help

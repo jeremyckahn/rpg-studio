@@ -57,7 +57,9 @@ Click **Apply events**. A red error box means something is wrong with the JSON, 
 
 ## 6. Play it
 
-Export the game from **File ▸ Export game (.zip)**, unzip it, and serve the folder with any static web server (opening `index.html` directly from disk does not work in browsers). Walk with the arrow keys or WASD and press **Enter**, **Space** or **Z** to talk to events. Step-by-step: [Playing and Exporting](playing-and-exporting.md).
+Click the **Play** tab to walk around your game right away; it updates as you keep editing ([Playing Your Game in the Editor](playtesting.md)).
+
+To get a game you can share, export the game from **File ▸ Export game (.zip)**, unzip it, and serve the folder with any static web server (opening `index.html` directly from disk does not work in browsers). Walk with the arrow keys or WASD and press **Enter**, **Space** or **Z** to talk to events. Step-by-step: [Playing and Exporting](playing-and-exporting.md).
 
 ## 7. Save your work
 

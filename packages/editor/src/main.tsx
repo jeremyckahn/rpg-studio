@@ -9,6 +9,7 @@ import { editorUiSlice } from './store/slices/editorUi.ts'
 import { createPanelRegistry } from './plugins/panelRegistry.ts'
 import { registerCorePlugins } from './plugins/corePlugins.ts'
 import { createEditorPluginHost } from './plugins/editorHost.ts'
+import { createPreviewHub } from './preview/previewHub.ts'
 import { createAssetStore } from './project/assetStore.ts'
 import { createProjectSession } from './project/session.ts'
 import { createEditorTextureProvider } from './project/textures.ts'
@@ -27,12 +28,13 @@ const boot = async (): Promise<void> => {
 
   // The companion bridge: the editor dials out to a local server, and also answers
   // `RPGStudio.query(...)` from the page itself. Both go through the same validating handler.
-  const handler = createCompanionHandler({ handle, assets })
+  const preview = createPreviewHub()
+  const handler = createCompanionHandler({ handle, assets, preview })
   const companion = createCompanionClient({ handler })
   companion.onStatus((status, error) => {
     handle.store.dispatch(editorUiSlice.actions.companionStatusChanged({ status, error }))
   })
-  installRPGStudioGlobal(window, createRPGStudioApi({ handle, assets }, handler))
+  installRPGStudioGlobal(window, createRPGStudioApi({ handle, assets, preview }, handler))
 
   const host = createEditorPluginHost({
     handle,
@@ -60,7 +62,10 @@ const boot = async (): Promise<void> => {
   if (!root) throw new Error('Missing #root element')
   createRoot(root).render(
     <StrictMode>
-      <App store={handle.store} services={{ session, panels, textures, companion, updater }} />
+      <App
+        store={handle.store}
+        services={{ session, panels, textures, companion, updater, preview }}
+      />
     </StrictMode>,
   )
   void updater.register()

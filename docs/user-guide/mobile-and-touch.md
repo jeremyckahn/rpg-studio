@@ -36,7 +36,7 @@ A stroke only begins after your finger has moved a short distance, so putting do
 
 ## Playing games on a phone
 
-Exported games show an on-screen **D-pad** and an **A** button on touch devices. See [Playing and Exporting](playing-and-exporting.md#controls). In **portrait** the game is shown at the top with the controls beneath it; in **landscape** the controls float over the lower corners.
+The **Play** tab runs your game in the editor with the same on-screen controls ([Playing Your Game in the Editor](playtesting.md#on-a-phone)). Exported games show an on-screen **D-pad** and an **A** button on touch devices. See [Playing and Exporting](playing-and-exporting.md#controls). In **portrait** the game is shown at the top with the controls beneath it; in **landscape** the controls float over the lower corners.
 
 ## Installing the editor as an app
 

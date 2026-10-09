@@ -39,6 +39,12 @@ export interface PlayerSessionOptions {
   readonly seed?: number
   /** Build the session without running it; call `resume()` to start. */
   readonly startPaused?: boolean
+  /**
+   * Called when a frame throws (a `GameError`, a broken plugin system). The session pauses itself
+   * first, because PixiJS stops its ticker for good after an exception. Without a handler the
+   * error is rethrown after pausing.
+   */
+  readonly onError?: (error: Error) => void
 }
 
 export interface ReloadOptions {
@@ -46,6 +52,14 @@ export interface ReloadOptions {
   readonly plugins?: Plugins
   /** A `Game.serialize()` result to continue from. Without one the new game starts from the beginning. */
   readonly save?: unknown
+}
+
+/** What a reload did. The game was replaced in both cases; `restored` says whether `save` fit. */
+export interface ReloadOutcome {
+  /** False when a `save` was given but the new project refused it, so the game starts from the beginning. */
+  readonly restored: boolean
+  /** Why the save was refused, when `restored` is false. */
+  readonly reason?: string
 }
 
 export interface PlayerSession {
@@ -65,9 +79,9 @@ export interface PlayerSession {
    *
    * Fails only if the new game cannot be built or its plugins cannot start; the old game then
    * keeps running. If `save` is refused by the new project, the game is still replaced and
-   * starts from the beginning, and the result is a failure that says why.
+   * starts from the beginning, and the outcome says why.
    */
-  reload: (options: ReloadOptions) => Promise<Result<undefined>>
+  reload: (options: ReloadOptions) => Promise<Result<ReloadOutcome>>
   stop: () => void
 }
 
@@ -96,7 +110,11 @@ export const createPlayerSession = async (
   const showTouchControls =
     options.touchControls === 'on' || (options.touchControls !== 'off' && hasCoarsePointer(window))
 
-  root.style.position = 'relative'
+  // The stage and touch controls are positioned against the root. A host that has already
+  // positioned it (the editor lays it out absolutely) keeps its own choice.
+  if (doc.defaultView?.getComputedStyle(root).position === 'static') {
+    root.style.position = 'relative'
+  }
   // The game's own area. In portrait it stops above the touch controls, so a thumb never
   // covers the picture; in landscape the controls float over the corners instead.
   const stage = doc.createElement('div')
@@ -180,13 +198,6 @@ export const createPlayerSession = async (
       : null
   observer?.observe(stage)
 
-  const onFrame = ({ deltaMS }: { deltaMS: number }): void => {
-    const ticks = clock.advance(deltaMS)
-    for (let i = 0; i < ticks; i++) current.game.tick(input.poll())
-    renderer.render()
-  }
-  renderer.app.ticker.add(onFrame)
-
   const pause = (): void => {
     if (paused) return
     paused = true
@@ -203,6 +214,20 @@ export const createPlayerSession = async (
     audio.resumeAll()
     renderer.app.ticker.start()
   }
+  const onFrame = ({ deltaMS }: { deltaMS: number }): void => {
+    try {
+      const ticks = clock.advance(deltaMS)
+      for (let i = 0; i < ticks; i++) current.game.tick(input.poll())
+      renderer.render()
+    } catch (error) {
+      pause()
+      const failure = error instanceof Error ? error : new Error(String(error))
+      if (!options.onError) throw failure
+      options.onError(failure)
+    }
+  }
+  renderer.app.ticker.add(onFrame)
+
   if (options.startPaused) {
     paused = true
     renderer.app.ticker.stop()
@@ -213,7 +238,7 @@ export const createPlayerSession = async (
     project,
     plugins = [],
     save,
-  }: ReloadOptions): Promise<Result<undefined>> => {
+  }: ReloadOptions): Promise<Result<ReloadOutcome>> => {
     let next: Awaited<ReturnType<typeof start>>
     try {
       next = await start(project, plugins)
@@ -233,7 +258,7 @@ export const createPlayerSession = async (
     messageBox = createMessageBox(stage, next.game.bus)
     void previous.teardown()
     if (paused) await redraw()
-    return restored
+    return ok(restored.success ? { restored: true } : { restored: false, reason: restored.error })
   }
 
   /** Reloads run one after another, so a second request never races the first. */

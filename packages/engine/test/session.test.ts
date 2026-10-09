@@ -111,6 +111,19 @@ describe('player session', () => {
     expect(mocks.renderer.render).toHaveBeenCalledTimes(3)
   })
 
+  describe('the root element', () => {
+    it('is made a positioning context when the page left it static', async () => {
+      await open()
+      expect(root.style.position).toBe('relative')
+    })
+
+    it('keeps the position its host chose, so the host’s layout is not collapsed', async () => {
+      root.style.position = 'absolute'
+      await open()
+      expect(root.style.position).toBe('absolute')
+    })
+  })
+
   it('takes keys only from the key target, not the window', async () => {
     const opened = await open()
     press(window, 'ArrowRight')
@@ -192,13 +205,39 @@ describe('player session', () => {
     })
   })
 
+  describe('a frame that throws', () => {
+    const breakNextTick = (opened: PlayerSession): void => {
+      vi.spyOn(opened.game, 'tick').mockImplementation(() => {
+        throw new Error('Cannot transfer to map 9')
+      })
+    }
+
+    it('pauses the game and reports the error instead of killing the ticker silently', async () => {
+      const onError = vi.fn()
+      const opened = await open({ onError })
+      breakNextTick(opened)
+      runTicks(1)
+      expect(opened.paused).toBe(true)
+      expect(mocks.renderer.app.ticker.stop).toHaveBeenCalledOnce()
+      expect(onError).toHaveBeenCalledOnce()
+      expect(String(onError.mock.calls[0]?.[0])).toMatch(/map 9/)
+    })
+
+    it('rethrows when nobody listens, after pausing', async () => {
+      const opened = await open()
+      breakNextTick(opened)
+      expect(() => runTicks(1)).toThrow(/map 9/)
+      expect(opened.paused).toBe(true)
+    })
+  })
+
   describe('reload', () => {
     it('replaces the game on the same renderer, starting from the new project', async () => {
       const opened = await open()
       const before = opened.game
       runTicks(4)
       const result = await opened.reload({ project: movedStart(starter) })
-      expect(result.success).toBe(true)
+      expect(result).toEqual({ success: true, data: { restored: true } })
       expect(opened.game).not.toBe(before)
       expect(mocks.renderer.setGame).toHaveBeenCalledWith(opened.game)
       expect(opened.game.snapshot().player).toMatchObject({ x: 3, y: 4 })
@@ -225,7 +264,10 @@ describe('player session', () => {
       const opened = await open()
       const save = { ...opened.game.serialize(), mapId: 99 }
       const result = await opened.reload({ project: movedStart(starter), save })
-      expect(result.success).toBe(false)
+      // The game was replaced, and the outcome says the place was not kept and why.
+      expect(result.success).toBe(true)
+      expect(result.success && result.data.restored).toBe(false)
+      expect(result.success && result.data.reason).toBeTruthy()
       expect(opened.game.snapshot().player).toMatchObject({ x: 3, y: 4 })
     })
 

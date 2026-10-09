@@ -175,6 +175,22 @@ const collectPlugins = (project: Project, assets: AssetReader): PluginFiles => {
 }
 
 /**
+ * Everything that would stop this project from running as a game: an enabled plugin that is
+ * missing or invalid, and map tilesets that are not in the project. The exporter refuses on
+ * these, and the editor's live preview shows them instead of a blank screen, so both agree.
+ */
+export const findGameProblems = (project: Project, assets: AssetReader): readonly string[] => {
+  const classified = classifyAssets(assets.list())
+  const missingTilesets = [...new Set(project.maps.map((map) => map.tileset))].filter(
+    (tileset) => !classified.keep.includes(tileset),
+  )
+  return [
+    ...collectPlugins(project, assets).problems,
+    ...missingTilesets.map((tileset) => `A map uses ${tileset}, which is not in the project`),
+  ]
+}
+
+/**
  * Decides what an exported game contains and assembles it in memory:
  * `index.html`, `game.json`, the project's JSON, images and audio, the
  * engine-facing parts of enabled plugins, and the pre-built engine player.
@@ -185,16 +201,11 @@ export const buildExportEntries = ({ project, assets, engine }: ExportInput): Ex
   const classified = classifyAssets(assets.list())
   const plugins = collectPlugins(project, assets)
 
-  // The tilesets the maps use must exist, or the game would render nothing.
-  const missingTilesets = [...new Set(project.maps.map((map) => map.tileset))].filter(
-    (tileset) => !classified.keep.includes(tileset),
-  )
   const problems = [
-    ...plugins.problems,
+    ...findGameProblems(project, assets),
     ...(Object.keys(engine).length === 0
       ? ['The engine player is missing (run `pnpm build`)']
       : []),
-    ...missingTilesets.map((tileset) => `A map uses ${tileset}, which is not in the project`),
   ]
   if (problems.length > 0) throw new ExportError(problems)
 

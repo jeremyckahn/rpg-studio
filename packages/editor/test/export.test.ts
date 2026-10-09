@@ -15,6 +15,7 @@ import {
   MAX_UNZIPPED_BYTES,
   buildExportEntries,
   exportProjectArchive,
+  findGameProblems,
   gameIndexHtml,
   importProjectArchive,
   loadEngineFiles,
@@ -268,6 +269,35 @@ describe('buildExportEntries', () => {
       }
     })()
     expect(error?.problems).toHaveLength(2)
+  })
+})
+
+describe('findGameProblems', () => {
+  it('finds nothing wrong with a complete project', () => {
+    expect(findGameProblems(projectWith(), newAssets())).toEqual([])
+  })
+
+  it('names a missing tileset and a missing plugin, without needing the engine', () => {
+    const problems = findGameProblems(projectWith({ plugins: ['acme.ghost'] }), createAssetStore())
+    expect(problems).toHaveLength(2)
+    expect(problems.join('\n')).toMatch(/acme\.ghost.*manifest\.json is missing/)
+    expect(problems.join('\n')).toMatch(
+      /A map uses img\/tilesets\/basic\.png, which is not in the project/,
+    )
+  })
+
+  it('is exactly what the exporter refuses on, apart from the engine', () => {
+    const project = projectWith({ plugins: ['acme.ghost'] })
+    const assets = createAssetStore()
+    const refused = (() => {
+      try {
+        buildExportEntries({ project, assets, engine })
+        return []
+      } catch (e) {
+        return (e as ExportError).problems
+      }
+    })()
+    expect(refused).toEqual(findGameProblems(project, assets))
   })
 })
 

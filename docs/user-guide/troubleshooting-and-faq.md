@@ -66,6 +66,20 @@ An `autorun` page that is still eligible restarts forever. End it by setting a s
 
 Read the first line: it gives a path such as `events.0.pages.0.commands.1.volume` and the problem. Common causes: a trailing comma, single quotes, a misspelled field (unknown fields are rejected), or a number outside its range.
 
+## The Play tab
+
+### The Play tab says "The game cannot start"
+
+It lists what an export would also refuse: a plugin that is enabled but missing or invalid, or a map whose tileset is not in the project. Fix it and the game starts by itself. See [Playing Your Game in the Editor](playtesting.md#when-the-game-cannot-start).
+
+### The game stopped when I clicked elsewhere
+
+That is on purpose: a game that cannot hear the keyboard pauses to save effort. Click the game, or press Enter, to continue.
+
+### My edit did not show up in the game
+
+If the game is paused, edits wait until you resume. If it is running, give it a moment; the game reloads after a quiet pause in your edits. A red notice above the game means the new project cannot be played yet, and says why.
+
 ## Exported games
 
 ### Black page, or nothing happens

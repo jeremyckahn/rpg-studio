@@ -22,6 +22,13 @@ RPG Studio is young. This page lists what is **not built yet** or works differen
 - Switch and variable **names** can only be set by editing `project.json`.
 - The game view is **20×15 tiles**, the same in portrait and landscape.
 
+## The Play tab
+
+- The game is closed when you leave the tab; there is no resume across visits. Use **Pause** to keep a game while you stay on the tab.
+- No volume or mute control yet.
+- A plugin's game-side code runs in the editor's page, so a plugin that never finishes would freeze the editor ([details](playtesting.md#how-it-differs-from-an-exported-game)).
+- It checks that the game plays, not that the export works: still export and play before you publish.
+
 ## Art and sound
 
 - **Sprite Editor:** there is no "new sprite" command; start from an existing PNG. Piskel is not optimised for touch screens.

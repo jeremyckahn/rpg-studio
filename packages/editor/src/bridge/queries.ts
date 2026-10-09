@@ -20,6 +20,8 @@ export interface QuerySource {
   readonly project: Project
   readonly revision: number
   readonly assets: AssetStore
+  /** What the Play tab is doing. Absent where there is no preview (tests, tools). */
+  readonly preview?: () => JsonValue
 }
 
 /** A deep copy that is guaranteed to be plain JSON. */
@@ -93,6 +95,9 @@ export const runQuery = (source: QuerySource, query: Query): Result<JsonValue> =
       })
       return ok(toJson({ found: path !== null, path: path ?? [] }))
     }
+
+    case 'GET_PREVIEW_STATE':
+      return ok(source.preview ? source.preview() : { open: false })
 
     case 'LIST_ASSETS':
       return ok(

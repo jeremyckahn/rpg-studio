@@ -559,6 +559,64 @@ test.describe('Play tab', () => {
     })
   })
 
+  test.describe('staying healthy', () => {
+    test('many reloads in a row keep one working game on the same canvas', async ({ studio }) => {
+      await studio.openPlay()
+      for (let round = 1; round <= 15; round += 1) {
+        await wall(studio, round % 20, 0)
+        await reloaded(studio, round)
+      }
+      const report = await studio.preview()
+      expect(report.status).toBe('running')
+      expect(report.notice).toBeNull()
+      await expect(studio.gameStage.locator('canvas')).toHaveCount(1)
+      const tick = report.game?.tick ?? 0
+      await studio.waitForGame((game) => game.tick > tick + 5)
+    })
+
+    test('opening and leaving the tab many times leaves no extra canvases or stuck games', async ({
+      studio,
+      page,
+    }) => {
+      for (let round = 0; round < 10; round += 1) {
+        await studio.openPlay()
+        await page.getByRole('tab', { name: 'Map' }).click()
+        await expect(page.getByRole('application', { name: 'Game preview' })).toHaveCount(0)
+      }
+      await studio.openPlay()
+      await expect(studio.gameStage.locator('canvas')).toHaveCount(1)
+      expect((await studio.preview()).reloads).toBe(0)
+      const tick = (await studio.preview()).game?.tick ?? 0
+      await studio.waitForGame((game) => game.tick > tick + 5)
+    })
+
+    test('keeps showing the last picture while paused, instead of going blank', async ({
+      studio,
+      page,
+    }) => {
+      await studio.openPlay()
+      await page.getByRole('button', { name: 'Pause' }).click()
+      await expect.poll(async () => (await studio.preview()).status).toBe('paused')
+      // The overlay only dims the game. A blank canvas would be a uniform black image, which
+      // compresses to almost nothing; the tile map does not.
+      const picture = await studio.gameStage.screenshot()
+      expect(picture.byteLength).toBeGreaterThan(8_000)
+    })
+
+    test('redraws a paused game after the window changes size', async ({ studio, page }) => {
+      await studio.openPlay()
+      await page.getByRole('button', { name: 'Pause' }).click()
+      await expect.poll(async () => (await studio.preview()).status).toBe('paused')
+      await page.setViewportSize({ width: 1100, height: 700 })
+      await expect
+        .poll(async () => (await studio.gameStage.screenshot()).byteLength, { timeout: 8_000 })
+        .toBeGreaterThan(8_000)
+      const stage = await studio.gameStage.boundingBox()
+      const canvas = await studio.gameStage.locator('canvas').boundingBox()
+      expect(canvas?.width).toBeCloseTo(stage?.width ?? 0, -1)
+    })
+  })
+
   test.describe('restart', () => {
     test('puts the player back at the start', async ({ studio, page }) => {
       await studio.openPlay()

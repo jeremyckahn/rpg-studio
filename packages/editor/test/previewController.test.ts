@@ -470,6 +470,17 @@ describe('preview controller', () => {
       expect(rig.controller.getState().start).toBeNull()
     })
 
+    it('keeps a chosen start for a game that cannot start yet, and uses it once it can', async () => {
+      const rig = await started({ problems: ['A map uses img/tilesets/basic.png'] })
+      await rig.controller.restart({ mapId: 1, x: 3, y: 4 })
+      expect(rig.controller.getState().start).toEqual({ mapId: 1, x: 3, y: 4 })
+      rig.setProblems([])
+      rig.edit()
+      await vi.advanceTimersByTimeAsync(300)
+      const options = rig.createSession.mock.calls[0]?.[0]
+      expect(options?.project.meta).toMatchObject({ startX: 3, startY: 4 })
+    })
+
     it('stays paused after the game throws, until Restart', async () => {
       const rig = await started()
       await play(rig)

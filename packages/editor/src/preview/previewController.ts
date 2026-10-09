@@ -395,9 +395,10 @@ export const createPreviewController = (options: PreviewControllerOptions): Prev
       send(event)
     },
     restart: async (start) => {
+      // Remembered even with no game yet, so a game that starts later starts there.
+      if (start !== undefined) publish({ start })
       const current = session
       if (!current) return
-      if (start !== undefined) publish({ start })
       const myEpoch = epoch
       const version = host.version()
       const project = host.getProject()

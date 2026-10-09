@@ -64,6 +64,8 @@ export interface PreviewState {
   readonly keepPlace: boolean
   readonly start: PreviewStart | null
   readonly info: PreviewInfo | null
+  /** How many times the running game was replaced (a reload or a restart) since the tab opened. */
+  readonly reloads: number
 }
 
 export interface PreviewControllerOptions {
@@ -118,6 +120,7 @@ export const createPreviewController = (options: PreviewControllerOptions): Prev
     keepPlace: options.keepPlace ?? true,
     start: options.start ?? null,
     info: null,
+    reloads: 0,
   }
   let listeners: readonly (() => void)[] = []
   const publish = (patch: Partial<PreviewState>): void => {
@@ -243,6 +246,7 @@ export const createPreviewController = (options: PreviewControllerOptions): Prev
         publish({
           pendingChange: false,
           crashed: false,
+          reloads: state.reloads + 1,
           notice: result.data.restored
             ? null
             : {
@@ -357,6 +361,7 @@ export const createPreviewController = (options: PreviewControllerOptions): Prev
       info: null,
       notice: null,
       crashed: false,
+      reloads: 0,
     })
   }
 
@@ -415,7 +420,7 @@ export const createPreviewController = (options: PreviewControllerOptions): Prev
         appliedVersion = version
         remembered = undefined
         watchGame(current.game)
-        publish({ crashed: false, notice: null, pendingChange: false })
+        publish({ crashed: false, notice: null, pendingChange: false, reloads: state.reloads + 1 })
         await sync()
       } catch (error) {
         if (myEpoch === epoch) {

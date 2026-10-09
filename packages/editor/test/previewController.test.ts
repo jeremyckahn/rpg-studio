@@ -360,6 +360,26 @@ describe('preview controller', () => {
       expect(rig.controller.getState().running).toBe(true)
     })
 
+    it('counts each time the game is replaced, so a test or an agent can tell its edit landed', async () => {
+      const rig = await started()
+      await play(rig)
+      expect(rig.controller.getState().reloads).toBe(0)
+      rig.edit()
+      await vi.advanceTimersByTimeAsync(300)
+      expect(rig.controller.getState().reloads).toBe(1)
+      await rig.controller.restart()
+      expect(rig.controller.getState().reloads).toBe(2)
+    })
+
+    it('does not count a reload that was refused', async () => {
+      const rig = await started()
+      await play(rig)
+      rig.setProblems(['broken'])
+      rig.edit()
+      await vi.advanceTimersByTimeAsync(300)
+      expect(rig.controller.getState().reloads).toBe(0)
+    })
+
     it('does nothing when the version did not change', async () => {
       const rig = await started()
       await play(rig)

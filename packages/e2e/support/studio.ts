@@ -46,6 +46,8 @@ export interface PreviewReport {
   readonly crashed?: boolean
   readonly keepPlace?: boolean
   readonly pendingChange?: boolean
+  /** How many times the game was replaced by a reload or restart since the tab opened. */
+  readonly reloads?: number
   readonly start?: { mapId: number; x: number; y: number } | null
   readonly notice?: { severity: 'warning' | 'error'; text: string } | null
   readonly problems?: readonly string[]

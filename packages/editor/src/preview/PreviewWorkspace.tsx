@@ -131,6 +131,9 @@ export const createPreviewPanel = (
         <Stack
           direction="row"
           spacing={1}
+          // A mouse or finger on the toolbar hands the keyboard back to the game, or the arrow keys
+          // would silently stop working after a click. Keyboard use of the toolbar is left alone.
+          onPointerUp={focusGame}
           sx={{
             p: 0.5,
             alignItems: 'center',

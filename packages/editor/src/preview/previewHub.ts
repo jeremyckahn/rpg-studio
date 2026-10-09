@@ -58,6 +58,7 @@ export const describePreview = (controller: PreviewController | null): JsonValue
       crashed: state.crashed,
       keepPlace: state.keepPlace,
       pendingChange: state.pendingChange,
+      reloads: state.reloads,
       start: state.start,
       notice: state.notice,
       problems: state.problems,

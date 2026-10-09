@@ -170,6 +170,27 @@ describe('Play tab', () => {
     expect(sessions[0]).toBeDefined()
   })
 
+  it('hands the keyboard back to the game after a click on the toolbar, so the arrow keys still work', async () => {
+    setup()
+    const toggle = await screen.findByRole('switch', {
+      name: 'Keep my place when the project changes',
+    })
+    await userEvent.click(toggle)
+    expect(document.activeElement).toBe(stage())
+  })
+
+  it('leaves the keyboard where it is when the toolbar is used from the keyboard', async () => {
+    setup()
+    const toggle = await screen.findByRole('switch', {
+      name: 'Keep my place when the project changes',
+    })
+    act(() => {
+      toggle.focus()
+    })
+    await userEvent.keyboard(' ')
+    expect(document.activeElement).toBe(toggle)
+  })
+
   it('names what is wrong instead of showing a blank screen', async () => {
     const { createSession } = setup(false)
     expect(await screen.findByText('The game cannot start')).toBeTruthy()

@@ -1,6 +1,7 @@
 import { type Page } from '@playwright/test'
 
 import { buildDemoGame } from '../support/demoGame.ts'
+import { solidPng } from '../support/files.ts'
 import { expect, test } from '../support/fixtures.ts'
 import { type Studio } from '../support/studio.ts'
 
@@ -13,6 +14,18 @@ const holdUntil = async (page: Page, key: string, done: () => Promise<boolean>):
     await page.keyboard.up(key)
   }
 }
+
+/** Waits until the Play tab has replaced its game `count` times (a reload or a restart each count once). */
+const reloaded = async (studio: Studio, count: number): Promise<void> => {
+  await expect.poll(async () => (await studio.preview()).reloads).toBe(count)
+}
+
+/** Makes the cell solid, the smallest edit whose effect on the game can be walked into. */
+const wall = (studio: Studio, x: number, y: number) =>
+  studio.dispatch({
+    type: 'project/setCollision',
+    payload: { mapId: 1, cells: [{ x, y, flags: 1 }] },
+  })
 
 const playerX = async (studio: Studio): Promise<number> =>
   (await studio.preview()).game?.player.x ?? -1
@@ -213,6 +226,182 @@ test.describe('Play tab', () => {
       await studio.dispatch({ type: 'project/updateMeta', payload: { changes: { plugins: [] } } })
       await expect.poll(async () => (await studio.preview()).status).toBe('running')
       await expect(page.getByText('The game cannot start')).toBeHidden()
+    })
+  })
+
+  test.describe('live reload', () => {
+    test('an edit while playing takes effect without losing your place or the time played', async ({
+      studio,
+      page,
+    }) => {
+      await studio.openPlay()
+      await holdUntil(page, 'ArrowRight', async () => (await playerX(studio)) >= 12)
+      await expect.poll(async () => (await studio.preview()).game?.player.moving).toBe(false)
+      const before = (await studio.preview()).game
+      if (!before) throw new Error('no game')
+
+      await wall(studio, before.player.x + 1, before.player.y)
+      await reloaded(studio, 1)
+
+      const after = (await studio.preview()).game
+      expect(after?.player).toMatchObject({ x: before.player.x, y: before.player.y })
+      expect(after?.tick).toBeGreaterThanOrEqual(before.tick)
+      expect((await studio.preview()).notice).toBeNull()
+
+      // The new wall is really in the rebuilt game: the player cannot walk through it.
+      await page.keyboard.down('ArrowRight')
+      await page.waitForTimeout(700) // nothing should happen in this time
+      await page.keyboard.up('ArrowRight')
+      expect((await studio.preview()).game?.player.x).toBe(before.player.x)
+    })
+
+    test('with Keep my place off, an edit starts the game again from the beginning', async ({
+      studio,
+      page,
+    }) => {
+      await studio.openPlay()
+      await page.getByRole('switch', { name: 'Keep my place when the project changes' }).click()
+      expect((await studio.preview()).keepPlace).toBe(false)
+      await holdUntil(page, 'ArrowRight', async () => (await playerX(studio)) >= 12)
+
+      await wall(studio, 0, 0)
+      await reloaded(studio, 1)
+      await studio.waitForGame((game) => game.player.x === 10 && game.player.y === 7)
+    })
+
+    test('a burst of edits reloads once, after they stop', async ({ studio }) => {
+      await studio.openPlay()
+      for (let x = 0; x < 6; x += 1) await wall(studio, x, 0)
+      await reloaded(studio, 1)
+      await studio.page.waitForTimeout(800) // nothing should happen in this time
+      expect((await studio.preview()).reloads).toBe(1)
+    })
+
+    test('undo and redo reload too', async ({ studio, page }) => {
+      await studio.openPlay()
+      await wall(studio, 0, 0)
+      await reloaded(studio, 1)
+      await page.keyboard.press('Control+z')
+      await reloaded(studio, 2)
+      expect(await studio.collisionAt(0, 0)).toBe(0)
+      await page.keyboard.press('Control+Shift+z')
+      await reloaded(studio, 3)
+      expect(await studio.collisionAt(0, 0)).toBe(1)
+    })
+
+    test('waits while paused, says so, and catches up once on resume before the first tick', async ({
+      studio,
+      page,
+    }) => {
+      await studio.openPlay()
+      await page.getByRole('button', { name: 'Pause' }).click()
+      await expect.poll(async () => (await studio.preview()).status).toBe('paused')
+
+      await wall(studio, 0, 0)
+      await wall(studio, 1, 0)
+      await expect.poll(async () => (await studio.preview()).pendingChange).toBe(true)
+      await expect(
+        page.getByText(/The project changed; the game updates when you resume/),
+      ).toBeVisible()
+      await page.waitForTimeout(700) // nothing should happen in this time
+      expect((await studio.preview()).reloads).toBe(0)
+
+      await page.getByRole('button', { name: 'Resume', exact: true }).click()
+      await reloaded(studio, 1)
+      await expect.poll(async () => (await studio.preview()).status).toBe('running')
+      expect((await studio.preview()).pendingChange).toBe(false)
+      await expect(page.getByText(/The project changed; the game updates/)).toBeHidden()
+    })
+
+    test('a cutscene that is running when the project changes plays again from its start', async ({
+      studio,
+      page,
+    }) => {
+      await buildDemoGame(studio)
+      await studio.openPlay()
+      await expect(studio.gameMessage).toHaveText('Welcome to the village.')
+
+      await wall(studio, 0, 0)
+      await reloaded(studio, 1)
+      await expect(studio.gameMessage).toHaveText('Welcome to the village.')
+      await page.keyboard.press('Enter')
+      await expect(studio.gameMessage).toBeHidden()
+    })
+
+    test('a place the new project no longer has starts the game again and says why', async ({
+      studio,
+      page,
+    }) => {
+      await studio.openPlay()
+      await holdUntil(page, 'ArrowRight', async () => (await playerX(studio)) >= 14)
+      await expect.poll(async () => (await studio.preview()).game?.player.moving).toBe(false)
+
+      // Shrinking the map takes the player's tile away.
+      const resized = await studio.dispatch({
+        type: 'project/resizeMap',
+        payload: { mapId: 1, width: 12, height: 15 },
+      })
+      expect(resized.success).toBe(true)
+      await reloaded(studio, 1)
+      const report = await studio.preview()
+      expect(report.notice?.severity).toBe('warning')
+      expect(report.notice?.text).toMatch(/^Restarted from the beginning:/)
+      await expect(page.getByText(/Restarted from the beginning/)).toBeVisible()
+      expect(report.game?.player.x).toBeLessThan(12)
+      expect(report.status).toBe('running')
+    })
+
+    test('keeps the game it has and names the problem when an edit makes it unplayable, then recovers', async ({
+      studio,
+      page,
+    }) => {
+      await studio.openPlay()
+      await studio.dispatch({
+        type: 'project/updateMeta',
+        payload: { changes: { plugins: ['acme.ghost'] } },
+      })
+      await expect.poll(async () => (await studio.preview()).notice?.severity).toBe('error')
+      await expect(page.getByText(/Not reloaded\. .*acme\.ghost/)).toBeVisible()
+      const report = await studio.preview()
+      expect(report.status).toBe('running')
+      expect(report.reloads).toBe(0)
+      const tick = report.game?.tick ?? 0
+      await studio.waitForGame((game) => game.tick > tick + 5)
+
+      await studio.dispatch({ type: 'project/updateMeta', payload: { changes: { plugins: [] } } })
+      await reloaded(studio, 1)
+      expect((await studio.preview()).notice).toBeNull()
+      await expect(page.getByText(/Not reloaded/)).toBeHidden()
+    })
+
+    test('a picture saved while you were elsewhere is on screen when you come back', async ({
+      studio,
+      page,
+    }) => {
+      await studio.openPlay()
+      const before = await studio.gameStage.locator('canvas').screenshot()
+
+      // Uploading takes focus away, which pauses the game; the new tileset waits for the resume.
+      await page.getByRole('button', { name: 'Add', exact: true }).click()
+      const chooser = page.waitForEvent('filechooser')
+      await page.getByRole('menuitem', { name: 'Tileset image' }).click()
+      await (
+        await chooser
+      ).setFiles([
+        {
+          name: 'basic.png',
+          mimeType: 'image/png',
+          buffer: solidPng(128, 128, [10, 200, 90, 255]),
+        },
+      ])
+      await expect.poll(async () => (await studio.preview()).status).toBe('paused')
+      await expect.poll(async () => (await studio.preview()).pendingChange).toBe(true)
+
+      await page.getByRole('button', { name: 'Resume the game' }).click()
+      await reloaded(studio, 1)
+      await expect
+        .poll(async () => (await studio.gameStage.locator('canvas').screenshot()).equals(before))
+        .toBe(false)
     })
   })
 

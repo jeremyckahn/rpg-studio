@@ -172,9 +172,10 @@ What a good one looks like:
    naming the cause, then report the bug in your final message. Do not bend the assertion to match the bug.
 
 CI runs the suite in four shards that are balanced by each spec file's measured time (`packages/e2e/support/timings.json`). **When
-you add or remove specs, or a shard's test step runs more than about 1.3 times as long as the fastest one's, refresh the
-timings and commit them** (`pnpm --filter @rpgstudio/e2e timings`;
-[packages/e2e/AGENTS.md](packages/e2e/AGENTS.md#keeping-the-shards-balanced)).
+you add or remove specs, change one a lot, or the same shard is the slowest over several runs, refresh the timings and commit
+them** (`pnpm --filter @rpgstudio/e2e timings`;
+[packages/e2e/AGENTS.md](packages/e2e/AGENTS.md#keeping-the-shards-balanced)). One slow shard in one run is not a reason: CI
+runners differ in speed by up to 2x, which moves a shard's time more than any split can.
 
 Never delete, skip or loosen an end-to-end test to get green; fix the cause. Update the test in the same commit as the
 behaviour it describes when the behaviour is meant to change. If the change affects what the user guide documents, the user

@@ -109,9 +109,11 @@ decides how long a pull request waits. Playwright's own `--shard` splits by test
 longest first, each into the shard with the least work so far. Whole spec files go to a shard, so a spec's worker-scoped fixtures
 (the exported demo game) are built on one shard only.
 
-**Rule: when the shards drift out of balance, refresh the timings and commit them.** Drift looks like this: in the Actions
-run, the "Run the end-to-end tests" step of the slowest shard takes more than about 1.3 times the fastest one's (the install
-and build steps do not count: they vary on their own), or you have added, removed or substantially changed specs. Then:
+**Rule: refresh the timings and commit them when you add or remove specs, change one substantially, or the same shard is the slowest
+across several runs.** Do not chase a single run. GitHub's runners differ in speed by up to 2x (the same spec took 186, 189 and
+72 s in three runs, and two shards finished in 2 minutes while the other two took 4.4), so which shard is slow changes from run to
+run, whatever the split. What the split guarantees is that no shard is given more _work_ than another, and that the heavy specs are
+spread out. Then:
 
 ```sh
 pnpm build && pnpm build:app
@@ -121,8 +123,8 @@ pnpm test                                # tooling/e2e-sharding.test.ts checks t
 
 Commit `support/timings.json`. The numbers do not have to be exact, only in proportion: a run on a laptop is fine, but it is
 better to take them from CI, where the sum of a spec's test durations in the log of the shard that ran it gives the same figure.
-A short spec's time moves a lot between runs (import-export took 153 s in one run and 82 s in the next, on the same code), while
-the long ones hold steady, so average two runs rather than trusting one.
+A spec's time moves a lot between runs (import-export took 153 s in one run and 82 s in the next, on the same code), so average
+several runs rather than trusting one.
 A new spec with no entry is placed as an average one until the next refresh, and `pnpm test` reminds you to refresh. If one
 spec file alone is longer than a quarter of the suite, split it into two files instead; balancing cannot divide a file.
 

@@ -1,4 +1,8 @@
+import { resolve } from 'node:path'
+
 import { defineConfig, devices } from '@playwright/test'
+
+import { assignSpecs, listSpecs, loadTimings, parseShard } from './support/sharding.ts'
 
 /** The editor is served from its production build: that is what users get, service worker included. */
 const PORT = 4173
@@ -10,9 +14,27 @@ const CI = Boolean(process.env.CI)
  */
 const executablePath = process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH
 
+/**
+ * CI runs the suite as `E2E_SHARD=N/4`, and shard N gets the spec files that `support/timings.json`
+ * says balance the four shards by time. Playwright's own `--shard` splits by test count, which put
+ * the slow specs together and left one shard taking 1.6 times as long as another. Unset, every spec runs.
+ */
+const testMatch = ((): string | string[] => {
+  const shard = process.env.E2E_SHARD
+  if (shard === undefined) return '**/*.e2e.ts'
+  const { current, total } = parseShard(shard)
+  const testDir = resolve(import.meta.dirname, 'test')
+  const specs = listSpecs(testDir)
+  const mine =
+    assignSpecs(specs, loadTimings(resolve(import.meta.dirname, 'support/timings.json')), total)[
+      current - 1
+    ] ?? []
+  return mine.map((spec) => `**/${spec}.e2e.ts`)
+})()
+
 export default defineConfig({
   testDir: './test',
-  testMatch: '**/*.e2e.ts',
+  testMatch,
   globalSetup: './support/globalSetup.ts',
   fullyParallel: true,
   forbidOnly: CI,

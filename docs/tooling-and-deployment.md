@@ -138,10 +138,10 @@ All build outputs are git-ignored (`dist/`, `dist-*/`).
 
 `.github/workflows/tests.yml` runs on every `pull_request` (from this repository or a fork), on every `push` to `main`, in the merge queue (`merge_group`) and on demand (`workflow_dispatch`), on
 `ubuntu-latest` with Node 22 and the pnpm version pinned by `packageManager`. A newer run for the same ref cancels the older
-one. The `unit` job installs and runs `pnpm test` (Vitest for every package, the docs checker and the user guide checker). The end-to-end suite is split into four parallel shards (`--shard=N/4`), because on one runner it takes about a quarter of an
+one. The `unit` job installs and runs `pnpm test` (Vitest for every package, the docs checker and the user guide checker). The end-to-end suite is split into four parallel shards (`E2E_SHARD=N/4`), balanced by the measured time of each spec file (`packages/e2e/support/timings.json`, see [packages/e2e/AGENTS.md](../packages/e2e/AGENTS.md#keeping-the-shards-balanced)), because on one runner it takes about a quarter of an
 hour. Each shard: `pnpm install --frozen-lockfile`, `pnpm build`, `pnpm build:app`, install Chromium
 (`playwright install chromium`, without `--with-deps`: the runner image has the libraries, and that flag only added fonts
-through an `apt-get` that once stalled for five minutes), `pnpm test:e2e --shard=N/4`. Every test is recorded on video. Each shard uploads two artifacts, also when the run fails: `playwright-report-N` (the HTML
+through an `apt-get` that once stalled for five minutes), `pnpm test:e2e` with `E2E_SHARD=N/4`. Every test is recorded on video. Each shard uploads two artifacts, also when the run fails: `playwright-report-N` (the HTML
 report, which plays each test's video, plus traces and screenshots of failures) and `playwright-videos-N` (one `.webm` per
 test, named `<spec>/<describe>--<test>.<hash>.webm` (the hash keeps long or look-alike titles apart) by `packages/e2e/support/videoReporter.ts`, kept 7 days). It is one artifact per
 shard rather than per video because an artifact is one upload step and a workflow step cannot loop. On CI,

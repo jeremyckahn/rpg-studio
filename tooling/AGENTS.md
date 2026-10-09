@@ -11,6 +11,8 @@ Shared build/test configuration and repository checks. Not a package; nothing is
   the docs that must list them. When it fails after your change, update the docs.
 - `user-guide.test.ts`: validates the user guide in `docs/user-guide`: links and anchors, index coverage, pages the app links to,
   and that JSON examples pass the real schemas. See [AGENTS.md](../AGENTS.md#the-user-guide-keep-it-current).
-- `vitest.config.ts`: the Vitest project for `docs.test.ts` and `user-guide.test.ts`.
+- `e2e-sharding.test.ts`: checks that the four CI shards of the end-to-end suite run every spec file once and are balanced by the
+  times in `packages/e2e/support/timings.json`. When it asks for a refresh, run `pnpm --filter @rpgstudio/e2e timings`.
+- `vitest.config.ts`: the Vitest project for `docs.test.ts`, `user-guide.test.ts` and `e2e-sharding.test.ts`.
 
 Changing `vite.ts` affects every package; run the full verification gate.

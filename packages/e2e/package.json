@@ -12,7 +12,8 @@
     "test:headed": "playwright test --headed",
     "test:ui": "playwright test --ui",
     "report": "playwright show-report",
-    "test:debug": "playwright test --debug"
+    "test:debug": "playwright test --debug",
+    "timings": "playwright test --workers=2 --reporter=list,./support/timingsReporter.ts"
   },
   "devDependencies": {
     "@playwright/test": "^1.63.0",

@@ -71,6 +71,7 @@ pnpm install --frozen-lockfile
 pnpm build && pnpm build:app                                          # the app under test
 pnpm --filter @rpgstudio/e2e exec playwright install --with-deps chromium   # once per machine
 pnpm test:e2e                                                          # all specs
+E2E_SHARD=3/4 pnpm test:e2e                                            # shard 3 of 4, as CI runs it
 pnpm --filter @rpgstudio/e2e exec playwright test test/database        # one spec
 pnpm test:e2e:ui                                                       # rebuild, then Playwright's UI (see below)
 pnpm --filter @rpgstudio/e2e test:headed                               # watch a real browser window run the tests
@@ -98,6 +99,30 @@ The Playwright extension for VS Code offers the same run, debug and locator-pick
 `PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH` points at an existing Chromium when `playwright install` cannot download one (a
 sandbox with a pre-installed browser). Leave it unset otherwise. A failed test keeps a trace, screenshot and video under
 `test-results/`; open the trace with `playwright show-trace`.
+
+## Keeping the shards balanced
+
+CI runs the suite as four shards (`E2E_SHARD=N/4`), and the four should take about the same time, because the slowest one
+decides how long a pull request waits. Playwright's own `--shard` splits by test count, which put the slow specs together
+(one shard took 6.7 minutes while another took 4.2), so `playwright.config.ts` does it by time instead:
+`support/timings.json` holds the seconds each spec file's tests took, and `support/sharding.ts` deals the spec files out,
+longest first, each into the shard with the least work so far. Whole spec files go to a shard, so a spec's worker-scoped fixtures
+(the exported demo game) are built on one shard only.
+
+**Rule: when the shards drift out of balance, refresh the timings and commit them.** Drift looks like this: in the Actions
+run, the "Run the end-to-end tests" step of the slowest shard takes more than about 1.3 times the fastest one's (the install
+and build steps do not count: they vary on their own), or you have added, removed or substantially changed specs. Then:
+
+```sh
+pnpm build && pnpm build:app
+pnpm --filter @rpgstudio/e2e timings     # the whole suite, two workers like CI; rewrites support/timings.json
+pnpm test                                # tooling/e2e-sharding.test.ts checks the new split is complete and balanced
+```
+
+Commit `support/timings.json`. The numbers do not have to be exact, only in proportion: a run on a laptop is fine, but it is
+better to take them from CI, where the sum of a spec's test durations in the log of the shard that ran it gives the same figure.
+A new spec with no entry is placed as an average one until the next refresh, and `pnpm test` reminds you to refresh. If one
+spec file alone is longer than a quarter of the suite, split it into two files instead; balancing cannot divide a file.
 
 ## Patterns and traps
 

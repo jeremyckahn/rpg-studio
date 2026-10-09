@@ -1,0 +1,18 @@
+{
+  "app-shell": 74,
+  "assets": 64,
+  "companion": 143,
+  "database": 350,
+  "exported-game": 153,
+  "import-export": 143,
+  "map-management": 72,
+  "map-painting": 133,
+  "map-view": 170,
+  "mobile": 81,
+  "plugins": 58,
+  "project-files": 245,
+  "properties-panel": 85,
+  "pwa": 96,
+  "sprite-editor": 101,
+  "undo-redo": 59
+}

@@ -30,13 +30,14 @@ Turn on **Dim inactive layers** (the layers icon in the toolbar) to fade every l
 
 ## The toolbar
 
-| Tool          | Icon                | What it does                                                                       |
-| ------------- | ------------------- | ---------------------------------------------------------------------------------- |
-| **Pencil**    | brush               | Paints the selected tile. Drag to paint a line without gaps.                       |
-| **Fill**      | paint bucket        | Floods a connected area of identical tiles on the current layer.                   |
-| **Eraser**    | magic wand          | Clears tiles (sets them to empty) on the current layer.                            |
-| **Collision** | circle with a slash | Marks cells solid or passable. See below.                                          |
-| **Pan**       | hand                | Dragging moves the view instead of painting. Handy on touch screens and trackpads. |
+| Tool               | Icon                | What it does                                                                                                                                                                                                                       |
+| ------------------ | ------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Pencil**         | brush               | Paints the selected tile. Drag to paint a line without gaps.                                                                                                                                                                       |
+| **Fill**           | paint bucket        | Floods a connected area of identical tiles on the current layer.                                                                                                                                                                   |
+| **Eraser**         | magic wand          | Clears tiles (sets them to empty) on the current layer.                                                                                                                                                                            |
+| **Collision**      | circle with a slash | Marks cells solid or passable. See below.                                                                                                                                                                                          |
+| **Pan**            | hand                | Dragging moves the view instead of painting. Handy on touch screens and trackpads.                                                                                                                                                 |
+| **Play from here** | play button         | Click a tile to open the **Play** tab with the game starting on it, instead of at the project's start. Changes nothing in the project, and your previous tool comes back. See [Play from a tile](playtesting.md#play-from-a-tile). |
 
 Next to the tools are three toggles: **grid**, **collision overlay** and **dim inactive layers**, then **zoom out / in** with the current percentage. The caption at the right shows the map name, layer and selected tile.
 

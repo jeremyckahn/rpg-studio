@@ -5,6 +5,9 @@ import { MapEditorWorkspace } from '../components/MapEditorWorkspace.tsx'
 import { MapToolPanel } from '../components/MapToolPanel.tsx'
 import { PropertiesPanel } from '../components/PropertiesPanel.tsx'
 import { createPiskelEditorPanel } from '../piskel/PiskelEditorPanel.tsx'
+import { PreviewDebugPanel } from '../preview/PreviewDebugPanel.tsx'
+import { createPreviewPanel } from '../preview/PreviewWorkspace.tsx'
+import { PREVIEW_PANEL_ID } from '../store/slices/editorUi.ts'
 import { type EditorCapabilities } from './editorHost.ts'
 
 /** Panel ids of the first-party plugins, shared with `editorUi.workspacePanel`. */
@@ -12,6 +15,7 @@ export const PANEL_IDS = {
   map: 'rpgstudio.map-editor',
   database: 'rpgstudio.database',
   pixel: 'rpgstudio.pixel-editor',
+  preview: PREVIEW_PANEL_ID,
 } as const
 
 /**
@@ -52,6 +56,35 @@ export const registerCorePlugins = (manager: PluginManager<EditorCapabilities>):
           location: 'right',
           when: PANEL_IDS.map,
           component: PropertiesPanel,
+        })
+      },
+    },
+  })
+
+  manager.register({
+    manifest: {
+      id: PANEL_IDS.preview,
+      name: 'Live Preview',
+      version: '1.0.0',
+      description: 'Plays the game inside the editor, reloading as the project changes.',
+      capabilities: ['ui', 'files:read'],
+      entries: { editor: 'editor.js' },
+    },
+    module: {
+      initialize: (ctx) => {
+        ctx.ui.registerPanel({
+          id: PANEL_IDS.preview,
+          title: 'Play',
+          location: 'workspace',
+          order: 15,
+          component: createPreviewPanel({ read: ctx.readFiles }),
+        })
+        ctx.ui.registerPanel({
+          id: `${PANEL_IDS.preview}.debug`,
+          title: 'Debug',
+          location: 'right',
+          when: PANEL_IDS.preview,
+          component: PreviewDebugPanel,
         })
       },
     },

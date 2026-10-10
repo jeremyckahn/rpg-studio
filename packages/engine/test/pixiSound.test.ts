@@ -18,6 +18,8 @@ const mocks = vi.hoisted(() => {
     }),
     exists: vi.fn((alias: string) => added.has(alias)),
     remove: vi.fn((alias: string) => added.delete(alias)),
+    pauseAll: vi.fn(),
+    resumeAll: vi.fn(),
   }
   return { added, library }
 })
@@ -91,6 +93,14 @@ describe('pixi sound backend', () => {
     options.complete()
     expect(onEnd).toHaveBeenCalledOnce()
     expect(mocks.added.size).toBe(0)
+  })
+
+  it('pauses and resumes every sound through the library', () => {
+    backend.pause()
+    expect(mocks.library.pauseAll).toHaveBeenCalledOnce()
+    expect(mocks.library.resumeAll).not.toHaveBeenCalled()
+    backend.resume()
+    expect(mocks.library.resumeAll).toHaveBeenCalledOnce()
   })
 
   it('unlocks by resuming the audio context', async () => {

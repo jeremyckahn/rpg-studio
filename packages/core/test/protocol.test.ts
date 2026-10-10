@@ -38,6 +38,7 @@ describe('companion protocol', () => {
       { type: 'GET_SCHEMA', name: 'actor' },
       { type: 'FIND_PATH', mapId: 1, from: { x: 0, y: 0 }, to: { x: 4, y: 4 } },
       { type: 'LIST_ASSETS' },
+      { type: 'GET_PREVIEW_STATE' },
     ]
     queries.forEach((query) => {
       expect(QuerySchema.safeParse(query).success, query.type).toBe(true)
@@ -53,6 +54,7 @@ describe('companion protocol', () => {
       { type: 'GET_SCHEMA', name: 'passwords' },
       { type: 'FIND_PATH', mapId: 1, from: { x: 0 }, to: { x: 1, y: 1 } },
       { type: 'LIST_ASSETS', extra: true },
+      { type: 'GET_PREVIEW_STATE', extra: true },
     ].forEach((query) => {
       expect(QuerySchema.safeParse(query).success, JSON.stringify(query)).toBe(false)
     })

@@ -2,6 +2,7 @@ import { type JsonValue, type Query, type Result, QuerySchema } from '@rpgstudio
 
 import { type EditorStoreHandle } from '../store/index.ts'
 import { type AssetStore } from '../project/assetStore.ts'
+import { type PreviewHub, describePreview } from '../preview/previewHub.ts'
 import { type CompanionHandler } from './handler.ts'
 import { runQuery } from './queries.ts'
 
@@ -15,7 +16,7 @@ export interface RPGStudioApi {
 }
 
 export const createRPGStudioApi = (
-  deps: { handle: EditorStoreHandle; assets: AssetStore },
+  deps: { handle: EditorStoreHandle; assets: AssetStore; preview?: PreviewHub },
   handler: CompanionHandler,
 ): RPGStudioApi => ({
   version: 1,
@@ -25,7 +26,14 @@ export const createRPGStudioApi = (
       throw new Error(`Invalid query: ${parsed.error.issues[0]?.message ?? 'unknown'}`)
     const state = deps.handle.store.getState()
     const result = runQuery(
-      { project: state.project.data, revision: state.project.revision, assets: deps.assets },
+      {
+        project: state.project.data,
+        revision: state.project.revision,
+        assets: deps.assets,
+        ...(deps.preview
+          ? { preview: () => describePreview(deps.preview?.current() ?? null) }
+          : {}),
+      },
       parsed.data satisfies Query,
     )
     if (!result.success) throw new Error(result.error)

@@ -101,6 +101,41 @@ describe('paint controller', () => {
     return { handle, controller, tiles, collision }
   }
 
+  describe('the Play from here tool', () => {
+    it('opens the Play tab at the clicked tile, edits nothing and is not an undo step', () => {
+      const { handle, controller, tiles, collision } = setup({ tool: 'play' })
+      const before = handle.store.getState().project
+      const tilesBefore = tiles()
+      controller.pointerDown({ x: 3, y: 2 })
+      controller.pointerUp()
+      const ui = handle.store.getState().editorUi
+      expect(ui.previewStart).toEqual({ mapId: 1, x: 3, y: 2 })
+      expect(ui.workspacePanel).toBe('rpgstudio.preview')
+      expect(handle.store.getState().project).toBe(before)
+      expect(tiles()).toEqual(tilesBefore)
+      expect(collision().every((flags) => flags === 0)).toBe(true)
+      expect(handle.store.getState().history.past).toHaveLength(0)
+    })
+
+    it('ignores a click outside the map', () => {
+      const { handle, controller } = setup({ tool: 'play' })
+      controller.pointerDown({ x: 99, y: 0 })
+      expect(handle.store.getState().editorUi.previewStart).toBeNull()
+      expect(handle.store.getState().editorUi.workspacePanel).not.toBe('rpgstudio.preview')
+    })
+
+    it('does not start a stroke, so dragging afterwards paints nothing', () => {
+      const { handle, controller, tiles } = setup({ tool: 'play' })
+      const tilesBefore = tiles()
+      controller.pointerDown({ x: 0, y: 0 })
+      controller.pointerMove({ x: 4, y: 0 })
+      controller.pointerUp()
+      expect(controller.active()).toBe(false)
+      expect(tiles()).toEqual(tilesBefore)
+      expect(handle.store.getState().history.past).toHaveLength(0)
+    })
+  })
+
   it('paints the clicked cell with the selected tile', () => {
     const { controller, tiles } = setup()
     controller.pointerDown({ x: 2, y: 1 })

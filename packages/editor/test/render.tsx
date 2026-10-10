@@ -9,6 +9,7 @@ import { type EditorServices, ServicesProvider } from '../src/components/service
 import { type PanelDefinition, createPanelRegistry } from '../src/plugins/panelRegistry.ts'
 import { createCompanionClient } from '../src/bridge/companionClient.ts'
 import { createCompanionHandler } from '../src/bridge/handler.ts'
+import { createPreviewHub } from '../src/preview/previewHub.ts'
 import { createAssetStore } from '../src/project/assetStore.ts'
 import { createProjectSession } from '../src/project/session.ts'
 import { createEditorStore } from '../src/store/index.ts'
@@ -25,10 +26,11 @@ export const createHarness = (panels: readonly PanelDefinition[] = []) => {
   const handle = createEditorStore({ project: sampleProject() })
   const assets = createAssetStore()
   const registry = createPanelRegistry()
+  const preview = createPreviewHub()
   panels.forEach((panel) => registry.register(panel))
   const session = createProjectSession({ handle, assets, download: vi.fn(), baseUrl: '/' })
   const companion = createCompanionClient({
-    handler: createCompanionHandler({ handle, assets }),
+    handler: createCompanionHandler({ handle, assets, preview }),
     createSocket: () => {
       throw new Error('no network in tests')
     },
@@ -37,7 +39,14 @@ export const createHarness = (panels: readonly PanelDefinition[] = []) => {
     register: vi.fn(() => Promise.resolve()),
     apply: vi.fn(() => Promise.resolve()),
   }
-  const services: EditorServices = { session, panels: registry, textures, companion, updater }
+  const services: EditorServices = {
+    session,
+    panels: registry,
+    textures,
+    companion,
+    updater,
+    preview,
+  }
   return { handle, assets, session, services, registry, updater }
 }
 

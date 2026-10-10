@@ -29,6 +29,7 @@ A stroke only begins after your finger has moved a short distance, so putting do
 ### Tips for touch editing
 
 - Switch to the **Pan** tool when you want to move around with one hand.
+- Use **Play from here** (the play-button tool) and tap a tile to test from exactly there ([Playing Your Game in the Editor](playtesting.md#play-from-a-tile)).
 - Use the **Tools** section for maps, layers and the tileset; collapse it while you paint big areas.
 - Undo and Redo are in the top bar. There is no Ctrl+Z on a phone, so use ↶.
 - The **Sprite Editor** (Piskel) and the **Database** table were designed for a mouse. They work, but are the least comfortable on a phone; a tablet or desktop is better for pixel art.
@@ -36,7 +37,7 @@ A stroke only begins after your finger has moved a short distance, so putting do
 
 ## Playing games on a phone
 
-Exported games show an on-screen **D-pad** and an **A** button on touch devices. See [Playing and Exporting](playing-and-exporting.md#controls). In **portrait** the game is shown at the top with the controls beneath it; in **landscape** the controls float over the lower corners.
+The **Play** tab runs your game in the editor with the same on-screen controls ([Playing Your Game in the Editor](playtesting.md#on-a-phone)). Exported games show an on-screen **D-pad** and an **A** button on touch devices. See [Playing and Exporting](playing-and-exporting.md#controls). In **portrait** the game is shown at the top with the controls beneath it; in **landscape** the controls float over the lower corners.
 
 ## Installing the editor as an app
 

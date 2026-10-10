@@ -12,6 +12,8 @@ export interface CharacterLayer {
   readonly container: Container
   /** Creates, moves and removes sprites so they mirror the world. */
   sync: () => void
+  /** Resolves when every sprite sheet requested so far has finished loading (or failed). */
+  settled: () => Promise<void>
   destroy: () => void
 }
 
@@ -24,15 +26,16 @@ export const createCharacterLayer = (game: Game, textures: TextureProvider): Cha
   const container = new Container({ sortableChildren: true })
   let sprites: ReadonlyMap<Entity, Sprite> = new Map()
   let frameTextures: ReadonlyMap<string, Texture> = new Map()
-  let pendingSheets: ReadonlySet<string> = new Set()
+  let pendingSheets: ReadonlyMap<string, Promise<unknown>> = new Map()
   let lastSheets: ReadonlyMap<string, Texture> = new Map()
 
   const requestSheet = (path: string): void => {
     if (pendingSheets.has(path)) return
-    pendingSheets = new Set(pendingSheets).add(path)
-    void textures.load(path).finally(() => {
-      pendingSheets = new Set([...pendingSheets].filter((pending) => pending !== path))
+    const request = textures.load(path).finally(() => {
+      pendingSheets = new Map([...pendingSheets].filter(([pending]) => pending !== path))
     })
+    pendingSheets = new Map(pendingSheets).set(path, request)
+    void request
   }
 
   const frameTexture = (entity: Entity): Texture | undefined => {
@@ -122,6 +125,9 @@ export const createCharacterLayer = (game: Game, textures: TextureProvider): Cha
   return {
     container,
     sync,
+    settled: async () => {
+      await Promise.allSettled(pendingSheets.values())
+    },
     destroy: () => {
       container.destroy({ children: true })
       sprites = new Map()

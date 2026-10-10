@@ -44,7 +44,8 @@ export const mergeInputs = (...sources: readonly PlayerInput[]): PlayerInput => 
   },
 })
 
-interface KeyTarget {
+/** Anything key events can be listened to on: `window` for a game page, a focusable element in the editor. */
+export interface KeyTarget {
   addEventListener: (type: string, listener: (event: KeyboardEvent) => void) => void
   removeEventListener: (type: string, listener: (event: KeyboardEvent) => void) => void
 }
@@ -61,6 +62,8 @@ export const createKeyboardInput = (target: KeyTarget): KeyboardInput => {
   let confirmPressed = false
 
   const onKeyDown = (event: KeyboardEvent): void => {
+    // A chord belongs to the host page (undo, save, browser shortcuts), never to the game.
+    if (event.ctrlKey || event.metaKey || event.altKey) return
     const direction = DIRECTION_KEYS[event.code]
     if (direction) {
       event.preventDefault()

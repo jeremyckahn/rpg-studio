@@ -35,7 +35,10 @@ src/components/               MasterLayout, MenuBar, AssetBrowser, MapEditorWork
                               database/{DatabaseEditor, schemaColumns, records}
 src/canvas/                   mapScene (Pixi), geometry (pure), tools (paint controller), gestures (touch reducer)
 src/piskel/                   protocol, bridge, PiskelEditorPanel, textureInvalidation
-src/export/                   packager (pure), zip, archive, engineFiles (+ download helper)
+src/export/                   packager (pure; findGameProblems is shared with the preview), zip, archive, engineFiles (+ download helper)
+src/preview/                  the Play tab: previewController (run state, live reload), previewControls / previewReload /
+                              previewStart / previewAssets / previewInfo (pure), previewHost (editor wiring), previewHub,
+                              PreviewWorkspace.tsx
 src/bridge/                   companionClient, handler, queries, global (window.RPGStudio)
 src/pwa/register.ts           service worker registration and update flow (production only)
 src/links.ts                  USER_GUIDE_URL and the user-guide pages the app links to (docs/user-guide: see root AGENTS.md)

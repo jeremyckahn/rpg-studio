@@ -8,10 +8,24 @@ import {
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import { type GameEventMap } from '../src'
-import { createKeyboardInput, createMessageBox, loadGameBundle, startPlayer } from '../src/player'
+import {
+  createKeyboardInput,
+  createMessageBox,
+  loadEnginePlugins,
+  loadGameBundle,
+  startPlayer,
+} from '../src/player'
 
-const press = (target: EventTarget, type: 'keydown' | 'keyup', code: string, repeat = false) => {
-  target.dispatchEvent(new KeyboardEvent(type, { code, repeat, cancelable: true }))
+const press = (
+  target: EventTarget,
+  type: 'keydown' | 'keyup',
+  code: string,
+  repeat = false,
+  modifiers: KeyboardEventInit = {},
+) => {
+  const event = new KeyboardEvent(type, { code, repeat, cancelable: true, ...modifiers })
+  target.dispatchEvent(event)
+  return event
 }
 
 describe('keyboard input', () => {
@@ -62,6 +76,28 @@ describe('keyboard input', () => {
     expect(input.poll().confirm).toBe(true)
     press(target, 'keydown', 'KeyZ')
     expect(input.poll().confirm).toBe(true)
+  })
+
+  it.each([{ ctrlKey: true }, { metaKey: true }, { altKey: true }])(
+    'leaves a chord with %o to the editor and the browser',
+    (modifiers) => {
+      const target = new EventTarget()
+      const input = createKeyboardInput(target as never)
+      const undo = press(target, 'keydown', 'KeyZ', false, modifiers)
+      const arrow = press(target, 'keydown', 'ArrowLeft', false, modifiers)
+      expect(undo.defaultPrevented).toBe(false)
+      expect(arrow.defaultPrevented).toBe(false)
+      expect(input.poll()).toEqual({ direction: null, confirm: false })
+    },
+  )
+
+  it('still releases a direction when Ctrl is pressed while it is held', () => {
+    const target = new EventTarget()
+    const input = createKeyboardInput(target as never)
+    press(target, 'keydown', 'ArrowLeft')
+    expect(input.poll().direction).toBe('left')
+    press(target, 'keyup', 'ArrowLeft', false, { ctrlKey: true })
+    expect(input.poll().direction).toBeNull()
   })
 
   it('stops listening when disposed', () => {
@@ -164,6 +200,45 @@ describe('game bundle loader', () => {
     expect(loaded.plugins).toHaveLength(1)
     expect(loaded.plugins[0]?.shared).toEqual({ n: 1 })
     expect(requested.some((path) => path.endsWith('editor.js'))).toBe(false)
+  })
+})
+
+describe('engine plugin loader', () => {
+  const manifest = (entries: Record<string, string>) =>
+    JSON.stringify({ id: 'acme.counter', name: 'Counter', version: '1.0.0', entries })
+
+  it('reads plugins from any text source, such as the editor asset store, and skips the editor entry', async () => {
+    const source: Record<string, string> = {
+      'plugins/acme.counter/manifest.json': manifest({
+        shared: 'shared.js',
+        editor: 'editor.js',
+        engine: 'engine.js',
+      }),
+      'plugins/acme.counter/shared.js': 'export default { n: 2 }',
+      'plugins/acme.counter/engine.js': 'export default {}',
+    }
+    const requested: string[] = []
+    const plugins = await loadEnginePlugins(['acme.counter'], (path) => {
+      // eslint-disable-next-line functional/immutable-data -- records requested paths
+      requested.push(path)
+      const text = source[path]
+      return text === undefined
+        ? Promise.reject(new Error(`missing ${path}`))
+        : Promise.resolve(text)
+    })
+    expect(plugins).toHaveLength(1)
+    expect(plugins[0]?.shared).toEqual({ n: 2 })
+    expect(requested).not.toContain('plugins/acme.counter/editor.js')
+  })
+
+  it('loads nothing when no plugin is enabled', async () => {
+    expect(await loadEnginePlugins([], () => Promise.reject(new Error('unused')))).toEqual([])
+  })
+
+  it('names the missing file when an enabled plugin cannot be read', async () => {
+    await expect(
+      loadEnginePlugins(['acme.counter'], (path) => Promise.reject(new Error(`missing ${path}`))),
+    ).rejects.toThrow('missing plugins/acme.counter/manifest.json')
   })
 })
 

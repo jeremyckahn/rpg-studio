@@ -307,3 +307,36 @@ describe('selectors and ui state', () => {
     expect(handle.store.getState().assets.versions).toEqual({ 'img/c.png': 1 })
   })
 })
+
+describe('playing from a tile', () => {
+  it('returns to the tool you were using once a start is chosen', () => {
+    const handle = createEditorStore({ project: sampleProject() })
+    const { actions } = editorUiSlice
+    handle.store.dispatch(actions.toolSelected('collision'))
+    handle.store.dispatch(actions.toolSelected('play'))
+    expect(handle.store.getState().editorUi.tool).toBe('play')
+    handle.store.dispatch(actions.previewStartChosen({ mapId: 1, x: 2, y: 1 }))
+    const ui = handle.store.getState().editorUi
+    expect(ui.tool).toBe('collision')
+    expect(ui.previewStart).toEqual({ mapId: 1, x: 2, y: 1 })
+    expect(ui.workspacePanel).toBe('rpgstudio.preview')
+  })
+
+  it('never remembers play itself as the tool to return to', () => {
+    const handle = createEditorStore({ project: sampleProject() })
+    const { actions } = editorUiSlice
+    handle.store.dispatch(actions.toolSelected('eraser'))
+    handle.store.dispatch(actions.toolSelected('play'))
+    handle.store.dispatch(actions.toolSelected('play'))
+    handle.store.dispatch(actions.previewStartChosen({ mapId: 1, x: 0, y: 0 }))
+    expect(handle.store.getState().editorUi.tool).toBe('eraser')
+  })
+
+  it('forgets the chosen start when another project is opened', () => {
+    const handle = createEditorStore({ project: sampleProject() })
+    const { actions } = editorUiSlice
+    handle.store.dispatch(actions.previewStartChosen({ mapId: 1, x: 2, y: 1 }))
+    handle.store.dispatch(actions.projectOpened({ folderName: null }))
+    expect(handle.store.getState().editorUi.previewStart).toBeNull()
+  })
+})

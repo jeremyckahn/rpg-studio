@@ -5,6 +5,7 @@ import GridOn from '@mui/icons-material/GridOn'
 import Layers from '@mui/icons-material/Layers'
 import Block from '@mui/icons-material/Block'
 import PanTool from '@mui/icons-material/PanTool'
+import PlayCircle from '@mui/icons-material/PlayCircle'
 import ZoomIn from '@mui/icons-material/ZoomIn'
 import ZoomOut from '@mui/icons-material/ZoomOut'
 import AutoFixNormal from '@mui/icons-material/AutoFixNormal'
@@ -34,6 +35,11 @@ const TOOLS: readonly { tool: MapTool; label: string; icon: React.ReactNode }[] 
   { tool: 'eraser', label: 'Eraser', icon: <AutoFixNormal fontSize="small" /> },
   { tool: 'collision', label: 'Collision (toggle solid cells)', icon: <Block fontSize="small" /> },
   { tool: 'pan', label: 'Pan (drag to move the view)', icon: <PanTool fontSize="small" /> },
+  {
+    tool: 'play',
+    label: 'Play from here (click a tile to start the game there)',
+    icon: <PlayCircle fontSize="small" />,
+  },
 ]
 
 /** The map editor's main view: a toolbar above the PixiJS canvas. */

@@ -57,6 +57,12 @@ export const createPixiSoundBackend = ({ urlFor }: PixiSoundBackendOptions): Sou
         },
       }
     },
+    pause: () => {
+      sound.pauseAll()
+    },
+    resume: () => {
+      sound.resumeAll()
+    },
     unlock: async () => {
       const context = sound.context as { audioContext?: AudioContext }
       await context.audioContext?.resume()

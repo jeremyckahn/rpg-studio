@@ -38,6 +38,32 @@ export const COLLISION_SOLID = 1
 /** The File ▸ Save item; its accessible name includes the shortcut hint. */
 export const SAVE = /^Save Ctrl\+S$/
 
+/** What `GET_PREVIEW_STATE` answers: whether the Play tab is open and what its game is doing. */
+export interface PreviewReport {
+  readonly open: boolean
+  readonly status?: 'starting' | 'running' | 'paused' | 'failed'
+  readonly pausedFor?: readonly ('user' | 'focus' | 'hidden')[]
+  readonly crashed?: boolean
+  readonly keepPlace?: boolean
+  readonly pendingChange?: boolean
+  /** How many times the game was replaced by a reload or restart since the tab opened. */
+  readonly reloads?: number
+  readonly start?: { mapId: number; x: number; y: number } | null
+  readonly notice?: { severity: 'warning' | 'error'; text: string } | null
+  readonly problems?: readonly string[]
+  readonly game?: {
+    readonly tick: number
+    readonly mapId: number
+    readonly mapName: string
+    readonly player: { x: number; y: number; direction: string; moving: boolean }
+    readonly switches: Record<string, boolean>
+    readonly variables: Record<string, number>
+    readonly message: string | null
+    readonly eventRunning: boolean
+    readonly gold: number
+  } | null
+}
+
 /**
  * A page object for the editor. It drives the real UI (clicks, keys, pointer strokes) and reads
  * the project back through `window.RPGStudio.query`, the same read path an AI agent uses, so a
@@ -61,6 +87,32 @@ export const createStudio = (page: Page) => {
       if (!window.RPGStudio) throw new Error('window.RPGStudio is not installed')
       return window.RPGStudio.dispatch(payload)
     }, action)
+
+  const preview = (): Promise<PreviewReport> => query({ type: 'GET_PREVIEW_STATE' })
+  /** The game inside the Play tab: the element that receives the keys. */
+  const gameStage: Locator = page.getByRole('application', { name: 'Game preview' })
+  /** The game's own message box (the Play tab's pause overlay is a status too, outside the stage). */
+  const gameMessage: Locator = gameStage.locator('[role="status"]')
+  /** Opens the Play tab and waits until its game is running. */
+  const openPlay = async (): Promise<void> => {
+    await page.getByRole('tab', { name: 'Play' }).click()
+    await expect.poll(async () => (await preview()).status).toBe('running')
+  }
+  /** Waits for a condition on the running game (position, tick, message), polling its readout. */
+  const waitForGame = async (
+    done: (game: NonNullable<PreviewReport['game']>) => boolean,
+    timeout = 8_000,
+  ): Promise<void> => {
+    await expect
+      .poll(
+        async () => {
+          const { game } = await preview()
+          return game ? done(game) : false
+        },
+        { timeout },
+      )
+      .toBe(true)
+  }
 
   const summary = (): Promise<ProjectSummary> => query({ type: 'GET_PROJECT_SUMMARY' })
   const map = (id = 1): Promise<Tilemap> => query({ type: 'GET_MAP_DATA', id })
@@ -235,6 +287,11 @@ export const createStudio = (page: Page) => {
     projectTitle,
     query,
     dispatch,
+    preview,
+    gameStage,
+    gameMessage,
+    openPlay,
+    waitForGame,
     summary,
     map,
     table,

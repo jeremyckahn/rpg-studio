@@ -112,6 +112,7 @@ export const QuerySchema = z.discriminatedUnion('type', [
     to: PointSchema,
   }),
   z.strictObject({ type: z.literal('LIST_ASSETS') }),
+  z.strictObject({ type: z.literal('GET_PREVIEW_STATE') }),
 ])
 export type Query = z.infer<typeof QuerySchema>
 

@@ -7,6 +7,7 @@ import { type PanelRegistry } from '../plugins/panelRegistry.ts'
 // A whole-statement type import is erased entirely; `{ type X }` would keep an import of the
 // module, and its `virtual:pwa-register` import only resolves in the real app build.
 import type { AppUpdater } from '../pwa/register.ts'
+import { type PreviewHub } from '../preview/previewHub.ts'
 import { type ProjectSession } from '../project/session.ts'
 import { type AppDispatch, type RootState } from '../store/index.ts'
 
@@ -17,6 +18,8 @@ export interface EditorServices {
   readonly textures: TextureProvider
   readonly companion: CompanionClient
   readonly updater: AppUpdater
+  /** The open Play tab, if any, for the Debug panel and `GET_PREVIEW_STATE`. */
+  readonly preview: PreviewHub
 }
 
 const ServicesContext = createContext<EditorServices | null>(null)

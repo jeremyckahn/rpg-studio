@@ -1,8 +1,17 @@
 import { type PayloadAction, createSlice } from '@reduxjs/toolkit'
 import { type DatabaseTableName } from '@rpgstudio/core'
 
-/** `pan` drags the view instead of editing; it is the touch (and trackpad) alternative to Space + drag. */
-export type MapTool = 'pencil' | 'fill' | 'eraser' | 'collision' | 'pan'
+import { type PreviewStart } from '../../preview/previewStart.ts'
+
+/**
+ * `pan` drags the view instead of editing; it is the touch (and trackpad) alternative to Space + drag.
+ * `play` edits nothing either: a click on a tile opens the Play tab with the game starting there, and
+ * the tool you were using comes back.
+ */
+export type MapTool = 'pencil' | 'fill' | 'eraser' | 'collision' | 'pan' | 'play'
+
+/** The workspace panel id of the Play tab (`rpgstudio.preview`); `corePlugins` registers it under this id. */
+export const PREVIEW_PANEL_ID = 'rpgstudio.preview'
 
 export const ZOOM_LEVELS = [1, 2, 3, 4, 6, 8] as const
 export const DEFAULT_ZOOM_INDEX = 2
@@ -31,6 +40,8 @@ export interface EditorUiState {
   readonly selectedMapId: number | null
   readonly selectedLayer: number
   readonly tool: MapTool
+  /** The tool to return to when "Play from here" has been used. */
+  readonly toolBeforePlay: MapTool
   /** Tile id painted by the pencil and fill (1 is the first tileset cell). */
   readonly selectedTile: number
   readonly zoomIndex: number
@@ -40,6 +51,10 @@ export interface EditorUiState {
   readonly databaseTable: DatabaseTableName
   /** Asset the sprite editor should show (a `.png` or `.piskel` path). */
   readonly openAssetPath: string | null
+  /** Where "Play from here" begins; null means the project's own start. Never saved. */
+  readonly previewStart: PreviewStart | null
+  /** Whether an edit made while playing keeps the player's place (on) or starts the game again (off). */
+  readonly previewKeepPlace: boolean
   /** Project revision at the last save; a different current revision means unsaved work. */
   readonly savedRevision: number
   /** Name of the folder on disk the project was opened from, if any. */
@@ -61,6 +76,7 @@ const initialState: EditorUiState = {
   selectedMapId: null,
   selectedLayer: 0,
   tool: 'pencil',
+  toolBeforePlay: 'pencil',
   selectedTile: 1,
   zoomIndex: DEFAULT_ZOOM_INDEX,
   showGrid: true,
@@ -68,6 +84,8 @@ const initialState: EditorUiState = {
   dimInactiveLayers: true,
   databaseTable: 'actors',
   openAssetPath: null,
+  previewStart: null,
+  previewKeepPlace: true,
   savedRevision: 0,
   folderName: null,
   status: null,
@@ -98,6 +116,16 @@ export const editorUiSlice = createSlice({
     toolSelected: (state, action: PayloadAction<MapTool>): EditorUiState => ({
       ...state,
       tool: action.payload,
+      // Remember what to go back to, but never remember "play" itself.
+      toolBeforePlay:
+        action.payload === 'play' && state.tool !== 'play' ? state.tool : state.toolBeforePlay,
+    }),
+    /** "Play from here": remember the tile, open the Play tab and put the previous tool back. */
+    previewStartChosen: (state, action: PayloadAction<PreviewStart>): EditorUiState => ({
+      ...state,
+      previewStart: action.payload,
+      workspacePanel: PREVIEW_PANEL_ID,
+      tool: state.tool === 'play' ? state.toolBeforePlay : state.tool,
     }),
     tileSelected: (state, action: PayloadAction<number>): EditorUiState => ({
       ...state,
@@ -130,6 +158,14 @@ export const editorUiSlice = createSlice({
       openAssetPath: action.payload,
       workspacePanel: 'rpgstudio.pixel-editor',
     }),
+    previewStartSet: (state, action: PayloadAction<PreviewStart | null>): EditorUiState => ({
+      ...state,
+      previewStart: action.payload,
+    }),
+    previewKeepPlaceSet: (state, action: PayloadAction<boolean>): EditorUiState => ({
+      ...state,
+      previewKeepPlace: action.payload,
+    }),
     projectSaved: (
       state,
       action: PayloadAction<{ revision: number; folderName?: string | null }>,
@@ -148,6 +184,7 @@ export const editorUiSlice = createSlice({
       selectedMapId: null,
       selectedLayer: 0,
       openAssetPath: null,
+      previewStart: null,
       savedRevision: 0,
       folderName: action.payload.folderName,
     }),

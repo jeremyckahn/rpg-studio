@@ -649,6 +649,32 @@ test.describe('Play tab', () => {
   test.describe('on a phone', () => {
     test.use({ viewport: { width: 375, height: 812 }, hasTouch: true, isMobile: true })
 
+    test('draws the Keep my place switch whole, with a finger-sized row to tap', async ({
+      studio,
+      page,
+    }) => {
+      await page.getByRole('tab', { name: 'Play' }).tap()
+      await expect.poll(async () => (await studio.preview()).status).toBe('running')
+
+      // On a touch screen every button grows to 44px, which once inflated the switch's thumb out
+      // of its track (it looked squashed, with a quarter-circle thumb beside it).
+      const keep = page.getByRole('switch', { name: 'Keep my place when the project changes' })
+      const sizes = await keep.evaluate((input) => {
+        const thumbHolder = input.parentElement?.getBoundingClientRect()
+        const track = input.parentElement?.parentElement?.getBoundingClientRect()
+        const row = input.closest('label')?.getBoundingClientRect()
+        return { thumb: thumbHolder?.width, track: track?.width, row: row?.height }
+      })
+      expect(sizes.thumb).toBeLessThanOrEqual(26)
+      expect(sizes.track).toBe(40)
+      expect(sizes.row).toBeGreaterThanOrEqual(44)
+
+      await keep.setChecked(false)
+      await expect(keep).not.toBeChecked()
+      await keep.setChecked(true)
+      await expect(keep).toBeChecked()
+    })
+
     test('shows the touch pad inside the game, above which the picture stays, and walks with it', async ({
       studio,
       page,

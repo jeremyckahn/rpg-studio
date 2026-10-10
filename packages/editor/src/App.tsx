@@ -18,6 +18,14 @@ const theme = createTheme({
     MuiButtonBase: {
       styleOverrides: { root: { '@media (pointer: coarse)': { minHeight: 44, minWidth: 44 } } },
     },
+    // A Switch draws its thumb with a ButtonBase of its own, which the rule above would inflate to
+    // 44px and push out of its track. The whole label row is the touch target instead.
+    MuiSwitch: {
+      styleOverrides: { switchBase: { '@media (pointer: coarse)': { minHeight: 0, minWidth: 0 } } },
+    },
+    MuiFormControlLabel: {
+      styleOverrides: { root: { '@media (pointer: coarse)': { minHeight: 44 } } },
+    },
     MuiInputBase: {
       styleOverrides: { root: { '@media (pointer: coarse)': { fontSize: 16 } } },
     },
